@@ -31,7 +31,7 @@ https://developers.cloudflare.com/workers/runtime-apis/nodejs/
 ## Product Docs
 
 Retrieve API references and limits from:
-`/kv/` · `/r2/` · `/d1/` · `/durable-objects/` · `/queues/` · `/vectorize/` · `/workers-ai/` · `/agents/`
+`/kv/` · `/r2/` · `/d1/` · `/durable-objects/` · `/queues/` · `/vectorize/` · `/agents/`
 
 ## Best Practices (conditional)
 
@@ -39,3 +39,62 @@ If the application uses Durable Objects or Workflows, refer to the relevant best
 
 - Durable Objects: https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/
 - Workflows: https://developers.cloudflare.com/workflows/build/rules-of-workflows/
+
+---
+
+# pm-bot — project context
+
+Serverless port of the Kalshi trading bot. Source of truth for strategy: `~/Documents/GitHub/the Python reference engine/` (Python). **Full architecture, chunk plan, decisions, and cost-at-scale analysis: see [`docs/PLAN.md`](./docs/PLAN.md).**
+
+## Infrastructure
+
+- **CF account ID:** `8c995c329fee2ee6ab33d9d3d6a30e55`
+- **CF zone ID ():** `9f300065a436e6f73d9d86a13f49607c`
+- **CF API tokens:** `/Users/mo/Documents/clients/dev/tokens/cloudflare-tokens.md`
+  - OAuth (`cfoat_*`) — for wrangler deploys. **No DNS scope.**
+  - User API (`cfut_*`) — for DNS / zone-level ops.
+- **D1 database:** `pm-bot-prod` — ID `cd54a509-f2e2-4f6f-97a5-a53afa6c0a36`
+- **R2 bucket:** `pm-bot` — model artifacts + market data archive
+- **Workers Paid plan enabled** — $5/mo base
+- **Custom domain:** `` (A record → 192.0.2.1, proxied)
+  - `/pm/*` → dashboard (CF Access protected)
+  - `/api/pm/*` → API (CF Access protected, service token for programmatic access)
+- **CF Access app:** name `bot`, path-based, 24h session, IDP and policy IDs in user's CF dashboard
+- **Repo:** `https://github.com/` (private)
+
+## Deploy workflow
+
+```bash
+cd ~/Documents/GitHub/pm-bot
+npm run deploy          # = wrangler deploy
+```
+
+CHANGELOG / commit history lives in git. Each chunk lands as a commit on main.
+
+## Heads-up: the `bot.` prefix is in flux
+
+The user flagged on 2026-08-08 that "the bot prefix and some other things going in for the Prediction Market Lab pm project" are changing. **Before any DNS or routing change for pm-bot, ask the user "is `` still the right prefix?"** before writing any rules or records.
+
+## Multi-tenant from day 1
+
+Even for a single user, all tables get a `user_id` column (default `'default'`). DO addressed by `idFromName(`user:${userId}`)`. Adding a second user = config change, not refactor.
+
+## Decisions to honor
+
+See `docs/PLAN.md` for the full list. Top three:
+- **CF stack over Fly.io** — chose Option C for the analysis + upgrade loop.
+- **MiniMax-M2.7-highspeed** for LLM (don't compromise quality for cost).
+- **WebSocket hibernation is mandatory** on the DO — without it, $50-140/mo. With it, $0.01-0.50/mo.
+
+## Keys (verified)
+
+- `KALSHI_PROD_KEY_ID` — at `~/keys/kalshi-prod-keyid.txt`
+- `KALSHI_PROD_PRIVATE_KEY` (PEM) — at `~/keys/kalshi-prod.pem`
+- (Real money: one small test trade placed in past. Currently paper-only. Will go to CF Worker secrets via `wrangler secret put` in Chunk 9.)
+
+## Telegram bridge setup (when ready, Chunk 6)
+
+1. `@BotFather` in Telegram → `/newbot` → get bot token
+2. Send `/start` to your new bot from your Telegram
+3. Get your chat_id via `https://api.telegram.org/bot<TOKEN>/getUpdates`
+4. `wrangler secret put TELEGRAM_BOT_TOKEN` and `wrangler secret put TELEGRAM_CHAT_ID`
