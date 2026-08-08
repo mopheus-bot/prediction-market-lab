@@ -162,6 +162,14 @@ export default {
 		if (path === "/api/pm/bot/place-test-order" && request.method === "POST") {
 			return forwardToBot(env, request, "/place-test-order");
 		}
+		// Auto-start (chunk 9.8): idempotent bot start. If
+		// already running, returns current state. Otherwise
+		// starts with default config. The dashboard calls
+		// this on every page load so the user never has
+		// to manually push Start.
+		if (path === "/api/pm/bot/auto-start" && request.method === "POST") {
+			return forwardToBot(env, request, "/auto-start");
+		}
 
 		// ─── API: /api/pm/{status,summary,trades,signals,scans,cron-runs} (chunk 6) ──
 		if (path === "/api/pm/status" && request.method === "GET") {

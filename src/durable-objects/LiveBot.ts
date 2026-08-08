@@ -421,6 +421,43 @@ export class LiveBot implements DurableObject {
 
 		switch (path) {
 			case "/status": {
+				// Compute unrealized PnL per open position.
+				// Mark is the latest of: orderbook mid, last
+				// trade price, entry price (no PnL without
+				// a mark). Unrealized PnL is computed in
+				// cents: positive = winning, negative = losing.
+				const openPositionsWithPnl = Object.values(state.risk_state.open_positions).map(
+					(p) => {
+						const ts = state.tickers[p.ticker];
+						let markCents: number | null = null;
+						if (ts?.book) {
+							markCents = orderbookMidCents({
+								ticker: p.ticker,
+								yes_levels: ts.book.yes_levels,
+								no_levels: ts.book.no_levels,
+							});
+						}
+						if (markCents === null) markCents = ts?.last_trade_price_cents ?? null;
+						if (markCents === null) markCents = p.entry_price; // no mark yet → PnL = 0
+						const unrealizedCents =
+							p.side === "yes"
+								? (markCents - p.entry_price) * p.size
+								: (p.entry_price - (100 - markCents)) * p.size;
+						return {
+							ticker: p.ticker,
+							side: p.side,
+							size: p.size,
+							entry_price: p.entry_price,
+							cost_cents: p.cost_cents,
+							mark_cents: markCents,
+							unrealized_pnl_cents: unrealizedCents,
+						};
+					},
+				);
+				const totalUnrealizedCents = openPositionsWithPnl.reduce(
+					(sum, p) => sum + p.unrealized_pnl_cents,
+					0,
+				);
 				return Response.json({
 					ok: true,
 					connected: this._connected,
@@ -435,15 +472,8 @@ export class LiveBot implements DurableObject {
 					risk: {
 						bankroll_cents: state.risk_state.bankroll_cents,
 						peak_bankroll_cents: state.risk_state.peak_bankroll_cents,
-						open_positions: Object.values(state.risk_state.open_positions).map(
-							(p) => ({
-								ticker: p.ticker,
-								side: p.side,
-								size: p.size,
-								entry_price: p.entry_price,
-								cost_cents: p.cost_cents,
-							}),
-						),
+						open_positions: openPositionsWithPnl,
+						total_unrealized_pnl_cents: totalUnrealizedCents,
 						consecutive_losses: state.risk_state.consecutive_losses,
 						drawdown_pause_until_tick: state.risk_state.drawdown_pause_until_tick,
 						cooldown_until_tick: state.risk_state.cooldown_until_tick,
@@ -473,6 +503,37 @@ export class LiveBot implements DurableObject {
 				const config = (await request.json().catch(() => ({}))) as LiveBotConfig;
 				await this.start(config);
 				return Response.json({ ok: true, started: true, config: state.config });
+			}
+
+			case "/auto-start": {
+				// Idempotent: if the WS is actually
+				// connected, return the current state
+				// without restarting. Otherwise start
+				// with default config. The check is on
+				// `this._connected` (not the configured
+				// tickers) because state.config may be
+				// set from a prior /start even if the
+				// current isolate is fresh after a
+				// deploy — the user expects the bot
+				// to be running, and re-starting is
+				// cheap.
+				if (this._connected) {
+					return Response.json({
+						ok: true,
+						started: false,
+						already_running: true,
+						connected: this._connected,
+						config: state.config,
+					});
+				}
+				await this.start({});
+				return Response.json({
+					ok: true,
+					started: true,
+					already_running: false,
+					connected: this._connected,
+					config: state.config,
+				});
 			}
 
 			case "/stop": {

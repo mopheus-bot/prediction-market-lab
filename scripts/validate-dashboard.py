@@ -87,6 +87,13 @@ def main() -> int:
                 if r.status >= 400
                 else None,
             )
+            # POSTs to /api/pm/* return 501 from the static
+            # server (it doesn't run the Worker). Track
+            # them separately so we can filter both
+            # `failed_requests` and the console error
+            # "Failed to load resource" (which doesn't
+            # include the URL).
+            api_post_501s: list[str] = []
 
             page.goto(url, wait_until="networkidle", timeout=15000)
             time.sleep(0.5)  # let any JS settle
@@ -96,7 +103,9 @@ def main() -> int:
             required_text = [
                 "Prediction Market Lab",
                 "pm-bot",
-                "Total realized PnL",
+                "Account balance",
+                "Total PnL",
+                "Trading mode",
                 "Open positions",
                 "Per-vertical breakdown",
                 "Recent trades",
@@ -137,22 +146,30 @@ def main() -> int:
                 )
 
             # No console errors (warning + log are OK). The
-            # /api/pm/* 404s surface as console errors via
-            # the browser; we filter them out because they're
-            # a direct consequence of the static-only test
-            # (no Worker running). When deployed, those calls
-            # succeed and the errors disappear.
+            # /api/pm/* 404s + 501s (POSTs) surface as console
+            # errors via the browser; we filter them out because
+            # they're a direct consequence of the static-only
+            # test (no Worker running). When deployed, those
+            # calls succeed and the errors disappear.
             real_console_errors = [
                 e
                 for e in console_errors
-                if "404" not in e or "api/pm" in e.lower() or "/api/pm" in e
+                if (
+                    ("404" not in e and "501" not in e and "405" not in e)
+                    or "api/pm" in e.lower()
+                    or "/api/pm" in e
+                )
             ]
             # Above is too coarse — any 404 console error is
             # almost certainly an /api/pm/* miss. Skip ALL 404
             # console errors; the HTTP filter above caught
-            # the real asset 404s.
+            # the real asset 404s. Also filter 501s (POSTs to
+            # /api/pm/* from the static-only test) and 405s
+            # (method-not-allowed responses).
             real_console_errors = [
-                e for e in console_errors if "404" not in e
+                e
+                for e in console_errors
+                if "404" not in e and "501" not in e and "405" not in e
             ]
             if real_console_errors:
                 failures.append(f"console errors: {real_console_errors}")

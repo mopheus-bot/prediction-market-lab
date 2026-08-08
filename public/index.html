@@ -648,6 +648,100 @@
 				margin-top: 20px;
 			}
 
+			/* ─── Hero overview (chunk 9.8) ─── */
+			.hero-grid {
+				display: grid;
+				grid-template-columns: 1.4fr 1fr 1fr 1fr;
+				gap: 16px;
+			}
+			.stat-card {
+				background: var(--bg-1);
+				border: 1px solid var(--card-border);
+				border-radius: 12px;
+				padding: 18px 20px;
+				box-shadow: var(--shadow);
+			}
+			.stat-card.stat-large {
+				background: linear-gradient(135deg, var(--bg-1) 0%, rgba(58, 111, 170, 0.06) 100%);
+			}
+			.stat-label {
+				font-size: 11px;
+				color: var(--ink-faint);
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				font-weight: 500;
+			}
+			.stat-num {
+				font-size: 28px;
+				font-weight: 600;
+				color: var(--ink);
+				line-height: 1.1;
+				letter-spacing: -0.02em;
+				margin: 8px 0 4px;
+			}
+			.stat-card.stat-large .stat-num { font-size: 36px; }
+			.stat-num.pos { color: var(--green); }
+			.stat-num.neg { color: var(--red); }
+			.stat-sub {
+				font-size: 11px;
+				color: var(--ink-faint);
+				margin-top: 2px;
+			}
+			.mono { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+			@media (max-width: 900px) {
+				.hero-grid { grid-template-columns: 1fr 1fr; }
+			}
+			@media (max-width: 540px) {
+				.hero-grid { grid-template-columns: 1fr; }
+			}
+
+			/* ─── Card blurb (ELI5 one-liner) ─── */
+			.card-blurb {
+				font-size: 12px;
+				color: var(--ink-faint);
+				margin: 4px 0 12px;
+				line-height: 1.5;
+				font-style: italic;
+				max-width: 70ch;
+			}
+
+			/* ─── Live indicator (chunk 9.8) ─── */
+			.live-indicator {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 11px;
+				color: var(--ink-faint);
+				padding: 4px 10px;
+				border-radius: 999px;
+				border: 1px solid var(--card-border);
+				background: var(--bg-3);
+				margin-right: 4px;
+			}
+			.live-dot {
+				width: 7px;
+				height: 7px;
+				border-radius: 50%;
+				background: var(--green);
+				box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+				animation: live-pulse 1.8s ease-in-out infinite;
+			}
+			.live-dot.stale {
+				background: #f59e0b;
+				animation: none;
+				box-shadow: none;
+			}
+			.live-dot.err {
+				background: var(--red);
+				animation: none;
+				box-shadow: none;
+			}
+			@keyframes live-pulse {
+				0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+				70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+				100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+			}
+
 			/* ─── CF Workers analytics (chunk 9.5) ─── */
 			.cf-stats {
 				display: grid;
@@ -760,41 +854,39 @@
 					</div>
 				</div>
 				<div class="brand-right">
+					<span class="live-indicator" id="live-indicator">
+						<span class="live-dot" id="live-dot"></span>
+						<span id="live-text" class="muted mono">connecting…</span>
+					</span>
 					<span class="status-pill" id="status-pill">
 						<span class="status-dot unknown" id="status-dot"></span>
-						<span id="status-text">connecting…</span>
+						<span id="status-text">live</span>
 					</span>
 					<span class="muted mono" id="model-version" style="font-size: 11px;">…</span>
 				</div>
 			</header>
 
-			<!-- Hero PnL + stats grid -->
-			<section class="grid" style="margin-bottom: 24px;">
-				<div class="col-8">
-					<div class="pnl-hero">
-						<div class="label">Total realized PnL</div>
-						<div class="num" id="pnl-total">— —</div>
-						<div class="delta" id="pnl-delta"><span class="muted">loading…</span></div>
-					</div>
+			<!-- Hero overview: 4 stat cards (chunk 9.8) -->
+			<section class="grid hero-grid" style="margin-bottom: 24px;">
+				<div class="stat-card stat-large">
+					<div class="stat-label">Account balance</div>
+					<div class="stat-num mono" id="hero-balance">$—</div>
+					<div class="stat-sub" id="hero-balance-sub">real money on Kalshi</div>
 				</div>
-				<div class="col-4">
-					<div class="card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
-						<div>
-							<div class="card-title"><span class="dot"></span>Counts</div>
-							<div class="stat-num" id="count-trades">—</div>
-							<div class="stat-label">trades</div>
-						</div>
-						<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
-							<div>
-								<div class="stat-num" id="count-signals" style="font-size: 22px;">—</div>
-								<div class="stat-sub">signals</div>
-							</div>
-							<div>
-								<div class="stat-num" id="count-open" style="font-size: 22px;">—</div>
-								<div class="stat-sub">open positions</div>
-							</div>
-						</div>
-					</div>
+				<div class="stat-card">
+					<div class="stat-label">Total PnL</div>
+					<div class="stat-num mono" id="hero-pnl-total">$0.00</div>
+					<div class="stat-sub">realized + unrealized</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-label">24h PnL</div>
+					<div class="stat-num mono" id="hero-pnl-24h">$0.00</div>
+					<div class="stat-sub" id="hero-pnl-24h-sub">—</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-label">Fees paid</div>
+					<div class="stat-num mono" id="hero-fees">$0.00</div>
+					<div class="stat-sub">Kalshi taker fees</div>
 				</div>
 			</section>
 
@@ -806,6 +898,7 @@
 							<span class="dot"></span>Trading mode
 							<span class="pill paper" id="mode-pill">paper</span>
 						</div>
+						<div class="card-blurb">Pause stops new trades, paper is fake money, Go live places real orders on Kalshi. Kill switch is the panic button.</div>
 						<div class="mode-buttons">
 							<button class="btn mode-btn" id="btn-pause" data-mode="off">
 								<span class="mode-num">1 · pause</span>
@@ -835,6 +928,7 @@
 				<div class="col-4">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Caps & today</div>
+						<div class="card-blurb">Hard limits. The bot refuses to trade past these even if it's "feeling confident." Bump via the API if you want to test bigger.</div>
 						<div class="caps-row">
 							<div class="caps-label">Account balance</div>
 							<div class="caps-val" id="caps-balance">$—</div>
@@ -859,6 +953,7 @@
 				<div class="col-12">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Last 5 trades</div>
+						<div class="card-blurb">The most recent trades, paper + real combined. Each row shows the mode the bot was in when the trade fired.</div>
 						<table class="tbl last-trades-tbl">
 							<thead>
 								<tr>
@@ -926,6 +1021,7 @@
 				<div class="col-6">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Open positions</div>
+						<div class="card-blurb">Trades the bot is currently holding. PnL is "unrealized" — it only becomes realized when the position closes.</div>
 						<div id="positions-list">
 							<div class="empty">no open positions</div>
 						</div>
@@ -934,6 +1030,7 @@
 				<div class="col-6">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Per-vertical breakdown (24h)</div>
+						<div class="card-blurb">How each prediction strategy is doing. Weather + economic have the reversion model; politics + sports are still on the naive baseline.</div>
 						<table class="tbl" id="vertical-tbl">
 							<thead>
 								<tr>
@@ -956,6 +1053,7 @@
 				<div class="col-6">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Recent trades</div>
+						<div class="card-blurb">The 20 most recent fills. Realized PnL is set when the position closes; open positions show "—".</div>
 						<table class="tbl">
 							<thead>
 								<tr>
@@ -977,6 +1075,7 @@
 				<div class="col-6">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Recent signals</div>
+						<div class="card-blurb">The model's "wants to trade" calls. Some signals don't become trades because the risk engine rejected them.</div>
 						<table class="tbl">
 							<thead>
 								<tr>
@@ -1001,6 +1100,7 @@
 				<div class="col-6">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Daily recap (today)</div>
+						<div class="card-blurb">Yesterday's summary. The daily cron writes this to R2 at 06:00 UTC every day, then posts a digest to Telegram.</div>
 						<div id="recap-body">
 							<div class="empty">no recap yet — runs at 06:00 UTC</div>
 						</div>
@@ -1009,6 +1109,7 @@
 				<div class="col-6">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Cron runs (latest 10)</div>
+						<div class="card-blurb">4 scheduled jobs: scan (every 15min), news (every 6h), daily (06:00 UTC), train (Sunday 00:00 UTC). Status = success or error.</div>
 						<table class="tbl">
 							<thead>
 								<tr>
@@ -1034,6 +1135,7 @@
 							<span class="dot"></span>Cloudflare Workers usage (last 24h)
 							<a id="cf-dashboard-link" href="#" target="_blank" rel="noopener" style="margin-left:auto; font-size:11px; color: var(--accent); text-decoration:none;">open CF dashboard ↗</a>
 						</div>
+						<div class="card-blurb">How busy the bot is on Cloudflare's edge. Free up to 100K requests/day; we're nowhere near that.</div>
 						<div class="cf-stats" id="cf-stats">
 							<div class="cf-stat">
 								<div class="cf-stat-num" id="cf-requests">—</div>
@@ -1068,6 +1170,7 @@
 							<span class="dot"></span>Cost (last 24h, estimated)
 							<a id="cost-cf-dashboard" href="#" target="_blank" rel="noopener" style="margin-left:auto; font-size:11px; color: var(--accent); text-decoration:none;">open CF billing ↗</a>
 						</div>
+						<div class="card-blurb">Estimates, not invoiced. Cloudflare covers free tier; MiniMax (LLM) is the only real cost. Confirm at the CF billing dashboard.</div>
 						<div class="cost-grid">
 							<div class="cost-card">
 								<div class="cost-num" id="cost-total">$—</div>
@@ -1147,17 +1250,58 @@
 				$("status-text").textContent = text;
 			}
 
-			function renderPnl(status) {
-				const pnl = status.pnl?.total_cents ?? 0;
-				const pnl24 = status.pnl?.last_24h_cents ?? 0;
-				const cls = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "";
-				$("pnl-total").className = `num ${cls}`;
-				$("pnl-total").textContent = fmtCents(pnl);
-				const dCls = pnl24 > 0 ? "pos" : pnl24 < 0 ? "neg" : "muted";
-				$("pnl-delta").innerHTML = `<span class="${dCls}">${fmtCents(pnl24)}</span> <span class="muted">last 24h</span>`;
-				$("count-trades").textContent = fmtNum(status.counts?.n_trades);
-				$("count-signals").textContent = fmtNum(status.counts?.n_signals);
-				$("count-open").textContent = fmtNum(status.counts?.n_open_positions);
+			// Live indicator (chunk 9.8). Updated on every
+			// successful refresh. Dot pulses green when data
+			// is fresh (<60s). Turns amber when stale (60-300s).
+			// Red on error.
+			let _lastGoodRefreshMs = 0;
+			let _lastRefreshError = null;
+			function setLiveIndicator(state, text) {
+				const dot = $("live-dot");
+				if (dot) {
+					dot.classList.remove("stale", "err");
+					if (state === "stale") dot.classList.add("stale");
+					else if (state === "err") dot.classList.add("err");
+				}
+				const el = $("live-text");
+				if (el) el.textContent = text;
+			}
+
+			// Render the 4 hero stat cards (chunk 9.8):
+			// account balance, total PnL, 24h PnL, fees.
+			// Pulls from /api/pm/bot/status + /api/pm/summary.
+			function renderHero(status, summary) {
+				// Account balance (live from Kalshi).
+				const bal = window._lastBalance;
+				if (bal && bal.ok) {
+					$("hero-balance").textContent = `$${bal.balance_dollars}`;
+					$("hero-balance-sub").textContent =
+						`portfolio $${bal.portfolio_value_dollars} on Kalshi`;
+				} else {
+					$("hero-balance").textContent = "—";
+					$("hero-balance-sub").textContent = "loading balance…";
+				}
+				// Total PnL = realized (closed trades) + unrealized (open).
+				const realized = summary?.recap?.realized_cents ?? 0;
+				const unrealized = status?.risk?.total_unrealized_pnl_cents ?? 0;
+				const totalPnl = realized + unrealized;
+				const totalEl = $("hero-pnl-total");
+				totalEl.textContent = fmtCents(totalPnl);
+				totalEl.classList.remove("pos", "neg");
+				if (totalPnl > 0) totalEl.classList.add("pos");
+				else if (totalPnl < 0) totalEl.classList.add("neg");
+				// 24h PnL from summary recap.
+				const pnl24 = summary?.recap?.last_24h_cents ?? 0;
+				const pnl24El = $("hero-pnl-24h");
+				pnl24El.textContent = fmtCents(pnl24);
+				pnl24El.classList.remove("pos", "neg");
+				if (pnl24 > 0) pnl24El.classList.add("pos");
+				else if (pnl24 < 0) pnl24El.classList.add("neg");
+				const nTrades24 = summary?.recap?.n_trades_24h ?? 0;
+				$("hero-pnl-24h-sub").textContent = `${fmtNum(nTrades24)} trades`;
+				// Total fees paid (cumulative).
+				const feesCents = status?.counts?.total_fees_cents ?? 0;
+				$("hero-fees").textContent = fmtCents(feesCents);
 			}
 
 			function renderPositions(positions) {
@@ -1171,11 +1315,14 @@
 					const pnl = p.unrealized_pnl_cents;
 					const pnlCls = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "zero";
 					const pnlStr = pnl === null || pnl === undefined ? "—" : fmtCents(pnl);
+					const markStr = p.mark_cents === null || p.mark_cents === undefined
+						? ""
+						: ` · mark ${esc(p.mark_cents)}c`;
 					return `
 						<div class="position-row">
 							<div>
 								<div><span class="position-ticker">${esc(p.ticker)}</span><span class="side-badge ${sideCls}">${esc(p.side.toUpperCase())}</span></div>
-								<div class="position-meta">${esc(p.size)} contracts @ ${esc(p.entry_price_cents)}c · open ${esc(fmtTime(p.opened_ts))}</div>
+								<div class="position-meta">${esc(p.size)} contracts @ ${esc(p.entry_price)}c${markStr}</div>
 							</div>
 							<div class="pnl-pill ${pnlCls}">${pnlStr}</div>
 						</div>
@@ -1299,53 +1446,40 @@
 			// ─── Bot control → derive open positions from the trades table ───
 			async function fetchOpenPositions() {
 				try {
-					// Open positions are the LATEST trade per ticker
-					// that is "open" with no subsequent "close".
-					// The trades API returns all trades; we derive
-					// on the client. (Cheap: we already loaded
-					// trades for the table.)
-					const data = await fetchJSON("/api/pm/trades?limit=200");
-					const trades = data.trades ?? [];
-					const sorted = [...trades].sort((a, b) => b.id - a.id);
-					const seen = new Set();
-					const opens = [];
-					for (const t of sorted) {
-						if (seen.has(t.ticker)) continue;
-						seen.add(t.ticker);
-						if (t.action === "open") opens.push(t);
-					}
-					// Compute unrealized PnL from the most recent
-					// mid price in the bot state. The bot status
-					// doesn't expose per-position marks (that's a
-					// chunk 7+ enhancement); for now, show the
-					// entry price and "— —" for the PnL.
-					return opens.map((t) => ({
-						ticker: t.ticker,
-						side: t.side,
-						size: t.size,
-						entry_price_cents: t.price_cents,
-						opened_ts: t.ts,
-						unrealized_pnl_cents: null, // TODO chunk 7+: bot status should include per-position marks
-					}));
-				} catch (e) {
+					// Pull open positions from the bot's live
+					// state (chunk 9.8: each position comes
+					// with mark + unrealized_pnl_cents).
+					// Cheaper than computing on the client,
+					// and the mark data is the bot's own
+					// (most recent WS frame, not the dashboard
+					// pulling its own orderbook).
+					const data = await fetchJSON("/api/pm/bot/status");
+					return data?.risk?.open_positions ?? [];
+				} catch (_e) {
 					return [];
 				}
 			}
 
 			// ─── Main refresh ───
 			async function refresh() {
+				const t0 = Date.now();
+				let okCount = 0;
+				const tick = (n) => { okCount += n; };
 				try {
 					const [status, summary, scans, signals, trades, crons, botStatus] = await Promise.all([
-						fetchJSON("/api/pm/status").catch(() => null),
-						fetchJSON("/api/pm/summary").catch(() => null),
-						fetchJSON("/api/pm/scans").catch(() => null),
-						fetchJSON("/api/pm/signals?limit=20").catch(() => ({ signals: [] })),
-						fetchJSON("/api/pm/trades?limit=20").catch(() => ({ trades: [] })),
-						fetchJSON("/api/pm/cron-runs?limit=10").catch(() => ({ runs: [] })),
-						fetchJSON("/api/pm/bot/status").catch(() => null),
+						fetchJSON("/api/pm/status").then((v) => { tick(1); return v; }).catch(() => null),
+						fetchJSON("/api/pm/summary").then((v) => { tick(1); return v; }).catch(() => null),
+						fetchJSON("/api/pm/scans").then((v) => { tick(1); return v; }).catch(() => null),
+						fetchJSON("/api/pm/signals?limit=20").then((v) => { tick(1); return v; }).catch(() => ({ signals: [] })),
+						fetchJSON("/api/pm/trades?limit=20").then((v) => { tick(1); return v; }).catch(() => ({ trades: [] })),
+						fetchJSON("/api/pm/cron-runs?limit=10").then((v) => { tick(1); return v; }).catch(() => ({ runs: [] })),
+						fetchJSON("/api/pm/bot/status").then((v) => { tick(1); return v; }).catch(() => null),
 					]);
 
-					if (status) renderPnl(status);
+					// Chunk 9.8: hero stat cards.
+					if (status || botStatus) {
+						renderHero(botStatus, summary);
+					}
 					if (summary?.recap) renderRecap(summary.recap);
 					if (signals?.signals) renderSignals(signals.signals);
 					if (trades?.trades) {
@@ -1384,9 +1518,23 @@
 					} else {
 						setStatusPill("unknown", "bot · ?");
 					}
+					// Chunk 9.8: live indicator. OK if at
+					// least 5 of 7 endpoints returned data.
+					_lastLastRefreshMs = Date.now();
+					_lastRefreshError = null;
+					if (okCount >= 5) {
+						const ageSec = Math.round((Date.now() - t0) / 1000);
+						setLiveIndicator("live", `live · ${ageSec}s ago · ${okCount}/7 ok`);
+					} else if (okCount > 0) {
+						setLiveIndicator("stale", `partial · ${okCount}/7 ok · retrying…`);
+					} else {
+						setLiveIndicator("err", "refresh failed");
+					}
 				} catch (e) {
 					console.error("refresh failed", e);
+					_lastRefreshError = e instanceof Error ? e.message : String(e);
 					setStatusPill("unknown", "refresh failed");
+					setLiveIndicator("err", `err · ${_lastRefreshError.slice(0, 40)}`);
 				}
 			}
 
@@ -1781,6 +1929,30 @@
 			});
 
 			// ─── Initial load + auto-refresh ───
+			// Chunk 9.8: auto-start. On first dashboard
+			// load, if the bot isn't running, hit
+			// /api/pm/bot/auto-start. Idempotent — does
+			// nothing if already running. The user
+			// never has to push Start manually.
+			async function autoStartOnLoad() {
+				try {
+					const r = await fetch("/api/pm/bot/auto-start", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: "{}",
+					});
+					const body = await r.json().catch(() => null);
+					if (body && body.started) {
+						toast("bot auto-started — WS connecting…", true);
+					} else if (body && body.already_running) {
+						// no-op; just normal refresh
+					}
+				} catch (_e) {
+					// Silent — refresh will still work,
+					// the bot just won't be auto-started.
+				}
+			}
+			autoStartOnLoad();
 			refresh();
 			refreshBalance();
 			// CF analytics: 90s cadence. The CF GraphQL
