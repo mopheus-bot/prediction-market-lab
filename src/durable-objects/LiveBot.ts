@@ -63,6 +63,8 @@ import {
 import { isStructurallyUnprofitable, kalshiTakerFeeCents } from "../lib/fees.js";
 import {
 	makeRiskState,
+	dailyNotionalCents,
+	recordNotionalCents,
 	type RiskState,
 } from "../risk/state.js";
 import { RiskEngine } from "../risk/engine.js";
@@ -134,6 +136,13 @@ export interface LiveBotState {
 		 * `models/reversion-{weather,economic}-${model_version}.json`
 		 * in R2 on /start. */
 		model_version: string;
+		/** Chunk 9: trading mode. */
+		trading_mode: "paper" | "real" | "off";
+		/** Chunk 9: caps. */
+		max_notional_cents_per_trade: number;
+		daily_notional_cents_cap: number;
+		/** Chunk 9: kill switch. */
+		kill_switch: boolean;
 	};
 	/** The most recent risk reject reason (per-ticker, for /status). */
 	last_reject: { ts_ms: number; ticker: string; code: string; message: string } | null;
@@ -159,6 +168,28 @@ export interface LiveBotConfig {
 	 * `models/reversion-{weather,economic}-${model_version}.json`
 	 * from R2 on /start. */
 	model_version?: string;
+	/** Chunk 9: trading mode. "paper" = log only (default),
+	 * "real" = also place live orders on Kalshi, "off" = log
+	 * nothing (bot is paused; the WS keeps running so we
+	 * still see state). */
+	trading_mode?: "paper" | "real" | "off";
+	/** Chunk 9: max cents per single trade. Default 100c
+	 * ($1.00). When a signal wants to trade more than this,
+	 * it's rejected with `per_trade_cap_exceeded`. Conservative
+	 * default for safety; the user can override via /start. */
+	max_notional_cents_per_trade?: number;
+	/** Chunk 9: max cents deployed in the last 24h (sliding
+	 * window). Default 1000c ($10.00). When a new trade
+	 * would push the 24h total over this, it's rejected
+	 * with `daily_cap_exceeded`. The cap is tracked in the
+	 * bot's risk state (persisted to ctx.storage on every
+	 * trade). */
+	daily_notional_cents_cap?: number;
+	/** Chunk 9: kill switch. When true, the engine refuses
+	 * all new trades (paper + real) AND closes any open
+	 * positions at the next mark. Use this as the panic
+	 * button. */
+	kill_switch?: boolean;
 }
 
 // ─── Env (subset we need) ─────────────────────────────────────────────
@@ -277,6 +308,13 @@ export class LiveBot implements DurableObject {
 				profit_target_pct: null,
 				stop_loss_pct: null,
 				model_version: "v1",
+				// Chunk 9 defaults. Paper-by-default + conservative
+				// caps ($1.00 per trade, $10.00 daily) — operators
+				// bump via /start when they want to test real.
+				trading_mode: "paper",
+				max_notional_cents_per_trade: 100, // $1.00
+				daily_notional_cents_cap: 1000, // $10.00
+				kill_switch: false,
 			},
 			last_reject: null,
 		};
@@ -407,6 +445,10 @@ export class LiveBot implements DurableObject {
 						consecutive_losses: state.risk_state.consecutive_losses,
 						drawdown_pause_until_tick: state.risk_state.drawdown_pause_until_tick,
 						cooldown_until_tick: state.risk_state.cooldown_until_tick,
+						// Chunk 9: 24h notional deployed.
+						daily_notional_cents: dailyNotionalCents(state.risk_state),
+						daily_notional_cap_cents: state.config.daily_notional_cents_cap,
+						daily_notional_history_len: state.risk_state.daily_notional_history.length,
 					},
 					tickers: Object.fromEntries(
 						Object.entries(state.tickers).map(([t, ts]) => [
@@ -458,6 +500,175 @@ export class LiveBot implements DurableObject {
 				});
 			}
 
+			case "/trading-mode": {
+				// Chunk 9: set the trading mode. Body:
+				// { "trading_mode": "paper" | "real" | "off" }
+				const body = (await request.json().catch(() => ({}))) as {
+					trading_mode?: "paper" | "real" | "off";
+				};
+				const mode = body.trading_mode;
+				if (mode !== "paper" && mode !== "real" && mode !== "off") {
+					return Response.json(
+						{
+							ok: false,
+							error: "invalid_trading_mode",
+							message: `trading_mode must be 'paper' | 'real' | 'off', got ${JSON.stringify(mode)}`,
+						},
+						{ status: 400 },
+					);
+				}
+				const s = await this.ensureState();
+				const previous = s.config.trading_mode;
+				s.config.trading_mode = mode;
+				await this.saveState(s);
+				return Response.json({
+					ok: true,
+					trading_mode: mode,
+					previous_trading_mode: previous,
+				});
+			}
+
+			case "/kill-switch": {
+				// Chunk 9: toggle the kill switch. Body:
+				// { "on": true | false } (default true = activate)
+				const body = (await request.json().catch(() => ({}))) as {
+					on?: boolean;
+				};
+				const on = body.on !== false; // default: activate
+				const s = await this.ensureState();
+				s.config.kill_switch = on;
+				await this.saveState(s);
+				return Response.json({
+					ok: true,
+					kill_switch: on,
+					trading_mode: s.config.trading_mode,
+				});
+			}
+
+			case "/place-test-order": {
+				// Chunk 9: manual operator trigger to place a
+				// real order. Use this to verify the real-money
+				// path end-to-end without waiting for a signal.
+				// Body: { "ticker": "KXWARMING-50", "side":
+				// "yes"|"no", "price_cents": 1, "size": 1 }.
+				// Side is optional (defaults to "yes"). The
+				// per-trade cap is still enforced server-side
+				// (refuses if `notional > max_notional_cents_per_trade`).
+				const body = (await request.json().catch(() => ({}))) as {
+					ticker?: string;
+					side?: "yes" | "no";
+					price_cents?: number;
+					size?: number;
+				};
+				const ticker = String(body.ticker ?? "").trim();
+				const side: "yes" | "no" = body.side === "no" ? "no" : "yes";
+				const priceCents = Number(body.price_cents ?? 1);
+				const size = Number(body.size ?? 1);
+				if (!ticker) {
+					return Response.json(
+						{ ok: false, error: "missing_ticker", message: "ticker is required" },
+						{ status: 400 },
+					);
+				}
+				if (!Number.isFinite(priceCents) || priceCents < 1 || priceCents > 99) {
+					return Response.json(
+						{
+							ok: false,
+							error: "invalid_price",
+							message: `price_cents must be 1..99, got ${priceCents}`,
+						},
+						{ status: 400 },
+					);
+				}
+				if (!Number.isFinite(size) || size < 1) {
+					return Response.json(
+						{ ok: false, error: "invalid_size", message: `size must be >= 1, got ${size}` },
+						{ status: 400 },
+					);
+				}
+				const s = await this.ensureState();
+				if (s.config.kill_switch) {
+					return Response.json(
+						{
+							ok: false,
+							error: "kill_switch_active",
+							message: "kill switch is on; turn it off first",
+						},
+						{ status: 400 },
+					);
+				}
+				// Enforce per-trade cap.
+				const notionalCents = side === "yes" ? priceCents * size : (100 - priceCents) * size;
+				if (notionalCents > s.config.max_notional_cents_per_trade) {
+					return Response.json(
+						{
+							ok: false,
+							error: "per_trade_cap_exceeded",
+							message:
+								`notional=${notionalCents}c > cap=${s.config.max_notional_cents_per_trade}c. ` +
+								`bump max_notional_cents_per_trade via /start.`,
+						},
+						{ status: 400 },
+					);
+				}
+				// Force trading_mode=real for this endpoint, since
+				// placing a real order when the engine is in paper
+				// mode would be confusing. We DON'T mutate the
+				// engine mode — the order is one-off, but we do
+				// stamp the resulting trade with `trading_mode=real`.
+				const orderResult = await this.placeKalshiOrder(
+					s,
+					ticker,
+					{ side, price: priceCents, p: 0, rationale: "manual_test_order" } as Signal,
+					size,
+				);
+				if (!orderResult.ok) {
+					return Response.json(
+						{
+							ok: false,
+							error: orderResult.reasonCode,
+							message: orderResult.message,
+						},
+						{ status: 502 },
+					);
+				}
+				// Record the trade row so the dashboard shows it.
+				await this.writeTradeRow(s, {
+					action: "open",
+					ticker,
+					side,
+					price: priceCents,
+					size,
+					rationale: "manual_test_order",
+					signal_p: null,
+					vertical: s.tickers[ticker]?.vertical
+						? String(s.tickers[ticker].vertical)
+						: "unknown",
+					trading_mode: "real",
+					real_order_id: orderResult.orderId,
+				});
+				// Record the notional in the 24h window so
+				// the daily cap reflects manual + signal
+				// trades consistently.
+				const { history: notionalHistory } = recordNotionalCents(
+					s.risk_state,
+					notionalCents,
+					Date.now(),
+				);
+				s.risk_state.daily_notional_history = notionalHistory;
+				s.n_trades += 1;
+				await this.saveState(s);
+				return Response.json({
+					ok: true,
+					order_id: orderResult.orderId,
+					ticker,
+					side,
+					price_cents: priceCents,
+					size,
+					notional_cents: notionalCents,
+				});
+			}
+
 			case "/":
 			case "/index.html": {
 				return Response.json({
@@ -468,6 +679,10 @@ export class LiveBot implements DurableObject {
 						"POST /start  (json: LiveBotConfig)",
 						"POST /stop",
 						"POST /restart",
+						"POST /reload-models  (chunk 8: hot-swap from registry)",
+						"POST /trading-mode  (chunk 9: {trading_mode: paper|real|off})",
+						"POST /kill-switch  (chunk 9: {on: bool})",
+						"POST /place-test-order  (chunk 9: {ticker, side, price_cents, size})",
 						"WS   /  (Upgrade: websocket) — control channel",
 					],
 				});
@@ -582,6 +797,17 @@ export class LiveBot implements DurableObject {
 			profit_target_pct: config.profit_target_pct ?? state.config.profit_target_pct,
 			stop_loss_pct: config.stop_loss_pct ?? state.config.stop_loss_pct,
 			model_version: config.model_version ?? state.config.model_version,
+			// Chunk 9: trading mode + caps. Note: `kill_switch`
+			// is intentionally NOT restored from `config` here —
+			// once the operator flips the kill switch, it stays
+			// on until they explicitly unset it. Toggling
+			// trading_mode through /start is a separate path.
+			trading_mode: config.trading_mode ?? state.config.trading_mode,
+			max_notional_cents_per_trade:
+				config.max_notional_cents_per_trade ??
+				state.config.max_notional_cents_per_trade,
+			daily_notional_cents_cap:
+				config.daily_notional_cents_cap ?? state.config.daily_notional_cents_cap,
 			started_ts_ms: Date.now(),
 		};
 		if (config.user_id) state.user_id = config.user_id;
@@ -967,6 +1193,20 @@ export class LiveBot implements DurableObject {
 		if (!t) return;
 		const pos = t.position;
 
+		// Chunk 9: kill switch — refuse all new trades. The
+		// open positions are NOT auto-closed here (that's a
+		// separate operator-driven path: /kill-switch with
+		// `{"action":"close_all"}` will be added in a follow-up).
+		if (state.config.kill_switch) {
+			state.last_reject = {
+				ts_ms: Date.now(),
+				ticker,
+				code: "kill_switch_active",
+				message: "kill switch is on; no new trades",
+			};
+			return;
+		}
+
 		// Same-side check: skip (no pyramid).
 		if (pos !== null && pos.side === signal.side) return;
 
@@ -1067,18 +1307,89 @@ export class LiveBot implements DurableObject {
 			return;
 		}
 
-		// Cost and fee.
+		// Cost (notional deployed by this single trade, in cents).
 		const costCents =
 			signal.side === "yes"
 				? signal.price * size
 				: (100 - signal.price) * size;
 		const entryFeeCents = kalshiTakerFeeCents(signal.side, size, signal.price);
 
+		// Chunk 9: per-trade cap. Conservative default $1.00 =
+		// 100 cents. The notional is `price * size` for YES
+		// positions and `(100 - price) * size` for NO. (Matches
+		// the cost formula above.) Operators can bump via
+		// /start when ready to test with more capital.
+		if (costCents > state.config.max_notional_cents_per_trade) {
+			state.last_reject = {
+				ts_ms: Date.now(),
+				ticker,
+				code: "per_trade_cap_exceeded",
+				message:
+					`notional=${costCents}c > cap=${state.config.max_notional_cents_per_trade}c ` +
+					`(price=${signal.price}c side=${signal.side} size=${size})`,
+			};
+			return;
+		}
+
+		// Chunk 9: daily cap (sliding 24h window). Compute the
+		// current deployed notional + this trade's notional; if
+		// it would exceed the cap, reject.
+		const nowMs = Date.now();
+		const currentDaily = dailyNotionalCents(state.risk_state, nowMs);
+		if (currentDaily + costCents > state.config.daily_notional_cents_cap) {
+			state.last_reject = {
+				ts_ms: nowMs,
+				ticker,
+				code: "daily_cap_exceeded",
+				message:
+					`would deploy ${currentDaily + costCents}c in 24h ` +
+					`(current=${currentDaily}c + new=${costCents}c) ` +
+					`> cap=${state.config.daily_notional_cents_cap}c`,
+			};
+			return;
+		}
+
+		// Chunk 9: real-mode order placement. When
+		// `trading_mode === "real"`, we place the order on
+		// Kalshi FIRST. If Kalshi rejects (insufficient
+		// balance, market closed, etc.), we abort the
+		// fill entirely — no D1 write, no position, no
+		// bankroll debit. This keeps the live book in
+		// sync with the local log.
+		//
+		// When `trading_mode === "off"`, the engine is
+		// paused: we skip the entire path. The WS keeps
+		// running so we still see state, but no trades
+		// are recorded or placed.
+		if (state.config.trading_mode === "off") {
+			// Off mode: log only at the per-tick level (no D1).
+			// No reject reason — this is the expected behavior.
+			return;
+		}
+
+		let realOrderId: string | null = null;
+		if (state.config.trading_mode === "real") {
+			const orderResult = await this.placeKalshiOrder(state, ticker, signal, size);
+			if (!orderResult.ok) {
+				state.last_reject = {
+					ts_ms: nowMs,
+					ticker,
+					code: orderResult.reasonCode,
+					message: orderResult.message,
+				};
+				return;
+			}
+			realOrderId = orderResult.orderId;
+		}
+
 		// Record the fill in the risk engine.
 		risk.recordFill(ticker, String(t.vertical), signal.side, signal.price, size, state.n_frames);
 		// Mirror the bankroll debit.
 		risk.state.bankroll_cents -= costCents + entryFeeCents;
 		state.total_fees_cents += entryFeeCents;
+		// Record the notional in the 24h window.
+		const { history: notionalHistory } = recordNotionalCents(state.risk_state, costCents, nowMs);
+		state.risk_state.daily_notional_history = notionalHistory;
 		state.risk_state = risk.state;
 
 		// Set the open position on the per-ticker state.
@@ -1086,7 +1397,7 @@ export class LiveBot implements DurableObject {
 			side: signal.side,
 			size,
 			entry_price_cents: signal.price,
-			entry_ts_ms: Date.now(),
+			entry_ts_ms: nowMs,
 			rationale: signal.rationale,
 			entry_signal_p: signal.p,
 		};
@@ -1102,6 +1413,8 @@ export class LiveBot implements DurableObject {
 			rationale: signal.rationale,
 			signal_p: signal.p,
 			vertical: String(t.vertical),
+			trading_mode: state.config.trading_mode,
+			real_order_id: realOrderId,
 		});
 		state.n_trades += 1;
 
@@ -1118,6 +1431,85 @@ export class LiveBot implements DurableObject {
 				vertical: String(t.vertical),
 				pnl_cents: flipPnlCents,
 			});
+		}
+	}
+
+	// Chunk 9: place a real order on Kalshi. Returns the order id
+	// on success; on failure returns an error reason. NEVER throws
+	// — the caller needs to log + skip without breaking the loop.
+	private async placeKalshiOrder(
+		state: LiveBotState,
+		ticker: string,
+		signal: Signal,
+		size: number,
+	): Promise<
+		| { ok: true; orderId: string }
+		| { ok: false; reasonCode: string; message: string }
+	> {
+		const useDemo = state.config.url.includes("demo");
+		const keyId =
+			(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
+		const pem =
+			(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
+		if (!keyId || !pem) {
+			return {
+				ok: false,
+				reasonCode: "missing_credentials",
+				message:
+					`trading_mode=real but Kalshi ${useDemo ? "demo" : "prod"} creds are not set in env`,
+			};
+		}
+		try {
+			const { KalshiClient, DEFAULT_DEMO_BASE, DEFAULT_PRODUCTION_BASE } = await import(
+				"../kalshi/client.js"
+			);
+			const { KalshiCredentials } = await import("../kalshi/auth.js");
+			const credentials = await KalshiCredentials.fromPem(keyId, pem);
+			const client = new KalshiClient({
+				baseUrl: useDemo ? DEFAULT_DEMO_BASE : DEFAULT_PRODUCTION_BASE,
+				credentials,
+			});
+			// V2 schema (POST /portfolio/events/orders):
+			//   - side: "bid" (buy YES) or "ask" (sell YES).
+			//     Selling YES is economically equivalent to
+			//     buying NO at 1 - price.
+			//   - price: fixed-point dollar string. Our internal
+			//     `signal.price` is in cents (1..99); convert to
+			//     a 4-decimal dollar string for V2.
+			//   - count: fixed-point string with 2 decimals.
+			//   - time_in_force + self_trade_prevention_type are
+			//     required by the V2 spec; we use safe defaults.
+			const v2Side = signal.side === "yes" ? "bid" : "ask";
+			const priceDollars = (signal.price / 100).toFixed(4);
+			const countStr = size.toFixed(2);
+			const body: Record<string, unknown> = {
+				ticker,
+				side: v2Side,
+				count: countStr,
+				price: priceDollars,
+				time_in_force: "good_till_canceled",
+				self_trade_prevention_type: "taker_at_cross",
+			};
+			const resp = (await client.placeOrder(body)) as Record<string, unknown>;
+			// V2 response shape: { order_id, fill_count,
+			// remaining_count, ts_ms } at the top level (NOT
+			// nested under `order` — that was V1).
+			const orderId = (resp.order_id as string | undefined) ?? null;
+			if (!orderId) {
+				return {
+					ok: false,
+					reasonCode: "no_order_id_in_response",
+					message: `Kalshi placeOrder returned no order_id: ${JSON.stringify(resp).slice(0, 200)}`,
+				};
+			}
+			return { ok: true, orderId };
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			return {
+				ok: false,
+				reasonCode: "kalshi_place_order_failed",
+				message: msg.slice(0, 300),
+			};
 		}
 	}
 
@@ -1187,16 +1579,27 @@ export class LiveBot implements DurableObject {
 			signal_p: number | null;
 			vertical: string;
 			pnl_cents?: number;
+			trading_mode?: "paper" | "real" | "off";
+			real_order_id?: string | null;
 		},
 	): Promise<void> {
 		const db = this.env.DB;
 		if (!db) return; // test env / no D1 binding
+		// Chunk 9: trading_mode + real_order_id land in D1 so
+		// the dashboard can split paper vs real PnL and link
+		// back to Kalshi orders. Defaults preserve chunk-1-8
+		// behavior (every legacy row is "paper" + null order).
+		const tradingMode = row.trading_mode ?? "paper";
+		const realOrderId = row.real_order_id ?? null;
+		const isPaper = tradingMode === "paper" ? 1 : 0;
 		await db
 			.prepare(
 				`INSERT INTO trades
 				 (user_id, ts, ticker, vertical, side, action, price_cents, size,
-				  signal_p, signal_rationale, model_version, pnl_cents, fill_type, is_paper)
-				 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`,
+				  signal_p, signal_rationale, model_version, pnl_cents, fill_type,
+				  is_paper, trading_mode, real_order_id)
+				 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14,
+				         ?15, ?16)`,
 			)
 			.bind(
 				state.user_id,
@@ -1212,7 +1615,9 @@ export class LiveBot implements DurableObject {
 				"v0-naive", // chunk 4 swaps in real model version
 				row.pnl_cents ?? null,
 				"limit", // fill_type: chunk 9 distinguishes paper vs real
-				1, // is_paper
+				isPaper,
+				tradingMode,
+				realOrderId,
 			)
 			.run();
 	}

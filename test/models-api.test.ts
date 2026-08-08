@@ -7,7 +7,6 @@
 
 import { env, applyD1Migrations } from "cloudflare:test";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
-import migration0001 from "../migrations/0001_initial_schema.sql?raw";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -16,19 +15,10 @@ import {
 	handleRegisterModel,
 	handleRetireModel,
 } from "../src/api/models";
-
-const MIGRATIONS = [
-	{
-		name: "0001_initial_schema.sql",
-		queries: migration0001
-			.split(/-->\s*statement-breakpoint/)
-			.map((s) => s.trim())
-			.filter((s) => s.length > 0),
-	},
-];
+import { ALL_MIGRATIONS } from "./helpers/migrations";
 
 beforeAll(async () => {
-	await applyD1Migrations(env.DB, MIGRATIONS);
+	await applyD1Migrations(env.DB, ALL_MIGRATIONS);
 });
 
 async function clearModels() {

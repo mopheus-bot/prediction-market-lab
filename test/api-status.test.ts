@@ -8,7 +8,6 @@
 
 import { env, applyD1Migrations } from "cloudflare:test";
 import { describe, it, expect, beforeAll } from "vitest";
-import migration0001 from "../migrations/0001_initial_schema.sql?raw";
 import {
 	handleStatus,
 	handleTrades,
@@ -18,19 +17,10 @@ import {
 	handleCronRuns,
 } from "../src/api/status";
 import { DEFAULT_USER_ID } from "../src/lib/types";
-
-const MIGRATIONS = [
-	{
-		name: "0001_initial_schema.sql",
-		queries: migration0001
-			.split(/-->\s*statement-breakpoint/)
-			.map((s) => s.trim())
-			.filter((s) => s.length > 0),
-	},
-];
+import { ALL_MIGRATIONS } from "./helpers/migrations";
 
 beforeAll(async () => {
-	await applyD1Migrations(env.DB, MIGRATIONS);
+	await applyD1Migrations(env.DB, ALL_MIGRATIONS);
 });
 
 async function insertTrade(

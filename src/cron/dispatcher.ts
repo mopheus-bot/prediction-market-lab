@@ -49,7 +49,7 @@ export const CRON_TABLE = {
 	scan: "*/15 * * * *",     // every 15 min
 	news: "0 */6 * * *",      // every 6 hours
 	daily: "0 6 * * *",       // 06:00 UTC daily
-	train: "0 0 * * 0",       // 00:00 UTC Sunday
+	train: "0 0 * * SUN",     // 00:00 UTC Sunday (day-of-week as name, not 0)
 } as const;
 
 export type CronName = keyof typeof CRON_TABLE;

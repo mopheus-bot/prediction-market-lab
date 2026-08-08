@@ -326,8 +326,32 @@ export class KalshiClient {
 
 	// --- orders (chunk 9) ------------------------------------------
 
+	/**
+	 * Place an order on Kalshi using the V2 endpoint
+	 * (`POST /portfolio/events/orders`). The legacy
+	 * `/portfolio/orders` endpoint was deprecated in 2026-05 and
+	 * returns `deprecated_v1_order_endpoint` if hit directly.
+	 *
+	 * V2 body shape (per docs.kalshi.com/api-reference/orders/create-order-v2):
+	 *   - ticker: market ticker (e.g. "KXWARMING-50")
+	 *   - side: "bid" (buy YES) | "ask" (sell YES). Note: "bid"
+	 *     is buying YES; "ask" is selling YES. Selling YES is
+	 *     economically equivalent to buying NO at 1 - price.
+	 *   - count: fixed-point string with 2 decimals (e.g. "1.00")
+	 *   - price: fixed-point dollar string (e.g. "0.0100" for 1c)
+	 *   - time_in_force: "fill_or_kill" | "good_till_canceled" | "immediate_or_cancel"
+	 *   - self_trade_prevention_type: "taker_at_cross" | "maker"
+	 *   - post_only: optional bool
+	 *
+	 * Returns the V2 response shape: `{order_id, fill_count,
+	 * remaining_count, ts_ms, ...}`. Throws KalshiAPIError on
+	 * non-2xx.
+	 */
 	async placeOrder(body: Record<string, unknown>): Promise<Record<string, unknown>> {
-		return (await this.postRaw("/portfolio/orders", body)) as Record<string, unknown>;
+		return (await this.postRaw(
+			"/portfolio/events/orders",
+			body,
+		)) as Record<string, unknown>;
 	}
 
 	async cancelOrder(orderId: string): Promise<Record<string, unknown>> {

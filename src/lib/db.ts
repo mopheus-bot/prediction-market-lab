@@ -64,12 +64,21 @@ export class D1Stmt<T = unknown> {
 
 export const trades = {
 	async insert(db: D1Database, t: NewTrade): Promise<number> {
+		// Chunk 9: trading_mode defaults to "paper" for any caller
+		// that doesn't pass it (legacy chunk-1-8 call sites and
+		// the chunk-1-8 test fixtures). real_order_id is null
+		// for paper trades. Real-trade call sites must set
+		// `trading_mode: "real"` and supply the Kalshi order id.
+		const tradingMode = t.trading_mode ?? "paper";
+		const realOrderId = t.real_order_id ?? null;
 		const res = await db
 			.prepare(
 				`INSERT INTO trades
 				 (user_id, ts, ticker, vertical, side, action, price_cents, size,
-				  signal_p, signal_rationale, model_version, pnl_cents, fill_type, is_paper)
-				 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+				  signal_p, signal_rationale, model_version, pnl_cents, fill_type,
+				  is_paper, trading_mode, real_order_id)
+				 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14,
+				         ?15, ?16)
 				 RETURNING id`,
 			)
 			.bind(
@@ -87,6 +96,8 @@ export const trades = {
 				t.pnl_cents,
 				t.fill_type,
 				t.is_paper,
+				tradingMode,
+				realOrderId,
 			)
 			.first<{ id: number }>();
 		return res?.id ?? 0;

@@ -13,7 +13,13 @@ import {
 	validateRiskConfig,
 	type RiskConfig,
 } from "../src/risk/config";
-import { makeRiskState, currentDrawdownPct, totalPnlCents } from "../src/risk/state";
+import {
+	makeRiskState,
+	currentDrawdownPct,
+	totalPnlCents,
+	dailyNotionalCents,
+	recordNotionalCents,
+} from "../src/risk/state";
 import {
 	REJECT_CONCENTRATION,
 	REJECT_DRAWDOWN_PAUSE,
@@ -295,5 +301,92 @@ describe("RiskEngine — recordFill + close", () => {
 		// each settlement; for the test we directly call closePositionAtMark.)
 		eng.closePositionAtMark("BIG", 0, 0);
 		expect(eng.state.drawdown_pause_until_tick).toBeGreaterThan(0);
+	});
+});
+
+// ─── chunk 9: daily notional tracking ─────────────────────────────────
+
+describe("daily notional (chunk 9)", () => {
+	const DAY = 24 * 60 * 60 * 1000;
+
+	it("makeRiskState initializes an empty notional history", () => {
+		const s = makeRiskState(100_000);
+		expect(s.daily_notional_history).toEqual([]);
+		expect(dailyNotionalCents(s)).toBe(0);
+	});
+
+	it("records a single notional and sums it in the 24h window", () => {
+		const s = makeRiskState(100_000);
+		const now = Date.now();
+		const { history, total } = recordNotionalCents(s, 50, now);
+		expect(history).toEqual([{ ts_ms: now, cents: 50 }]);
+		expect(total).toBe(50);
+		expect(dailyNotionalCents({ ...s, daily_notional_history: history }, now)).toBe(50);
+	});
+
+	it("sums multiple notionals in the same window", () => {
+		const s = makeRiskState(100_000);
+		const now = Date.now();
+		let history = s.daily_notional_history;
+		for (const c of [10, 20, 30]) {
+			const r = recordNotionalCents({ ...s, daily_notional_history: history }, c, now);
+			history = r.history;
+		}
+		expect(dailyNotionalCents({ ...s, daily_notional_history: history }, now)).toBe(60);
+	});
+
+	it("drops entries older than 24h from the sum", () => {
+		const s = makeRiskState(100_000);
+		const now = Date.now();
+		const old = now - DAY - 1; // 24h + 1ms ago
+		const recent = now - 60_000; // 1 minute ago
+		const s2 = {
+			...s,
+			daily_notional_history: [
+				{ ts_ms: old, cents: 500 },
+				{ ts_ms: recent, cents: 25 },
+			],
+		};
+		// 500c is older than 24h, excluded. 25c is recent.
+		expect(dailyNotionalCents(s2, now)).toBe(25);
+	});
+
+	it("recordNotionalCents trims stale entries on every call", () => {
+		const s = makeRiskState(100_000);
+		const now = Date.now();
+		const old = now - DAY - 1;
+		// Pre-populate with one stale entry.
+		const seeded = [{ ts_ms: old, cents: 999 }];
+		const s2 = { ...s, daily_notional_history: seeded };
+		const { history, total } = recordNotionalCents(s2, 50, now);
+		// Stale entry is trimmed; new entry is present.
+		expect(history).toEqual([{ ts_ms: now, cents: 50 }]);
+		expect(total).toBe(50);
+	});
+
+	it("history caps at DAILY_HISTORY_MAX (1,000) entries", () => {
+		const s = makeRiskState(100_000);
+		const now = Date.now();
+		let history = s.daily_notional_history;
+		for (let i = 0; i < 1500; i++) {
+			const r = recordNotionalCents({ ...s, daily_notional_history: history }, 1, now);
+			history = r.history;
+		}
+		// After 1,500 inserts, only the most recent 1,000 survive.
+		expect(history.length).toBe(1000);
+		// Total = 1000 * 1c (oldest 500 are dropped from front).
+		expect(dailyNotionalCents({ ...s, daily_notional_history: history }, now)).toBe(1000);
+	});
+
+	it("preserves notional history across makeRiskState (persistence)", () => {
+		const now = Date.now();
+		// Simulate DO state hydration: build a state with pre-existing
+		// notional, then read it back.
+		const s = makeRiskState(100_000);
+		const persisted = {
+			...s,
+			daily_notional_history: [{ ts_ms: now - 1000, cents: 75 }],
+		};
+		expect(dailyNotionalCents(persisted, now)).toBe(75);
 	});
 });

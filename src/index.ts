@@ -130,6 +130,26 @@ export default {
 		if (path === "/api/pm/bot/reload-models" && request.method === "POST") {
 			return forwardToBot(env, request, "/reload-models");
 		}
+		// ─── API: /api/pm/bot/* (chunk 9: real trading toggle) ─────
+		// Set the trading mode (paper | real | off). Operators
+		// flip this to "real" once they're ready to deploy
+		// real capital; "off" pauses new trades without
+		// disconnecting the WS.
+		if (path === "/api/pm/bot/trading-mode" && request.method === "POST") {
+			return forwardToBot(env, request, "/trading-mode");
+		}
+		// Toggle the kill switch. With {on: true} (default),
+		// the engine refuses all new trades. With {on: false},
+		// trading resumes.
+		if (path === "/api/pm/bot/kill-switch" && request.method === "POST") {
+			return forwardToBot(env, request, "/kill-switch");
+		}
+		// Manual order placement for the operator. Body:
+		// { ticker, side, price_cents, size }. Per-trade cap
+		// is enforced server-side.
+		if (path === "/api/pm/bot/place-test-order" && request.method === "POST") {
+			return forwardToBot(env, request, "/place-test-order");
+		}
 
 		// ─── API: /api/pm/{status,summary,trades,signals,scans,cron-runs} (chunk 6) ──
 		if (path === "/api/pm/status" && request.method === "GET") {
