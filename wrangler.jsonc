@@ -21,7 +21,14 @@
 	"upload_source_maps": true,
 	"vars": {
 		"ENVIRONMENT": "production",
-		"SERVICE_NAME": "pm-bot"
+		"SERVICE_NAME": "pm-bot",
+		// Default paper-trading universe (comma-separated tickers). The
+		// LiveBot DO can be reconfigured via POST /start with a different
+		// set; this is the bootstrap default before any /start call.
+		"DEFAULT_TICKERS": "KXWARMING-50",
+		// Default WS URL. Demo by default; the /start command can flip
+		// to production with `{"url": "wss://external-api-ws.kalshi.com/..."}`.
+		"DEFAULT_URL": "wss://external-api-ws.demo.kalshi.co/trade-api/ws/v2"
 	},
 	// D1 database — bound at runtime as `env.DB`.
 	// database_id filled in after `wrangler d1 create pm-bot-prod`.
@@ -39,6 +46,25 @@
 		{
 			"binding": "BUCKET",
 			"bucket_name": "pm-bot"
+		}
+	],
+	// Durable Object — the live bot. Chunk 3 introduces this. There is
+	// ONE live-bot DO per user, addressed by `idFromName('user:${userId}')`.
+	// The class lives in `src/durable-objects/LiveBot.ts`.
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "LIVE_BOT",
+				"class_name": "LiveBot"
+			}
+		]
+	},
+	// Required for the `cloudflare:workers` DurableObject class export.
+	// Replaced on every `wrangler deploy`.
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["LiveBot"]
 		}
 	],
 	// Custom-domain routes —  is a CF-proxied subdomain

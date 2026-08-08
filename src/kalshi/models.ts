@@ -301,3 +301,78 @@ export function parseRfc3339ToUnixMs(s: string): number {
 	const ms = Date.parse(normalized);
 	return Number.isNaN(ms) ? 0 : ms;
 }
+
+// ─── Orderbook mutation helpers (used by the live bot DO) ─────────────
+
+/**
+ * Apply an `orderbook_delta` to a `KalshiOrderbook` and return a NEW
+ * book (the input is not mutated). Mirrors `kalshi_ws.py:apply_orderbook_delta`.
+ *
+ * A delta is `{"price": cents, "delta": signed, "side": "yes"|"no"}`.
+ * A delta <= 0 removes the level; a delta > 0 creates or accumulates.
+ * `price_dollars` (string) is also accepted (we convert to cents).
+ */
+export function applyOrderbookDelta(
+	ob: KalshiOrderbook,
+	delta: { msg: { side?: string; price?: number; price_dollars?: string; delta?: number; delta_fp?: string | number } },
+): KalshiOrderbook {
+	const m = delta.msg;
+	const side = m.side;
+	if (side !== "yes" && side !== "no") return ob;
+	let priceCents: number;
+	if (typeof m.price === "number" && m.price !== null) {
+		priceCents = m.price;
+	} else {
+		priceCents = Math.round(parseFloat(String(m.price_dollars ?? "0")) * 100);
+	}
+	const rawDelta = m.delta ?? m.delta_fp ?? 0;
+	let deltaNum: number;
+	try {
+		deltaNum = typeof rawDelta === "string" ? parseFloat(rawDelta) : Number(rawDelta);
+	} catch {
+		deltaNum = 0;
+	}
+	if (!Number.isFinite(deltaNum)) deltaNum = 0;
+	const newYes = [...ob.yes_levels];
+	const newNo = [...ob.no_levels];
+	const target = side === "yes" ? newYes : newNo;
+	const idx = target.findIndex((l) => l.price_cents === priceCents);
+	if (idx >= 0) {
+		const newCount = target[idx].count + deltaNum;
+		if (newCount <= 0) {
+			target.splice(idx, 1);
+		} else {
+			target[idx] = { price_cents: target[idx].price_cents, count: newCount };
+		}
+	} else if (deltaNum > 0) {
+		target.push({ price_cents: priceCents, count: deltaNum });
+	}
+	return {
+		ticker: ob.ticker,
+		yes_levels: newYes,
+		no_levels: newNo,
+	};
+}
+
+/**
+ * Parse an `orderbook_snapshot` message into a `KalshiOrderbook`. Mirrors
+ * `kalshi_ws.py:orderbook_snapshot_to_ob`. Accepts both
+ * `yes_dollars` / `no_dollars` and `yes_dollars_fp` / `no_dollars_fp`.
+ */
+export function orderbookSnapshotToOb(
+	msg: { msg: { market_ticker: string; yes_dollars?: string[][]; no_dollars?: string[][]; yes_dollars_fp?: string[][]; no_dollars_fp?: string[][] } },
+): KalshiOrderbook {
+	const m = msg.msg;
+	const ticker = m.market_ticker ?? "";
+	const yesWire = m.yes_dollars ?? m.yes_dollars_fp ?? [];
+	const noWire = m.no_dollars ?? m.no_dollars_fp ?? [];
+	const yes: KalshiOrderbookLevel[] = yesWire.map((pair) => ({
+		price_cents: Math.round(parseFloat(pair[0] ?? "0") * 100),
+		count: parseFloat(pair[1] ?? "0"),
+	}));
+	const no: KalshiOrderbookLevel[] = noWire.map((pair) => ({
+		price_cents: Math.round(parseFloat(pair[0] ?? "0") * 100),
+		count: parseFloat(pair[1] ?? "0"),
+	}));
+	return { ticker, yes_levels: yes, no_levels: no };
+}

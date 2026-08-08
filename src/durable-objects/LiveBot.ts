@@ -1,0 +1,1114 @@
+/**
+ * pm-bot — LiveBot Durable Object (chunk 3).
+ *
+ * The 24/7 paper-trading engine. Owns:
+ *   - An outgoing WebSocket connection to the Kalshi public WS feed
+ *     (orderbook deltas, trades, ticker, lifecycle).
+ *   - A per-ticker state machine: orderbook, price history, position,
+ *     market metadata, trade counter.
+ *   - The risk engine's state (bankroll, open positions, circuit
+ *     breakers).
+ *   - Persistent state in `ctx.storage` so the DO can be evicted and
+ *     resume cleanly on the next request / alarm.
+ *
+ * Hibernation model (per docs/PLAN.md §"Decisions to honor"):
+ *   - The INCOMING control WS (clients connecting to the bot to issue
+ *     commands like /start, /stop, /status) uses
+ *     `state.acceptWebSocket()` so the DO can hibernate between
+ *     messages. This is where the cost saving comes from.
+ *   - The OUTGOING Kalshi WS is a regular long-lived WebSocket held
+ *     in `this._kalshiWs`. We open it on demand (when the bot is
+ *     started) and close it on stop / cycle.
+ *   - The "90-min cycle" closes and reopens the Kalshi WS every 90
+ *     minutes via a `state.storage.setAlarm()`. This avoids idle
+ *     disconnects, recovers from any session drift, and gives the
+ *     engine a clean snapshot of state at each cycle boundary.
+ *
+ * All persistent state lives in `ctx.storage` — the engine NEVER
+ * holds critical state in instance variables that would be lost on
+ * eviction. Instance variables are caches that can be reconstructed
+ * from storage.
+ *
+ * Wire-format handling: incoming WS messages from Kalshi are routed
+ * by `type` (orderbook_snapshot, orderbook_delta, trade, ticker,
+ * market_lifecycle, subscribed, error). Each frame may trigger a
+ * strategy call → signal → risk check → trade record → D1 write.
+ *
+ * Fill simulation: every signal is treated as an immediate fill at
+ * the limit price. Mirrors the backtester's `use_signal_price=True`
+ * path. A more realistic fill model (order book queue, partial
+ * fills, walk-away) lands in a follow-up.
+ *
+ * Multi-tenant: addressed by `idFromName(`user:${userId}`)`. The
+ * `user_id` is passed in the initial config and stored alongside the
+ * rest of the engine state. All D1 writes scope to that user.
+ */
+
+import {
+	applyOrderbookDelta,
+	orderbookMidCents,
+	orderbookSnapshotToOb,
+	type KalshiOrderbook,
+	type KalshiOrderbookLevel,
+} from "../kalshi/models.js";
+import {
+	DEFAULT_DEMO_WS,
+	DEFAULT_PRODUCTION_WS,
+	type KalshiWSMessage,
+	type OrderbookDelta,
+	type OrderbookSnapshot,
+	type TickerMessage,
+	type TradeMessage,
+} from "../kalshi/ws.js";
+import { isStructurallyUnprofitable, kalshiTakerFeeCents } from "../lib/fees.js";
+import {
+	makeRiskState,
+	type RiskState,
+} from "../risk/state.js";
+import { RiskEngine } from "../risk/engine.js";
+import { defaultRiskConfig, type RiskConfig } from "../risk/config.js";
+import type { Side, Vertical } from "../lib/types.js";
+import {
+	type Signal,
+	type SignalContext,
+	type SignalStrategy,
+} from "../strategy/signal.js";
+import { VerticalStrategyRouter } from "../strategy/router.js";
+
+// ─── Persistent state shape ────────────────────────────────────────────
+
+export interface LiveBotState {
+	user_id: string;
+	/** Per-ticker live state. Keyed by ticker. */
+	tickers: Record<
+		string,
+		{
+			vertical: Vertical | string;
+			event_ticker: string;
+			title: string;
+			/** Orderbook: latest snapshot. */
+			book: { yes_levels: KalshiOrderbookLevel[]; no_levels: KalshiOrderbookLevel[] } | null;
+			/** Price history (cents, oldest first, maxlen=lookback). */
+			price_history: number[];
+			/** Last YES-side trade price (cents). Used for settlement exit. */
+			last_trade_price_cents: number | null;
+			/** Per-ticker trade count (for the auto-close horizon). */
+			trade_count: number;
+			/** Open position, if any. The engine does NOT pyramid. */
+			position: {
+				side: Side;
+				size: number;
+				entry_price_cents: number;
+				entry_ts_ms: number;
+				rationale: string;
+				entry_signal_p: number;
+			} | null;
+		}
+	>;
+	risk_state: RiskState;
+	/** Counters. */
+	n_signals: number;
+	n_frames: number;
+	n_trades: number;
+	total_fees_cents: number;
+	/** Engine config. Captured at start() for the summary. */
+	config: {
+		tickers: string[];
+		ticker_verticals: Record<string, string>;
+		bankroll_cents: number;
+		url: string;
+		lookback: number;
+		started_ts_ms: number;
+		// Run knobs (mirror the Python CLI flags).
+		disable_flips: boolean;
+		no_flip_verticals: string[] | null;
+		min_entry_p: number;
+		close_after_trades: number | null;
+		exit_mode: "mtm" | "settlement";
+		profit_target_pct: number | null;
+		stop_loss_pct: number | null;
+	};
+	/** The most recent risk reject reason (per-ticker, for /status). */
+	last_reject: { ts_ms: number; ticker: string; code: string; message: string } | null;
+}
+
+// ─── Engine config (constructor input) ────────────────────────────────
+
+export interface LiveBotConfig {
+	user_id?: string;
+	bankroll_cents?: number;
+	url?: string;
+	lookback?: number;
+	ticker_verticals?: Record<string, string>;
+	disable_flips?: boolean;
+	no_flip_verticals?: string[] | null;
+	min_entry_p?: number;
+	close_after_trades?: number | null;
+	exit_mode?: "mtm" | "settlement";
+	profit_target_pct?: number | null;
+	stop_loss_pct?: number | null;
+	risk_config?: RiskConfig;
+}
+
+// ─── Env (subset we need) ─────────────────────────────────────────────
+
+interface LiveBotEnv {
+	DB?: D1Database;
+	BUCKET?: R2Bucket;
+	KALSHI_PROD_KEY_ID?: string;
+	KALSHI_PROD_PRIVATE_KEY?: string; // PKCS#8 PEM
+	KALSHI_DEMO_KEY_ID?: string;
+	KALSHI_DEMO_PRIVATE_KEY?: string;
+	ENVIRONMENT?: string;
+	SERVICE_NAME?: string;
+	// Default paper-trading universe when none is provided.
+	DEFAULT_TICKERS?: string;
+	DEFAULT_URL?: string;
+	// Optional JSON-serialized RiskConfig override. Allows per-deployment
+	// risk tuning without redeploying the Worker.
+	RISK_CONFIG_OVERRIDE?: string;
+}
+
+// ─── The DO class ──────────────────────────────────────────────────────
+
+const STORAGE_KEY = "state:v1";
+const ALARM_KEY_CYCLE = "alarm:cycle";
+const CYCLE_MS = 90 * 60 * 1000; // 90 minutes
+
+export class LiveBot implements DurableObject {
+	private readonly ctx: DurableObjectState;
+	private readonly env: LiveBotEnv;
+
+	// Non-persistent caches — rebuilt from ctx.storage on each
+	// request. The Kalshi WS is also a transient connection, not in
+	// storage.
+	private _kalshiWs: WebSocket | null = null;
+	private _connected = false;
+	private _reconnectAttempt = 0;
+	private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+	constructor(ctx: DurableObjectState, env: LiveBotEnv) {
+		this.ctx = ctx;
+		this.env = env;
+	}
+
+	// ─── Persistent state helpers ─────────────────────────────────
+
+	private async loadState(): Promise<LiveBotState | null> {
+		return (await this.ctx.storage.get<LiveBotState>(STORAGE_KEY)) ?? null;
+	}
+
+	private async saveState(state: LiveBotState): Promise<void> {
+		await this.ctx.storage.put(STORAGE_KEY, state);
+	}
+
+	private async ensureState(): Promise<LiveBotState> {
+		let s = await this.loadState();
+		if (s) return s;
+		// First touch — build a default state from the constructor config
+		// (the Worker will call /start with the real config before any
+		// trading, but we want the DO to be queryable from the start).
+		s = this.buildDefaultState();
+		await this.saveState(s);
+		return s;
+	}
+
+	private buildDefaultState(): LiveBotState {
+		const tickersCsv = this.env.DEFAULT_TICKERS ?? "KXWARMING-50";
+		const defaultTickers = tickersCsv.split(",").map((t) => t.trim()).filter(Boolean);
+		const defaultUrl =
+			this.env.DEFAULT_URL ??
+			(this.env.ENVIRONMENT === "production" ? DEFAULT_PRODUCTION_WS : DEFAULT_DEMO_WS);
+		const bankrollCents = 1_000_000; // $10K paper
+		const tickers: LiveBotState["tickers"] = {};
+		for (const t of defaultTickers) {
+			tickers[t] = {
+				vertical: "unknown",
+				event_ticker: "",
+				title: "",
+				book: null,
+				price_history: [],
+				last_trade_price_cents: null,
+				trade_count: 0,
+				position: null,
+			};
+		}
+		return {
+			user_id: "default",
+			tickers,
+			risk_state: makeRiskState(bankrollCents),
+			n_signals: 0,
+			n_frames: 0,
+			n_trades: 0,
+			total_fees_cents: 0,
+			config: {
+				tickers: defaultTickers,
+				ticker_verticals: {},
+				bankroll_cents: bankrollCents,
+				url: defaultUrl,
+				lookback: 30,
+				started_ts_ms: Date.now(),
+				disable_flips: false,
+				no_flip_verticals: null,
+				min_entry_p: 0,
+				close_after_trades: null,
+				exit_mode: "mtm",
+				profit_target_pct: null,
+				stop_loss_pct: null,
+			},
+			last_reject: null,
+		};
+	}
+
+	private makeRiskEngine(state: LiveBotState): RiskEngine {
+		const cfg = this.env.RISK_CONFIG_OVERRIDE
+			? JSON.parse(this.env.RISK_CONFIG_OVERRIDE) as RiskConfig
+			: defaultRiskConfig();
+		return new RiskEngine({ config: cfg, state: state.risk_state });
+	}
+
+	// ─── fetch() — control endpoint ──────────────────────────────
+
+	async fetch(request: Request): Promise<Response> {
+		const url = new URL(request.url);
+		const path = url.pathname;
+
+		// WebSocket upgrade for the control channel (start/stop/status
+		// over a single connection). Uses hibernation: we accept the
+		// WS, then process commands as messages arrive.
+		if (request.headers.get("Upgrade") === "websocket") {
+			const pair = new WebSocketPair();
+			const [client, server] = [pair[0], pair[1]];
+			this.ctx.acceptWebSocket(server, ["control"]);
+			return new Response(null, { status: 101, webSocket: client });
+		}
+
+		const state = await this.ensureState();
+
+		switch (path) {
+			case "/status": {
+				return Response.json({
+					ok: true,
+					connected: this._connected,
+					user_id: state.user_id,
+					config: state.config,
+					counts: {
+						n_signals: state.n_signals,
+						n_frames: state.n_frames,
+						n_trades: state.n_trades,
+						total_fees_cents: state.total_fees_cents,
+					},
+					risk: {
+						bankroll_cents: state.risk_state.bankroll_cents,
+						peak_bankroll_cents: state.risk_state.peak_bankroll_cents,
+						open_positions: Object.values(state.risk_state.open_positions).map(
+							(p) => ({
+								ticker: p.ticker,
+								side: p.side,
+								size: p.size,
+								entry_price: p.entry_price,
+								cost_cents: p.cost_cents,
+							}),
+						),
+						consecutive_losses: state.risk_state.consecutive_losses,
+						drawdown_pause_until_tick: state.risk_state.drawdown_pause_until_tick,
+						cooldown_until_tick: state.risk_state.cooldown_until_tick,
+					},
+					tickers: Object.fromEntries(
+						Object.entries(state.tickers).map(([t, ts]) => [
+							t,
+							{
+								vertical: ts.vertical,
+								has_book: ts.book !== null,
+								price_history_len: ts.price_history.length,
+								last_trade_price_cents: ts.last_trade_price_cents,
+								trade_count: ts.trade_count,
+								position: ts.position,
+							},
+						]),
+					),
+					last_reject: state.last_reject,
+				});
+			}
+
+			case "/start": {
+				const config = (await request.json().catch(() => ({}))) as LiveBotConfig;
+				await this.start(config);
+				return Response.json({ ok: true, started: true, config: state.config });
+			}
+
+			case "/stop": {
+				await this.stop();
+				return Response.json({ ok: true, stopped: true });
+			}
+
+			case "/restart": {
+				await this.restart();
+				return Response.json({ ok: true, restarted: true });
+			}
+
+			case "/":
+			case "/index.html": {
+				return Response.json({
+					ok: true,
+					service: "live-bot",
+					endpoints: [
+						"GET  /status",
+						"POST /start  (json: LiveBotConfig)",
+						"POST /stop",
+						"POST /restart",
+						"WS   /  (Upgrade: websocket) — control channel",
+					],
+				});
+			}
+
+			default:
+				return new Response("not found", { status: 404 });
+		}
+	}
+
+	// ─── Incoming WS (control channel, hibernated) ───────────────
+
+	async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+		if (typeof message !== "string") return; // we only accept JSON
+		let cmd: { cmd?: string; args?: Record<string, unknown> };
+		try {
+			cmd = JSON.parse(message);
+		} catch {
+			ws.send(JSON.stringify({ ok: false, error: "invalid_json" }));
+			return;
+		}
+		switch (cmd.cmd) {
+			case "start":
+				await this.start((cmd.args ?? {}) as LiveBotConfig);
+				ws.send(JSON.stringify({ ok: true, started: true }));
+				break;
+			case "stop":
+				await this.stop();
+				ws.send(JSON.stringify({ ok: true, stopped: true }));
+				break;
+			case "status": {
+				const state = await this.ensureState();
+				ws.send(JSON.stringify({ ok: true, status: this.summarize(state) }));
+				break;
+			}
+			case "ping":
+				ws.send(JSON.stringify({ ok: true, pong: Date.now() }));
+				break;
+			default:
+				ws.send(JSON.stringify({ ok: false, error: "unknown_cmd", cmd: cmd.cmd }));
+		}
+	}
+
+	async webSocketClose(ws: WebSocket, code: number, reason: string, wasClean: boolean): Promise<void> {
+		// Best-effort log; nothing to clean up — the control WS is
+		// ephemeral and the bot's running state lives in storage + the
+		// outgoing Kalshi WS.
+		console.log(
+			`[live-bot] control ws closed code=${code} reason=${reason} clean=${wasClean}`,
+		);
+	}
+
+	async webSocketError(ws: WebSocket, error: unknown): Promise<void> {
+		console.error(`[live-bot] control ws error`, error);
+	}
+
+	// ─── Alarm — 90-min cycle ────────────────────────────────────
+
+	async alarm(alarmInfo?: AlarmInvocationInfo): Promise<void> {
+		const state = await this.ensureState();
+		// Schedule the next cycle. setAlarm replaces the existing
+		// alarm, so we don't need to delete first.
+		await this.ctx.storage.setAlarm(Date.now() + CYCLE_MS);
+		// Restart the WS connection (close + reopen) to refresh state.
+		console.log(
+			`[live-bot] alarm fired (${alarmInfo?.isRetry ? "retry" : "scheduled"}); restarting`,
+		);
+		void state; // state already loaded; closure captures `this`
+		await this.restart();
+	}
+
+	// ─── Start / stop / restart ──────────────────────────────────
+
+	async start(config: LiveBotConfig = {}): Promise<void> {
+		let state = await this.ensureState();
+
+		// Update config from the call.
+		const tickers = config.ticker_verticals
+			? Object.keys(config.ticker_verticals)
+			: (config as { tickers?: string[] }).tickers ?? state.config.tickers;
+		const newTickers: typeof state.tickers = {};
+		for (const t of tickers) {
+			const cur = state.tickers[t];
+			newTickers[t] = cur ?? {
+				vertical: config.ticker_verticals?.[t] ?? "unknown",
+				event_ticker: "",
+				title: "",
+				book: null,
+				price_history: [],
+				last_trade_price_cents: null,
+				trade_count: 0,
+				position: null,
+			};
+			// Always refresh vertical from the latest config.
+			if (config.ticker_verticals?.[t]) {
+				newTickers[t].vertical = config.ticker_verticals[t];
+			}
+		}
+		state.tickers = newTickers;
+		state.config = {
+			...state.config,
+			tickers,
+			ticker_verticals: config.ticker_verticals ?? state.config.ticker_verticals,
+			bankroll_cents: config.bankroll_cents ?? state.config.bankroll_cents,
+			url: config.url ?? state.config.url,
+			lookback: config.lookback ?? state.config.lookback,
+			disable_flips: config.disable_flips ?? state.config.disable_flips,
+			no_flip_verticals: config.no_flip_verticals ?? state.config.no_flip_verticals,
+			min_entry_p: config.min_entry_p ?? state.config.min_entry_p,
+			close_after_trades: config.close_after_trades ?? state.config.close_after_trades,
+			exit_mode: config.exit_mode ?? state.config.exit_mode,
+			profit_target_pct: config.profit_target_pct ?? state.config.profit_target_pct,
+			stop_loss_pct: config.stop_loss_pct ?? state.config.stop_loss_pct,
+			started_ts_ms: Date.now(),
+		};
+		if (config.user_id) state.user_id = config.user_id;
+		await this.saveState(state);
+		state = await this.ensureState(); // re-read in case anything else changed
+
+		// Open the Kalshi WS. The WS lifecycle is managed by the DO;
+		// we reconnect on close with exponential backoff.
+		await this.openKalshiWs(state);
+
+		// Schedule the 90-min cycle alarm (replaces any prior alarm).
+		await this.ctx.storage.setAlarm(Date.now() + CYCLE_MS);
+	}
+
+	async stop(): Promise<void> {
+		if (this._reconnectTimer) {
+			clearTimeout(this._reconnectTimer);
+			this._reconnectTimer = null;
+		}
+		this.closeKalshiWs();
+		await this.ctx.storage.deleteAlarm();
+	}
+
+	async restart(): Promise<void> {
+		this.closeKalshiWs();
+		const state = await this.ensureState();
+		await this.openKalshiWs(state);
+	}
+
+	// ─── Kalshi WS lifecycle ─────────────────────────────────────
+
+	private async openKalshiWs(state: LiveBotState): Promise<void> {
+		if (this._kalshiWs) return; // already open
+		const url = state.config.url;
+		const useDemo = url.includes("demo");
+
+		const headers: Record<string, string> = {};
+		const keyId =
+			(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
+		const pem =
+			(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
+		if (keyId && pem) {
+			// Sign the WS path. Per Kalshi spec, this is the literal
+			// WebSocket path (same as the Python client).
+			try {
+				const { buildAuthHeaders, loadPrivateKey } = await import("../kalshi/auth.js");
+				const pk = await loadPrivateKey(pem);
+				const auth = await buildAuthHeaders(pk, keyId, "GET", "/trade-api/ws/v2");
+				Object.assign(headers, auth);
+			} catch (e) {
+				console.error("[live-bot] failed to sign WS headers; connecting unauthenticated", e);
+			}
+		}
+
+		// The standard WebSocket constructor in Workers accepts headers
+		// via the second arg.
+		let ws: WebSocket;
+		try {
+			ws = new WebSocket(url, { headers } as unknown as string[]);
+		} catch (e) {
+			console.error("[live-bot] failed to open WS", e);
+			this.scheduleReconnect(state);
+			return;
+		}
+		this._kalshiWs = ws;
+		this._connected = false;
+		this._reconnectAttempt = 0;
+
+		ws.addEventListener("open", () => {
+			this._connected = true;
+			this._reconnectAttempt = 0;
+			// Subscribe to orderbook_delta + trade + ticker for every
+			// watched ticker. market_lifecycle is part of the public
+			// feed too, but we subscribe explicitly to be safe.
+			const tickers = state.config.tickers;
+			const subscribeMsg = {
+				id: 1,
+				cmd: "subscribe",
+				params: {
+					channels: ["orderbook_delta", "trade", "ticker", "market_lifecycle_v2"],
+					market_tickers: tickers,
+				},
+			};
+			ws.send(JSON.stringify(subscribeMsg));
+			console.log(`[live-bot] WS open, subscribed to ${tickers.length} tickers`);
+		});
+
+		ws.addEventListener("message", (event: MessageEvent) => {
+			const data = typeof event.data === "string" ? event.data : "";
+			if (!data) return;
+			try {
+				const msg = JSON.parse(data) as KalshiWSMessage;
+				void this.handleKalshiMessage(state, msg);
+			} catch (e) {
+				console.error("[live-bot] failed to parse WS message", e);
+			}
+		});
+
+		ws.addEventListener("error", (event: Event) => {
+			console.error("[live-bot] WS error", (event as ErrorEvent).message ?? event);
+		});
+
+		ws.addEventListener("close", (event: CloseEvent) => {
+			console.log(`[live-bot] WS close code=${event.code} reason=${event.reason}`);
+			this._kalshiWs = null;
+			this._connected = false;
+			this.scheduleReconnect(state);
+		});
+	}
+
+	private scheduleReconnect(state: LiveBotState): void {
+		if (this._reconnectTimer) return;
+		const delay = Math.min(1000 * 2 ** this._reconnectAttempt, 30_000);
+		this._reconnectAttempt += 1;
+		this._reconnectTimer = setTimeout(() => {
+			this._reconnectTimer = null;
+			void this.openKalshiWs(state);
+		}, delay);
+	}
+
+	private closeKalshiWs(): void {
+		if (this._kalshiWs) {
+			try {
+				this._kalshiWs.close(1000, "client_close");
+			} catch {
+				// ignore
+			}
+			this._kalshiWs = null;
+		}
+		this._connected = false;
+	}
+
+	// ─── Frame processing ────────────────────────────────────────
+
+	private async handleKalshiMessage(
+		state: LiveBotState,
+		msg: KalshiWSMessage,
+	): Promise<void> {
+		// Mutations against state must be serialized. blockConcurrencyWhile
+		// ensures the DO doesn't get re-entered while we save.
+		await this.ctx.blockConcurrencyWhile(async () => {
+			state.n_frames += 1;
+			switch (msg.type) {
+				case "orderbook_snapshot": {
+					const m = msg as OrderbookSnapshot;
+					const ticker = m.msg?.market_ticker;
+					if (!ticker) return;
+					this.onOrderbookSnapshot(state, ticker, m);
+					break;
+				}
+				case "orderbook_delta": {
+					const m = msg as OrderbookDelta;
+					const ticker = m.msg?.market_ticker;
+					if (!ticker) return;
+					this.onOrderbookDelta(state, ticker, m);
+					break;
+				}
+				case "trade": {
+					const m = msg as TradeMessage;
+					const ticker = m.msg?.market_ticker;
+					if (!ticker) return;
+					this.onTrade(state, ticker, m);
+					break;
+				}
+				case "ticker": {
+					const m = msg as TickerMessage;
+					// We don't change state on ticker; the orderbook channel
+					// is the source of truth. The ticker channel is a
+					// periodic summary useful for diagnostics.
+					void m;
+					break;
+				}
+				case "market_lifecycle_v2":
+				case "market_lifecycle": {
+					// Settlement event — close any open position at the
+					// settlement value. The exact wire shape varies; we
+					// look for an `event_type=settled` + `settlement_value`
+					// pair in `msg`.
+					await this.onMarketLifecycle(state, msg);
+					break;
+				}
+				case "subscribed": {
+					console.log(`[live-bot] subscribed: ${JSON.stringify(msg)}`);
+					break;
+				}
+				case "error": {
+					console.error(`[live-bot] kalshi error: ${JSON.stringify(msg)}`);
+					break;
+				}
+				default: {
+					// Unknown — log + skip. Don't fail the loop on a
+					// single unhandled type.
+					console.log(`[live-bot] unhandled msg type=${(msg as { type: string }).type}`);
+				}
+			}
+			// After every frame, maybe call the strategy.
+			await this.maybeSignalAll(state);
+			await this.saveState(state);
+		});
+	}
+
+	private onOrderbookSnapshot(
+		state: LiveBotState,
+		ticker: string,
+		msg: OrderbookSnapshot,
+	): void {
+		const t = state.tickers[ticker];
+		if (!t) return;
+		const ob = orderbookSnapshotToOb(msg);
+		t.book = { yes_levels: ob.yes_levels, no_levels: ob.no_levels };
+		this.appendPriceHistory(state, t);
+	}
+
+	private onOrderbookDelta(
+		state: LiveBotState,
+		ticker: string,
+		msg: OrderbookDelta,
+	): void {
+		const t = state.tickers[ticker];
+		if (!t) return;
+		const current: KalshiOrderbook = t.book
+			? { ticker, yes_levels: t.book.yes_levels, no_levels: t.book.no_levels }
+			: { ticker, yes_levels: [], no_levels: [] };
+		const updated = applyOrderbookDelta(current, msg);
+		t.book = { yes_levels: updated.yes_levels, no_levels: updated.no_levels };
+		this.appendPriceHistory(state, t);
+	}
+
+	private onTrade(state: LiveBotState, ticker: string, msg: TradeMessage): void {
+		const t = state.tickers[ticker];
+		if (!t) return;
+		const yesCents = Math.round(parseFloat(msg.msg.yes_price_dollars ?? "0") * 100);
+		if (yesCents > 0) {
+			t.last_trade_price_cents = yesCents;
+			t.price_history.push(yesCents);
+			// Trim to the lookback window.
+			const max = state.config.lookback;
+			if (t.price_history.length > max) {
+				t.price_history.splice(0, t.price_history.length - max);
+			}
+		}
+		t.trade_count += 1;
+		// Auto-close check (only when in "mtm" mode).
+		if (
+			state.config.close_after_trades !== null &&
+			state.config.close_after_trades > 0 &&
+			state.config.exit_mode === "mtm" &&
+			t.position !== null
+		) {
+			const pos = t.position;
+			const targetTrades = state.config.close_after_trades;
+			// We don't track entry trade count separately; we use the
+			// "elapsed since open" frame count as a proxy. The Python
+			// engine does the same.
+			const tradeCountAtEntry = Math.max(0, t.trade_count - targetTrades);
+			if (t.trade_count - tradeCountAtEntry >= targetTrades) {
+				this.autoCloseAtMark(state, ticker, yesCents);
+			}
+		}
+		// Profit target / stop loss (mark-based).
+		if (t.position !== null && t.book) {
+			const mark = orderbookMidCents({
+				ticker,
+				yes_levels: t.book.yes_levels,
+				no_levels: t.book.no_levels,
+			});
+			if (mark !== null) {
+				const pos = t.position;
+				const profitPct =
+					pos.side === "yes"
+						? (mark - pos.entry_price_cents) / pos.entry_price_cents
+						: (pos.entry_price_cents - (100 - mark)) / pos.entry_price_cents;
+				if (
+					state.config.profit_target_pct !== null &&
+					profitPct >= state.config.profit_target_pct
+				) {
+					this.autoCloseAtMark(state, ticker, mark, "pm_target");
+				} else if (
+					state.config.stop_loss_pct !== null &&
+					profitPct <= -state.config.stop_loss_pct
+				) {
+					this.autoCloseAtMark(state, ticker, mark, "pm_stop");
+				}
+			}
+		}
+	}
+
+	private async onMarketLifecycle(
+		state: LiveBotState,
+		msg: KalshiWSMessage,
+	): Promise<void> {
+		// The wire format is `market_lifecycle_v2` with a `msg` object
+		// containing `event_type` and (for `settled`) a `settlement_value`.
+		const inner = (msg as { msg?: { market_ticker?: string; event_type?: string; settlement_value?: string } })
+			.msg;
+		if (!inner) return;
+		const ticker = inner.market_ticker;
+		if (!ticker) return;
+		if (inner.event_type === "settled" && inner.settlement_value !== undefined) {
+			const sv = parseFloat(inner.settlement_value);
+			if (!Number.isFinite(sv)) return;
+			const settlementCents = Math.round(sv * 100);
+			if (settlementCents < 0 || settlementCents > 100) return;
+			this.closeAtSettlement(state, ticker, settlementCents);
+		}
+	}
+
+	private appendPriceHistory(state: LiveBotState, t: LiveBotState["tickers"][string]): void {
+		if (!t.book) return;
+		const mid = orderbookMidCents({
+			ticker: t.vertical ? "" : "", // unused; we read levels directly
+			yes_levels: t.book.yes_levels,
+			no_levels: t.book.no_levels,
+		});
+		if (mid === null) return;
+		t.price_history.push(mid);
+		const max = state.config.lookback;
+		if (t.price_history.length > max) {
+			t.price_history.splice(0, t.price_history.length - max);
+		}
+	}
+
+	// ─── Trade recording ────────────────────────────────────────
+
+	private async maybeSignalAll(state: LiveBotState): Promise<void> {
+		// Build the per-vertical router. The naive signal is the chunk-3
+		// placeholder; chunk 4 swaps in reversion-quality by vertical.
+		const router = new VerticalStrategyRouter();
+		for (const [ticker, t] of Object.entries(state.tickers)) {
+			if (t.price_history.length < 2) continue;
+			const ctx: SignalContext = {
+				ticker,
+				priceHistory: t.price_history,
+				currentTick: state.n_frames,
+				orderbook: t.book
+					? {
+							ticker,
+							yesLevels: t.book.yes_levels.map((l) => ({
+								priceCents: l.price_cents,
+								count: l.count,
+							})),
+							noLevels: t.book.no_levels.map((l) => ({
+								priceCents: l.price_cents,
+								count: l.count,
+							})),
+						}
+					: null,
+				market: {
+					ticker,
+					eventTicker: t.event_ticker,
+					vertical: t.vertical,
+					title: t.title,
+				},
+			};
+			const sig = router.__call(ctx);
+			if (sig === null) continue;
+			state.n_signals += 1;
+			await this.maybeRecordTrade(state, ticker, sig);
+		}
+	}
+
+	private async maybeRecordTrade(
+		state: LiveBotState,
+		ticker: string,
+		signal: Signal,
+	): Promise<void> {
+		const t = state.tickers[ticker];
+		if (!t) return;
+		const pos = t.position;
+
+		// Same-side check: skip (no pyramid).
+		if (pos !== null && pos.side === signal.side) return;
+
+		// Min entry-p threshold.
+		if (
+			pos === null &&
+			state.config.min_entry_p > 0 &&
+			signal.p < state.config.min_entry_p
+		) {
+			return;
+		}
+
+		// No-flip mode: skip opposite signals when a position is open.
+		if (pos !== null) {
+			let blockFlip = state.config.disable_flips;
+			if (
+				!blockFlip &&
+				state.config.no_flip_verticals !== null &&
+				state.config.no_flip_verticals.includes(String(t.vertical))
+			) {
+				blockFlip = true;
+			}
+			if (blockFlip) return;
+		}
+
+		// Flip-filter (the 2026-08-06 logic): if the new signal is
+		// opposite the open position, and the position is in profit,
+		// and the new signal is NOT significantly more confident, keep
+		// the open position. The Python engine has full knobs; we keep
+		// the conservative defaults (5c profit floor + 1.5x ratio).
+		if (pos !== null) {
+			const minFlipProfitCents = 5;
+			const minFlipSignalRatio = 1.5;
+			if (t.book) {
+				const mark = orderbookMidCents({
+					ticker,
+					yes_levels: t.book.yes_levels,
+					no_levels: t.book.no_levels,
+				});
+				const markCents = mark ?? pos.entry_price_cents;
+				const profitCents =
+					pos.side === "yes"
+						? markCents - pos.entry_price_cents
+						: pos.entry_price_cents - (100 - markCents);
+				const hasProfit = profitCents >= minFlipProfitCents;
+				let isStrongEnough = true;
+				if (pos.entry_signal_p > 0 && signal.p > 0) {
+					isStrongEnough =
+						signal.p >= pos.entry_signal_p * minFlipSignalRatio;
+				} else {
+					isStrongEnough = false;
+				}
+				if (hasProfit && !isStrongEnough) {
+					// Skip the flip; keep the open position.
+					return;
+				}
+			}
+		}
+
+		// Flip handling: close the existing position at mark first, so
+		// the new signal can pass `can_open_position`'s "already in
+		// market" check.
+		let flipPnlCents = 0;
+		if (pos !== null && t.book) {
+			const mark = orderbookMidCents({
+				ticker,
+				yes_levels: t.book.yes_levels,
+				no_levels: t.book.no_levels,
+			});
+			const markCents = mark ?? pos.entry_price_cents;
+			flipPnlCents = this.closeAtMarkInternal(state, ticker, markCents, "replay_flip");
+		}
+
+		// Risk check.
+		const risk = this.makeRiskEngine(state);
+		const decision = risk.canOpenPosition(ticker, signal.price, state.n_frames);
+		if (!decision.allowed || decision.size <= 0) {
+			if (decision.reason) {
+				state.last_reject = {
+					ts_ms: Date.now(),
+					ticker,
+					code: decision.reason.code,
+					message: decision.reason.message,
+				};
+			}
+			return;
+		}
+		const size = decision.size;
+
+		// Min-edge-after-fees guardrail (user-flagged 2026-08-07).
+		if (isStructurallyUnprofitable(signal.price, size)) {
+			state.last_reject = {
+				ts_ms: Date.now(),
+				ticker,
+				code: "structurally_unprofitable",
+				message: `max gain <= 2x entry fee at price=${signal.price}c size=${size}`,
+			};
+			return;
+		}
+
+		// Cost and fee.
+		const costCents =
+			signal.side === "yes"
+				? signal.price * size
+				: (100 - signal.price) * size;
+		const entryFeeCents = kalshiTakerFeeCents(signal.side, size, signal.price);
+
+		// Record the fill in the risk engine.
+		risk.recordFill(ticker, String(t.vertical), signal.side, signal.price, size, state.n_frames);
+		// Mirror the bankroll debit.
+		risk.state.bankroll_cents -= costCents + entryFeeCents;
+		state.total_fees_cents += entryFeeCents;
+		state.risk_state = risk.state;
+
+		// Set the open position on the per-ticker state.
+		t.position = {
+			side: signal.side,
+			size,
+			entry_price_cents: signal.price,
+			entry_ts_ms: Date.now(),
+			rationale: signal.rationale,
+			entry_signal_p: signal.p,
+		};
+
+		// Persist trades + signals to D1 (best-effort; failures are
+		// logged but don't break the loop).
+		await this.writeTradeRow(state, {
+			action: "open",
+			ticker,
+			side: signal.side,
+			price: signal.price,
+			size,
+			rationale: signal.rationale,
+			signal_p: signal.p,
+			vertical: String(t.vertical),
+		});
+		state.n_trades += 1;
+
+		// If a flip happened, record the close trade too.
+		if (pos !== null && flipPnlCents !== 0) {
+			await this.writeTradeRow(state, {
+				action: "close",
+				ticker,
+				side: pos.side,
+				price: pos.entry_price_cents,
+				size: pos.size,
+				rationale: "replay_flip",
+				signal_p: null,
+				vertical: String(t.vertical),
+				pnl_cents: flipPnlCents,
+			});
+		}
+	}
+
+	private autoCloseAtMark(
+		state: LiveBotState,
+		ticker: string,
+		markCents: number,
+		rationale = "auto_close",
+	): void {
+		this.closeAtMarkInternal(state, ticker, markCents, rationale);
+	}
+
+	private closeAtMarkInternal(
+		state: LiveBotState,
+		ticker: string,
+		markCents: number,
+		rationale: string,
+	): number {
+		const t = state.tickers[ticker];
+		if (!t || !t.position) return 0;
+		// Capture the closing position's details BEFORE we null it out.
+		const pos = t.position;
+		const risk = this.makeRiskEngine(state);
+		const closed = risk.closePositionAtMark(ticker, markCents, state.n_frames);
+		if (!closed) {
+			t.position = null;
+			state.risk_state = risk.state;
+			return 0;
+		}
+		// Charge taker fee on the close (the close is a market order).
+		const closeFeeCents = kalshiTakerFeeCents(pos.side, pos.size, markCents);
+		risk.state.bankroll_cents -= closeFeeCents;
+		state.total_fees_cents += closeFeeCents;
+		state.risk_state = risk.state;
+		t.position = null;
+		// Persist the close to D1. Use the captured `pos` (not the
+		// nulled-out `t.position`).
+		void this.writeTradeRow(state, {
+			action: "close",
+			ticker,
+			side: pos.side,
+			price: markCents,
+			size: pos.size,
+			rationale,
+			signal_p: null,
+			vertical: String(t.vertical),
+			pnl_cents: closed.pnl_cents,
+		}).catch((e) => console.error("[live-bot] trade write failed", e));
+		return closed.pnl_cents;
+	}
+
+	private closeAtSettlement(state: LiveBotState, ticker: string, settlementCents: number): void {
+		this.closeAtMarkInternal(state, ticker, settlementCents, "market_settled");
+	}
+
+	// ─── D1 persistence ─────────────────────────────────────────
+
+	private async writeTradeRow(
+		state: LiveBotState,
+		row: {
+			action: "open" | "close";
+			ticker: string;
+			side: Side;
+			price: number;
+			size: number;
+			rationale: string;
+			signal_p: number | null;
+			vertical: string;
+			pnl_cents?: number;
+		},
+	): Promise<void> {
+		const db = this.env.DB;
+		if (!db) return; // test env / no D1 binding
+		await db
+			.prepare(
+				`INSERT INTO trades
+				 (user_id, ts, ticker, vertical, side, action, price_cents, size,
+				  signal_p, signal_rationale, model_version, pnl_cents, fill_type, is_paper)
+				 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`,
+			)
+			.bind(
+				state.user_id,
+				Date.now(),
+				row.ticker,
+				row.vertical,
+				row.side,
+				row.action,
+				row.price,
+				row.size,
+				row.signal_p,
+				row.rationale,
+				"v0-naive", // chunk 4 swaps in real model version
+				row.pnl_cents ?? null,
+				"limit", // fill_type: chunk 9 distinguishes paper vs real
+				1, // is_paper
+			)
+			.run();
+	}
+
+	// ─── Status summary ─────────────────────────────────────────
+
+	private summarize(state: LiveBotState): Record<string, unknown> {
+		return {
+			ok: true,
+			connected: this._connected,
+			user_id: state.user_id,
+			config: state.config,
+			counts: {
+				n_signals: state.n_signals,
+				n_frames: state.n_frames,
+				n_trades: state.n_trades,
+				total_fees_cents: state.total_fees_cents,
+			},
+			risk: {
+				bankroll_cents: state.risk_state.bankroll_cents,
+				open_positions: Object.keys(state.risk_state.open_positions).length,
+				consecutive_losses: state.risk_state.consecutive_losses,
+			},
+		};
+	}
+}
