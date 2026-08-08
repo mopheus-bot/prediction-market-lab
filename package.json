@@ -25,5 +25,8 @@
     "typescript": "^5.4.0",
     "vitest": "^4.1.10",
     "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "kalshi-typescript": "^3.26.0"
   }
 }

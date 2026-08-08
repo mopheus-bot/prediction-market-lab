@@ -708,7 +708,9 @@
 				font-variant-numeric: tabular-nums;
 			}
 			.vertical-cap-tag {
-				display: inline-block;
+				display: inline-flex;
+				align-items: center;
+				gap: 4px;
 				font-family: var(--font-mono);
 				font-size: 11px;
 				padding: 2px 8px;
@@ -718,6 +720,16 @@
 				border-radius: 4px;
 				color: var(--ink-muted);
 			}
+			.per-vertical-remove {
+				background: none;
+				border: none;
+				color: var(--ink-faint);
+				font-size: 14px;
+				line-height: 1;
+				padding: 0 2px;
+				cursor: pointer;
+			}
+			.per-vertical-remove:hover { color: var(--red); }
 			.blocklist-wrap {
 				display: flex;
 				flex-direction: column;
@@ -769,6 +781,33 @@
 			.blocklist-input:focus {
 				outline: none;
 				border-color: var(--accent);
+			}
+
+			/* Per-vertical cap input (chunk 10.8) */
+			.per-vertical-input-row {
+				display: flex;
+				gap: 6px;
+			}
+			.per-vertical-input {
+				background: var(--bg-2);
+				border: 1px solid var(--card-border);
+				color: var(--ink);
+				padding: 4px 8px;
+				border-radius: 4px;
+				font-family: var(--font-mono);
+				font-size: 12px;
+			}
+			.per-vertical-input:focus {
+				outline: none;
+				border-color: var(--accent);
+			}
+			.per-vertical-input::-webkit-outer-spin-button,
+			.per-vertical-input::-webkit-inner-spin-button {
+				-webkit-appearance: none;
+				margin: 0;
+			}
+			.per-vertical-input[type=number] {
+				-moz-appearance: textfield;
 			}
 			.caps-bar-wrap {
 				height: 4px;
@@ -1402,6 +1441,28 @@
 							<div class="caps-label">Per-vertical overrides</div>
 							<div class="caps-val" id="per-vertical-caps" style="font-size: 11px; line-height: 1.5;"></div>
 						</div>
+						<div class="per-vertical-input-row" style="margin-top: 6px;">
+							<input
+								type="text"
+								id="per-vertical-input-name"
+								class="per-vertical-input"
+								placeholder="vertical (e.g. weather)"
+								aria-label="Per-vertical cap name"
+								style="flex: 1; min-width: 0;"
+							/>
+							<input
+								type="number"
+								id="per-vertical-input-cents"
+								class="per-vertical-input"
+								placeholder="¢/trade"
+								min="1"
+								max="999"
+								step="1"
+								aria-label="Per-vertical cap in cents"
+								style="width: 64px;"
+							/>
+							<button class="btn small" id="per-vertical-add-btn">Add</button>
+						</div>
 						<div class="caps-row" style="margin-top: 12px;">
 							<div class="caps-label">
 								Blocklist
@@ -1905,6 +1966,77 @@
 					}
 				}
 			});
+
+			// Chunk 10.8: per-vertical cap overrides. Same
+			// shape as blocklist — add/remove tags that
+			// PATCH the bot config via /api/pm/bot/start.
+			async function updatePerVerticalCap(action, vertical, cents) {
+				const v = (vertical ?? "").trim().toLowerCase();
+				if (!v) return;
+				const cur = { ...(window._lastBotStatus?.config?.per_vertical_max_notional_cents ?? {}) };
+				let next;
+				if (action === "add") {
+					const c = Math.max(1, Math.floor(Number(cents)));
+					if (!Number.isFinite(c) || c <= 0) {
+						toast("cap must be a positive number of cents", false);
+						return;
+					}
+					cur[v] = c;
+					next = cur;
+				} else {
+					delete cur[v];
+					next = cur;
+				}
+				toast(`${action === "add" ? `capping ${v} at ${(Number(cents) / 100).toFixed(2)}` : `removing ${v} cap`}…`);
+				const r = await fetch("/api/pm/bot/start", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ per_vertical_max_notional_cents: next }),
+				});
+				if (r.ok) {
+					setTimeout(() => { void refresh(); }, 600);
+				} else {
+					const data = await r.json().catch(() => ({}));
+					toast(`cap update failed: ${data.message ?? r.statusText}`, false);
+				}
+			}
+			document.addEventListener("click", (e) => {
+				const rm = e.target.closest(".per-vertical-remove");
+				if (rm) {
+					e.preventDefault();
+					void updatePerVerticalCap("remove", rm.dataset.vertical);
+				}
+			});
+			document.addEventListener("click", (e) => {
+				if (e.target.id === "per-vertical-add-btn") {
+					const nameEl = $("per-vertical-input-name");
+					const centsEl = $("per-vertical-input-cents");
+					if (nameEl?.value && centsEl?.value) {
+						void updatePerVerticalCap("add", nameEl.value, centsEl.value);
+						nameEl.value = "";
+						centsEl.value = "";
+					} else {
+						toast("vertical + cap both required", false);
+					}
+				}
+			});
+			document.addEventListener("keydown", (e) => {
+				if (
+					(e.target.id === "per-vertical-input-name" ||
+						e.target.id === "per-vertical-input-cents") &&
+					e.key === "Enter"
+				) {
+					e.preventDefault();
+					const nameEl = $("per-vertical-input-name");
+					const centsEl = $("per-vertical-input-cents");
+					if (nameEl?.value && centsEl?.value) {
+						void updatePerVerticalCap("add", nameEl.value, centsEl.value);
+						nameEl.value = "";
+						centsEl.value = "";
+					}
+				}
+			});
+
 			async function postBotAction(path, body) {
 				const url = `/api/pm/bot/${path}`;
 				toast(`bot ${path}…`);
@@ -2548,8 +2680,10 @@
 				if (pct >= 100) bar.classList.add("over");
 				else if (pct >= 80) bar.classList.add("warn");
 
-				// Per-vertical caps (chunk 11b). Display in the
-				// caps panel if any are set.
+				// Per-vertical caps (chunk 11b). Display as
+				// removable tags so the operator can drop
+				// overrides from the UI. Empty state shows a
+				// muted "using global cap" hint.
 				const perVerticalEl = $("per-vertical-caps");
 				if (perVerticalEl) {
 					const entries = Object.entries(perVertical);
@@ -2560,7 +2694,7 @@
 						perVerticalEl.innerHTML = entries
 							.map(
 								([v, c]) =>
-									`<span class="vertical-cap-tag">${esc(v)}: $${(c / 100).toFixed(2)}</span>`,
+									`<span class="vertical-cap-tag" data-vertical="${esc(v)}">${esc(v)}: $${(c / 100).toFixed(2)}<button class="per-vertical-remove" data-vertical="${esc(v)}" aria-label="Remove ${esc(v)} cap">×</button></span>`,
 							)
 							.join(" ");
 					}

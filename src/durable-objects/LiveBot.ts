@@ -771,6 +771,41 @@ export class LiveBot implements DurableObject {
 				s.risk_state.daily_notional_history = notionalHistory;
 				s.n_trades += 1;
 				await this.saveState(s);
+
+				// Chunk 10.8: Telegram on manual test orders too.
+				// The Telegram send in maybeRecordTrade only
+				// fires for signal-driven trades; /place-test-order
+				// bypasses that path. Mirror the same alert so
+				// the operator gets a Telegram for every real
+				// fill, signal-driven or manual.
+				try {
+					const text = [
+						`🟢 real fill (manual): ${ticker}`,
+						`side=${side} size=${size} price=${priceCents}¢`,
+						`notional=${notionalCents}¢`,
+						`rationale=manual_test_order`,
+						orderResult.orderId ? `kalshi order: ${orderResult.orderId}` : null,
+					]
+						.filter(Boolean)
+						.join("\n");
+					const tg = await sendTelegramMessage(this.env, text);
+					if (!tg.ok) {
+						console.warn(
+							"[live-bot] /place-test-order telegram send failed",
+							tg.error_message ?? "(no error_message)",
+						);
+					} else {
+						console.log(
+							`[live-bot] /place-test-order telegram sent message_id=${tg.message_id}`,
+						);
+					}
+				} catch (e) {
+					console.warn(
+						"[live-bot] /place-test-order telegram threw",
+						e instanceof Error ? e.message : String(e),
+					);
+				}
+
 				return Response.json({
 					ok: true,
 					order_id: orderResult.orderId,
