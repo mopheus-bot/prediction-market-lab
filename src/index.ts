@@ -1,26 +1,69 @@
 /**
- * Welcome to Cloudflare Workers! This is your first worker.
+ * pm-bot — Cloudflare Workers entry point.
  *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
+ * Chunk 0: hello-world that proves the deploy pipeline works.
+ * Replaced by the real routing in Chunk 1+ as features land.
  */
 
+export interface Env {
+  ENVIRONMENT: string;
+  SERVICE_NAME: string;
+  DB?: D1Database;
+  BUCKET?: R2Bucket;
+}
+
 export default {
-	async fetch(request, env, ctx): Promise<Response> {
-		const url = new URL(request.url);
-		switch (url.pathname) {
-			case '/message':
-				return new Response('Hello, World!');
-			case '/random':
-				return new Response(crypto.randomUUID());
-			default:
-				return new Response('Not Found', { status: 404 });
-		}
-	},
-} satisfies ExportedHandler<Env>;
+  async fetch(
+    request: Request,
+    env: Env,
+    _ctx: ExecutionContext,
+  ): Promise<Response> {
+    const url = new URL(request.url);
+    const start = Date.now();
+
+    // Health check — used by Fly.io, the dashboard, and uptime monitors.
+    if (url.pathname === "/health" || url.pathname === "/healthz") {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          service: env.SERVICE_NAME,
+          environment: env.ENVIRONMENT,
+          uptime_ms: Date.now() - start,
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
+    // Root — version + build info.
+    if (url.pathname === "/" || url.pathname === "") {
+      return new Response(
+        JSON.stringify(
+          {
+            ok: true,
+            service: env.SERVICE_NAME,
+            environment: env.ENVIRONMENT,
+            message: "pm-bot is live. see /health for a heartbeat.",
+            deployed_at: new Date().toISOString(),
+          },
+          null,
+          2,
+        ),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ ok: false, error: "not found", path: url.pathname }),
+      {
+        status: 404,
+        headers: { "content-type": "application/json" },
+      },
+    );
+  },
+};
