@@ -115,6 +115,8 @@ def main() -> int:
                 "Recent signals",
                 "Daily recap",
                 "Cron runs",
+                "Monthly limits",
+                "Cloudflare Workers Paid",
             ]
             for txt in required_text:
                 if txt not in html:

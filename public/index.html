@@ -791,6 +791,82 @@
 				margin: 4px 0 0;
 				padding-left: 18px;
 			}
+
+			/* ─── Monthly limits (chunk 10.5) ─── */
+			.monthly-limits {
+				display: grid;
+				gap: 28px;
+				margin-top: 12px;
+			}
+			.monthly-section {
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+			}
+			.monthly-section-head {
+				display: flex;
+				justify-content: space-between;
+				align-items: baseline;
+				gap: 12px;
+			}
+			.monthly-section-title {
+				font-size: 13px;
+				font-weight: 600;
+				color: var(--ink);
+				letter-spacing: 0.01em;
+			}
+			.monthly-reset {
+				font-size: 12px;
+				color: var(--ink-muted);
+			}
+			.monthly-reset strong { color: var(--ink); }
+			.monthly-bars {
+				display: grid;
+				gap: 10px;
+			}
+			.monthly-bar {
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+			}
+			.monthly-bar-head {
+				display: flex;
+				justify-content: space-between;
+				align-items: baseline;
+				font-size: 12px;
+			}
+			.monthly-bar-label { color: var(--ink-muted); }
+			.monthly-bar-pct {
+				font-family: var(--font-mono);
+				font-weight: 600;
+			}
+			.monthly-bar-pct.pct-ok { color: var(--green-soft); }
+			.monthly-bar-pct.pct-warn { color: var(--amber-soft); }
+			.monthly-bar-pct.pct-err { color: var(--red-soft); }
+			.monthly-bar-track {
+				height: 8px;
+				background: var(--bg-3);
+				border-radius: 4px;
+				overflow: hidden;
+			}
+			.monthly-bar-fill {
+				height: 100%;
+				transition: width 300ms ease;
+			}
+			.monthly-bar-fill.bar-ok { background: var(--green); }
+			.monthly-bar-fill.bar-warn { background: var(--amber); }
+			.monthly-bar-fill.bar-err { background: var(--red); }
+			.monthly-bar-detail {
+				font-size: 11px;
+				color: var(--ink-faint);
+				font-family: var(--font-mono);
+			}
+			.monthly-credit-row {
+				font-size: 12px;
+				color: var(--ink-muted);
+				padding-top: 4px;
+			}
+			.monthly-credit-row strong { color: var(--ink); }
 			@media (max-width: 768px) {
 				.cost-grid { grid-template-columns: 1fr; }
 			}
@@ -1491,8 +1567,22 @@
 				</div>
 			</section>
 
+			<!-- Monthly limits (chunk 10.5) -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span aria-hidden="true">📊</span>
+							<span>Monthly limits</span>
+						</div>
+						<div class="card-blurb">Progress bars for the CF Workers Paid plan's monthly included amounts (10M requests, 30M CPU-ms, 100K D1 writes/day, 10GB R2) plus the Fly.io relay cost. Resets on the CF billing cycle start date you signed up for Workers Paid. The 7d usage is extrapolated to a 30d window — not a perfect estimate but a useful one.</div>
+						<div class="monthly-limits" id="monthly-limits">loading…</div>
+					</div>
+				</div>
+			</section>
+
 			<footer>
-				pm-bot · Prediction Market Lab · chunk 9.7
+				Prediction Market Lab — pm-bot · chunk 10.5
 			</footer>
 		</div>
 
@@ -2069,12 +2159,124 @@
 				$("cost-mmx-detail").textContent =
 					`${fmtNum(d.mmx.calls_24h)} calls · ${fmtNum(d.mmx.input_tokens_24h)} in / ${fmtNum(d.mmx.output_tokens_24h)} out tokens`;
 
+				// Chunk 10.5: monthly limits card.
+				renderMonthlyLimits(d.cf_monthly, d.fly_relay);
+
 				$("cost-cf-dashboard").href = d.dashboard_url;
 				const notesHtml = (d.notes || []).map((n) => `<li>${esc(n)}</li>`).join("");
 				$("cost-foot").innerHTML =
 					`<strong>assumptions:</strong>` +
 					(notesHtml ? `<ul>${notesHtml}</ul>` : " no notes") +
 					`<div style="margin-top:6px; opacity:0.7;">estimates, not invoiced. confirm at the CF billing dashboard.</div>`;
+			}
+
+			// ─── Monthly limits (chunk 10.5) ───
+			// Two sections: CF (Workers Paid plan) + Fly.io (relay).
+			function renderMonthlyLimits(cf, fly) {
+				const container = $("monthly-limits");
+				if (!container) return;
+
+				// CF section
+				const cfPctClass = (pct) =>
+					pct >= 90 ? "bar-err" : pct >= 70 ? "bar-warn" : "bar-ok";
+
+				const cfResetInfo = cf
+					? `<div class="monthly-reset">resets in <strong>${esc(String(cf.days_until_reset))}</strong> day${cf.days_until_reset === 1 ? "" : "s"} · on <strong>${esc(cf.resets_on)}</strong> · day ${esc(String(cf.days_elapsed))}/30 of cycle</div>`
+					: "";
+
+				const cfBar = (label, current, limit, pct, suffix = "") => `
+					<div class="monthly-bar">
+						<div class="monthly-bar-head">
+							<span class="monthly-bar-label">${esc(label)}</span>
+							<span class="monthly-bar-pct ${pct >= 90 ? "pct-err" : pct >= 70 ? "pct-warn" : "pct-ok"}">${pct.toFixed(1)}%</span>
+						</div>
+						<div class="monthly-bar-track">
+							<div class="monthly-bar-fill ${cfPctClass(pct)}" style="width: ${Math.min(100, pct).toFixed(1)}%;"></div>
+						</div>
+						<div class="monthly-bar-detail">${fmtNum(current)} / ${fmtNum(limit)}${esc(suffix)}</div>
+					</div>`;
+
+				const cfBars = cf
+					? cfBar(
+							"Workers requests",
+							cf.requests.current,
+							cf.requests.limit,
+							cf.requests.pct,
+							" (extrapolated from last 7d)",
+						) +
+						cfBar(
+							"Workers CPU time",
+							cf.cpu_ms.current,
+							cf.cpu_ms.limit,
+							cf.cpu_ms.pct,
+							" ms",
+						) +
+						cfBar(
+							"D1 writes (24h)",
+							cf.d1_writes_24h.current,
+							cf.d1_writes_24h.limit,
+							cf.d1_writes_24h.pct,
+						) +
+						cfBar(
+							"R2 storage",
+							cf.r2_storage_gb.current,
+							cf.r2_storage_gb.limit,
+							cf.r2_storage_gb.pct,
+							" GB",
+						)
+					: "<div class=\"muted\">CF billing date not configured.</div>";
+
+				// Fly.io section
+				const flyStatusEmoji = {
+					running: "🟢",
+					stopped: "🟡",
+					unknown: "❔",
+					no_token: "⚪",
+					not_deployed: "⚪",
+				};
+				const flyEmoji = flyStatusEmoji[fly?.status] ?? "❔";
+				const flyStatusLabel = {
+					running: "running",
+					stopped: "stopped",
+					unknown: "unknown",
+					no_token: "no API token",
+					not_deployed: "not deployed",
+				};
+				const flyBarPct = fly && fly.price_per_month > 0
+					? Math.min(100, ((fly.estimated_cost_month ?? 0) / fly.price_per_month) * 100)
+					: 0;
+				const flyBar = `
+					<div class="monthly-bar">
+						<div class="monthly-bar-head">
+							<span class="monthly-bar-label">Fly.io relay (${esc(fly?.plan ?? "shared-cpu-1x-1gb")})</span>
+							<span class="monthly-bar-pct ${flyBarPct >= 90 ? "pct-err" : flyBarPct >= 70 ? "pct-warn" : "pct-ok"}">${flyBarPct.toFixed(1)}%</span>
+						</div>
+						<div class="monthly-bar-track">
+							<div class="monthly-bar-fill ${flyBarPct >= 90 ? "bar-err" : flyBarPct >= 70 ? "bar-warn" : "bar-ok"}" style="width: ${flyBarPct.toFixed(1)}%;"></div>
+						</div>
+						<div class="monthly-bar-detail">${fmtUsd(fly?.estimated_cost_month ?? 0)} / ${fmtUsd(fly?.price_per_month ?? 0)} this month · ${fly?.hours_this_month ?? 0}h</div>
+					</div>`;
+				const flyCreditBar = fly && (fly.free_credit_remaining_usd ?? 0) > 0
+					? `<div class="monthly-credit-row">${flyEmoji} status: <strong>${esc(flyStatusLabel[fly?.status] ?? "unknown")}</strong> · free credit remaining: <strong>${fmtUsd(fly.free_credit_remaining_usd)}</strong>${fly.notes?.length ? ` · <span class="muted">${esc(fly.notes[0])}</span>` : ""}</div>`
+					: `<div class="monthly-credit-row">${flyEmoji} status: <strong>${esc(flyStatusLabel[fly?.status] ?? "unknown")}</strong>${fly.notes?.length ? ` · <span class="muted">${esc(fly.notes[0])}</span>` : ""}</div>`;
+
+				container.innerHTML = `
+					<div class="monthly-section">
+						<div class="monthly-section-head">
+							<span class="monthly-section-title">Cloudflare Workers Paid</span>
+							<a class="muted" href="${esc(d.dashboard_url ?? "#")}" target="_blank" rel="noopener">open CF dashboard ↗</a>
+						</div>
+						${cfResetInfo}
+						<div class="monthly-bars">${cfBars}</div>
+					</div>
+					<div class="monthly-section">
+						<div class="monthly-section-head">
+							<span class="monthly-section-title">Fly.io relay</span>
+							<a class="muted" href="https://fly.io/dashboard/${esc(d.fly_relay?.plan ? "pm-bot-relay" : "")}" target="_blank" rel="noopener">open Fly.io dashboard ↗</a>
+						</div>
+						${flyBar}
+						${flyCreditBar}
+					</div>`;
 			}
 
 			// ─── Toast ───

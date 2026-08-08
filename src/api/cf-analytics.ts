@@ -52,6 +52,7 @@ query PmBotAnalytics(
           requests
           errors
           subrequests
+          cpuTime
         }
         dimensions {
           datetime
@@ -73,6 +74,7 @@ export interface CfAnalyticsSummary {
 		requests: number;
 		errors: number;
 		subrequests: number;
+		cpu_ms: number;
 		error_rate_pct: number;
 		success_rate_pct: number;
 	};
@@ -180,7 +182,7 @@ export async function handleCfAnalytics(
 				viewer?: {
 					accounts?: Array<{
 						workersInvocationsAdaptive?: Array<{
-							sum?: { requests?: number; errors?: number; subrequests?: number };
+							sum?: { requests?: number; errors?: number; subrequests?: number; cpuTime?: number };
 							dimensions?: { datetime?: string };
 						}>;
 					}>;
@@ -205,14 +207,17 @@ export async function handleCfAnalytics(
 		let totalRequests = 0;
 		let totalErrors = 0;
 		let totalSubrequests = 0;
+		let totalCpuMs = 0;
 		const hourly: CfAnalyticsSummary["hourly"] = [];
 		for (const b of buckets) {
 			const r = b.sum?.requests ?? 0;
 			const e = b.sum?.errors ?? 0;
 			const s = b.sum?.subrequests ?? 0;
+			const c = b.sum?.cpuTime ?? 0;
 			totalRequests += r;
 			totalErrors += e;
 			totalSubrequests += s;
+			totalCpuMs += c;
 			if (b.dimensions?.datetime) {
 				hourly.push({
 					datetime: b.dimensions.datetime,
@@ -236,6 +241,7 @@ export async function handleCfAnalytics(
 				requests: totalRequests,
 				errors: totalErrors,
 				subrequests: totalSubrequests,
+				cpu_ms: totalCpuMs,
 				error_rate_pct: Math.round(errorRatePct * 100) / 100,
 				success_rate_pct: Math.round(successRatePct * 100) / 100,
 			},

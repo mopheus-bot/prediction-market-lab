@@ -28,7 +28,20 @@
 		"DEFAULT_TICKERS": "KXWARMING-50",
 		// Default WS URL. Demo by default; the /start command can flip
 		// to production with `{"url": "wss://external-api-ws.kalshi.com/..."}`.
-		"DEFAULT_URL": "wss://external-api-ws.demo.kalshi.co/trade-api/ws/v2"
+		"DEFAULT_URL": "wss://external-api-ws.demo.kalshi.co/trade-api/ws/v2",
+		// CF Workers Paid plan billing cycle (chunk 10.5).
+		// User signed up 2026-08-08. Resets monthly on this date.
+		// Used by /api/pm/cost to compute "resets in N days".
+		"CF_BILLING_CYCLE_START": "2026-08-08",
+		// Fly.io relay app name (chunk 10.5). Defaults to
+		// "pm-bot-relay" if not set in /api/pm/cost.
+		"FLY_APP_NAME": "pm-bot-relay",
+		// Fly.io free credit remaining in USD. The user had $0.83
+		// of free credit at signup. Decrement as relay hours
+		// accumulate (the cost endpoint computes this server-side
+		// for the current month, then surfaces a remaining-credit
+		// estimate).
+		"FLY_FREE_CREDIT_USD": "0.83"
 	},
 	// D1 database — bound at runtime as `env.DB`.
 	// database_id filled in after `wrangler d1 create pm-bot-prod`.

@@ -76,6 +76,19 @@ export interface Env extends CronEnv {
 	// Default values are the pm-bot account + script name.
 	CF_ACCOUNT_TAG?: string;
 	CF_SCRIPT_NAME?: string;
+	// Chunk 10.5: cost tracking.
+	// CF Workers Paid plan billing cycle start date (ISO YYYY-MM-DD).
+	// The cost endpoint computes "resets in N days" from this.
+	CF_BILLING_CYCLE_START?: string;
+	// Fly.io machine API token (chunk 10.5). Used by the cost
+	// endpoint to fetch machine hours for the relay app.
+	// `wrangler secret put FLY_API_TOKEN`.
+	FLY_API_TOKEN?: string;
+	// Fly.io app name (defaults to "pm-bot-relay" if not set).
+	FLY_APP_NAME?: string;
+	// Fly.io free credit remaining (USD). Set once via wrangler var;
+	// decrements as the relay's machine-hours × rate accumulates.
+	FLY_FREE_CREDIT_USD?: string;
 }
 
 export { LiveBot } from "./durable-objects/LiveBot.js";
