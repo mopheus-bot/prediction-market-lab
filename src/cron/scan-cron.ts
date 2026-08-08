@@ -18,6 +18,17 @@
  * `/markets/trades` may need auth on some endpoints; the
  * `KalshiClient` signs automatically if creds are
  * provided via env.
+ *
+ * **Why hand-rolled client, not the SDK (chunk 10.8c):**
+ * the SDK's getEvents/getMarkets/getTrades return raw
+ * axios responses; the hand-rolled client's parse layer
+ * (parseMarket/parseTrade/parseEvent) gives us typed
+ * KalshiMarket/KalshiTrade/KalshiEvent values that the
+ * scan logic depends on. Migrating would require
+ * re-implementing the parse layer + the async iterator
+ * pattern. The hand-rolled client has chunk 10.8 retries
+ * on 5xx/429, so the reliability benefit is already
+ * captured.
  */
 
 import {

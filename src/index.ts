@@ -39,6 +39,7 @@ import { handleCadence } from "./api/cadence.js";
 import { handleStage } from "./api/stage.js";
 import { handleKalshiSdkTest } from "./api/kalshi-sdk-test.js";
 import { handleVerticals } from "./api/verticals.js";
+import { handleBacktestRun } from "./api/backtest-run.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -261,6 +262,15 @@ export default {
 		// stats, per-vertical cap, tickers in the vertical.
 		if (path === "/api/pm/verticals" && request.method === "GET") {
 			return handleVerticals(env, url);
+		}
+		// ─── API: /api/pm/backtest/run (chunk 10.8c) ──
+		// Manual trigger of the backtest retrospective. The
+		// Sunday cron auto-runs this; the endpoint lets the
+		// operator (and the smoke test) verify the code
+		// path against live data without waiting for
+		// Sunday 01:00 UTC.
+		if (path === "/api/pm/backtest/run" && request.method === "POST") {
+			return handleBacktestRun(env, request);
 		}
 
 		// ─── API: /api/pm/models/* (chunk 8) ───────────────────

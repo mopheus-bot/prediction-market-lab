@@ -1963,19 +1963,26 @@ export class LiveBot implements DurableObject {
 			};
 		}
 		try {
-			const { KalshiClient, DEFAULT_DEMO_BASE, DEFAULT_PRODUCTION_BASE } = await import(
-				"../kalshi/client.js"
-			);
-			const { KalshiCredentials } = await import("../kalshi/auth.js");
-			const credentials = await KalshiCredentials.fromPem(keyId, pem);
-			const client = new KalshiClient({
-				baseUrl: useDemo ? DEFAULT_DEMO_BASE : DEFAULT_PRODUCTION_BASE,
-				credentials,
+			// Chunk 10.8c: use the kalshi-typescript SDK
+			// adapter (axios + Node crypto + retries) instead
+			// of the hand-rolled client. Same auth, same
+			// response shape, built-in 5xx/429 retry.
+			const { KalshiSdkClient } = await import("../kalshi/sdk-adapter.js");
+			const { loadPrivateKey, KalshiCredentials } = await import("../kalshi/auth.js");
+			const pk = await loadPrivateKey(pem);
+			const credentials = new KalshiCredentials(keyId, pk);
+			const client = new KalshiSdkClient({
+				creds: credentials,
+				privateKeyPem: pem,
+				env: useDemo ? "demo" : "prod",
 				requestsPerSecond: 0, // one-shot — no throttle
 			});
-			const balance = await client.getBalance();
-			const cash = Number(balance.balance ?? 0);
-			const portfolio = Number(balance.portfolio_value ?? 0);
+			const data = (await client.getBalance()) as {
+				balance?: number;
+				portfolio_value?: number;
+			};
+			const cash = Number(data.balance ?? 0);
+			const portfolio = Number(data.portfolio_value ?? 0);
 			const bankrollCents = cash + portfolio;
 			console.log(
 				`[live-bot] refreshBankroll cash=${cash}c portfolio=${portfolio}c → bankroll=${bankrollCents}c`,

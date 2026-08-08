@@ -12,10 +12,15 @@
  * (open positions move value) but it doesn't change
  * second-to-second, so a 30s cache keeps the dashboard
  * snappy without burning the Kalshi rate limit.
+ *
+ * Chunk 10.8c: uses the kalshi-typescript SDK adapter
+ * (axios + Node crypto + retries) instead of the
+ * hand-rolled client. Same auth, same response shape,
+ * built-in 5xx/429 retry with exponential backoff.
  */
 
-import { DEFAULT_PRODUCTION_BASE, KalshiAPIError, KalshiClient } from "../kalshi/client.js";
-import { KalshiCredentials } from "../kalshi/auth.js";
+import { KalshiSdkClient } from "../kalshi/sdk-adapter.js";
+import { loadPrivateKey } from "../kalshi/auth.js";
 
 export interface BalanceEnv {
 	KALSHI_PROD_KEY_ID?: string;
@@ -58,18 +63,30 @@ export async function handleBotBalance(
 		);
 	}
 	try {
-		const credentials = await KalshiCredentials.fromPem(keyId, pem);
-		const client = new KalshiClient({
-			baseUrl: env.KALSHI_BASE_URL ?? DEFAULT_PRODUCTION_BASE,
-			credentials,
+		// Lazy-import the credentials class (avoids pulling
+		// it into bundles that don't need it).
+		const { KalshiCredentials } = await import("../kalshi/auth.js");
+		const pk = await loadPrivateKey(pem);
+		const credentials = new KalshiCredentials(keyId, pk);
+		const useDemo = (env.KALSHI_BASE_URL ?? "").includes("demo");
+		const client = new KalshiSdkClient({
+			creds: credentials,
+			privateKeyPem: pem,
+			env: useDemo ? "demo" : "prod",
+			requestsPerSecond: 0, // one-shot — no throttle
 		});
-		const b = await client.getBalance();
+		const data = (await client.getBalance()) as {
+			balance: number;
+			portfolio_value: number;
+			updated_ts: number;
+			balance_dollars?: string;
+		};
 		// Kalshi returns `balance` and `portfolio_value` in
 		// cents. `balance_dollars` is a string with 2
 		// decimals (e.g., "9.73"). We convert cents back
 		// to a string for consistency.
-		const balanceCents = Math.round(b.balance);
-		const portfolioCents = Math.round(b.portfolio_value);
+		const balanceCents = Math.round(data.balance);
+		const portfolioCents = Math.round(data.portfolio_value);
 		const balanceDollars = (balanceCents / 100).toFixed(2);
 		const portfolioDollars = (portfolioCents / 100).toFixed(2);
 		const result: BalanceResponse = {
@@ -78,7 +95,7 @@ export async function handleBotBalance(
 			balance_dollars: balanceDollars,
 			portfolio_value_cents: portfolioCents,
 			portfolio_value_dollars: portfolioDollars,
-			updated_ts: b.updated_ts,
+			updated_ts: data.updated_ts,
 		};
 		return Response.json(result, {
 			headers: {
@@ -87,14 +104,13 @@ export async function handleBotBalance(
 		});
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : String(e);
-		const code = e instanceof KalshiAPIError ? e.status : 502;
 		return Response.json(
 			{
 				ok: false,
 				error: "kalshi_balance_failed",
 				detail: msg.slice(0, 300),
 			} satisfies BalanceError,
-			{ status: code >= 400 && code < 600 ? code : 502 },
+			{ status: 502 },
 		);
 	}
 }
