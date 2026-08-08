@@ -15,7 +15,10 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "models:convert": "python3 scripts/convert-models-to-json.py",
+    "models:parity": "python3 scripts/verify-model-parity.py",
+    "models:upload": "for v in weather economic politics sports; do npx wrangler r2 object put pm-bot/models/reversion-${v}-v1.json --file models/reversion-${v}-v1.json; done"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.20.3",

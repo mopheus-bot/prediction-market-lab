@@ -34,7 +34,8 @@ export default defineConfig({
 		projects: [
 			{
 				// Unit tests — pure Node, no Worker bindings, no D1, no DO.
-				// Covers: fees, strategy, risk engine.
+				// Covers: fees, strategy, risk engine, forest inference,
+				// feature extraction, reversion signal, model loader.
 				extends: true,
 				test: {
 					name: "unit",
@@ -42,6 +43,10 @@ export default defineConfig({
 						"test/fees.test.ts",
 						"test/strategy.test.ts",
 						"test/risk.test.ts",
+						"test/forest.test.ts",
+						"test/reversion.test.ts",
+						"test/features.test.ts",
+						"test/model-loader.test.ts",
 					],
 					environment: "node",
 				},

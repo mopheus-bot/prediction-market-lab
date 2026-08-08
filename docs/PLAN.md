@@ -35,8 +35,8 @@ We moved to Cloudflare so the bot is:
 
 Three architectures were on the table:
 
-| Option | What | Why not |
-|--------|------|---------|
+| 			  Option 			 | 				   What 		   	   | 					 Why not 					 |
+|--------------------------------|-------------------------------------|-------------------------------------------------|
 | Fly.io shared-cpu VM | Long-running Docker container | Not "serverless" in spirit; manual VM management |
 | Cloud Run service + jobs | True serverless, Python native | ~$30–40/mo for 24/7 with min-instances=1; not the cheapest |
 | **CF Workers + DOs + D1 + R2** | True serverless, $5/mo base + usage | Required Python→TS port (~5–10 days work) |

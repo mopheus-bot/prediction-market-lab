@@ -74,6 +74,8 @@ import {
 	type SignalStrategy,
 } from "../strategy/signal.js";
 import { VerticalStrategyRouter } from "../strategy/router.js";
+import { loadModelFromR2, type ModelLoaderEnv } from "../strategy/model-loader.js";
+import type { RandomForestModel } from "../strategy/forest.js";
 
 // ─── Persistent state shape ────────────────────────────────────────────
 
@@ -127,6 +129,11 @@ export interface LiveBotState {
 		exit_mode: "mtm" | "settlement";
 		profit_target_pct: number | null;
 		stop_loss_pct: number | null;
+		/** Chunk 4: model version for the reversion-quality models.
+		 * Defaults to "v1"; the DO looks up
+		 * `models/reversion-{weather,economic}-${model_version}.json`
+		 * in R2 on /start. */
+		model_version: string;
 	};
 	/** The most recent risk reject reason (per-ticker, for /status). */
 	last_reject: { ts_ms: number; ticker: string; code: string; message: string } | null;
@@ -148,6 +155,10 @@ export interface LiveBotConfig {
 	profit_target_pct?: number | null;
 	stop_loss_pct?: number | null;
 	risk_config?: RiskConfig;
+	/** Chunk 4: model version (e.g. "v1", "v2"). The DO loads
+	 * `models/reversion-{weather,economic}-${model_version}.json`
+	 * from R2 on /start. */
+	model_version?: string;
 }
 
 // ─── Env (subset we need) ─────────────────────────────────────────────
@@ -186,6 +197,16 @@ export class LiveBot implements DurableObject {
 	private _connected = false;
 	private _reconnectAttempt = 0;
 	private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	// Model cache (chunk 4). Loaded from R2 on /start, reused
+	// across every signal call. Re-loaded if the model_version
+	// changes via a subsequent /start call. We don't persist
+	// the loaded model in storage — it's a few hundred KB and
+	// rebuilding it from the JSON blob is fast.
+	private _models: { weather: RandomForestModel | null; economic: RandomForestModel | null } = {
+		weather: null,
+		economic: null,
+	};
+	private _modelVersion: string = "v1";
 
 	constructor(ctx: DurableObjectState, env: LiveBotEnv) {
 		this.ctx = ctx;
@@ -255,6 +276,7 @@ export class LiveBot implements DurableObject {
 				exit_mode: "mtm",
 				profit_target_pct: null,
 				stop_loss_pct: null,
+				model_version: "v1",
 			},
 			last_reject: null,
 		};
@@ -265,6 +287,35 @@ export class LiveBot implements DurableObject {
 			? JSON.parse(this.env.RISK_CONFIG_OVERRIDE) as RiskConfig
 			: defaultRiskConfig();
 		return new RiskEngine({ config: cfg, state: state.risk_state });
+	}
+
+	/**
+	 * Load the reversion-quality models from R2 for the verticals
+	 * where they outperform naive (weather, economic). Failure to
+	 * load is non-fatal — the engine falls back to NaiveSignal for
+	 * the affected vertical.
+	 */
+	private async loadModels(version: string): Promise<void> {
+		this._modelVersion = version;
+		// Load in parallel; each loader is independent.
+		const [weather, economic] = await Promise.all([
+			loadModelFromR2(this.env, "weather", version),
+			loadModelFromR2(this.env, "economic", version),
+		]);
+		this._models = { weather, economic };
+		if (weather && economic) {
+			console.log(`[live-bot] loaded reversion models (version=${version})`);
+		} else if (weather || economic) {
+			console.warn(
+				`[live-bot] partial model load: weather=${!!weather} economic=${!!economic}; ` +
+					`missing verticals fall back to NaiveSignal`,
+			);
+		} else {
+			console.warn(
+				`[live-bot] no reversion models in R2 (version=${version}); ` +
+					`engine will use NaiveSignal for every vertical`,
+			);
+		}
 	}
 
 	// ─── fetch() — control endpoint ──────────────────────────────
@@ -470,6 +521,7 @@ export class LiveBot implements DurableObject {
 			exit_mode: config.exit_mode ?? state.config.exit_mode,
 			profit_target_pct: config.profit_target_pct ?? state.config.profit_target_pct,
 			stop_loss_pct: config.stop_loss_pct ?? state.config.stop_loss_pct,
+			model_version: config.model_version ?? state.config.model_version,
 			started_ts_ms: Date.now(),
 		};
 		if (config.user_id) state.user_id = config.user_id;
@@ -479,6 +531,12 @@ export class LiveBot implements DurableObject {
 		// Open the Kalshi WS. The WS lifecycle is managed by the DO;
 		// we reconnect on close with exponential backoff.
 		await this.openKalshiWs(state);
+
+		// Load the reversion models from R2 (chunk 4). Failure to
+		// load is non-fatal — we fall back to NaiveSignal for the
+		// affected vertical. The model_version defaults to "v1" and
+		// can be overridden via /start config.
+		await this.loadModels(state.config.model_version ?? this._modelVersion);
 
 		// Schedule the 90-min cycle alarm (replaces any prior alarm).
 		await this.ctx.storage.setAlarm(Date.now() + CYCLE_MS);
@@ -795,9 +853,18 @@ export class LiveBot implements DurableObject {
 	// ─── Trade recording ────────────────────────────────────────
 
 	private async maybeSignalAll(state: LiveBotState): Promise<void> {
-		// Build the per-vertical router. The naive signal is the chunk-3
-		// placeholder; chunk 4 swaps in reversion-quality by vertical.
-		const router = new VerticalStrategyRouter();
+		// Build the per-vertical router. Chunk 4 uses the loaded
+		// reversion models for weather + economic; the router falls
+		// back to NaiveSignal for any vertical where the model is
+		// missing (e.g. R2 not provisioned yet).
+		const router = new VerticalStrategyRouter({
+			models: {
+				reversion: {
+					weather: this._models.weather ?? undefined,
+					economic: this._models.economic ?? undefined,
+				},
+			},
+		});
 		for (const [ticker, t] of Object.entries(state.tickers)) {
 			if (t.price_history.length < 2) continue;
 			const ctx: SignalContext = {

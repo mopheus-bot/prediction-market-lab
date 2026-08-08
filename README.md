@@ -21,6 +21,23 @@ npm install
 npm run dev                 # local Worker on http://localhost:8787
 npm run d1:migrate:local    # apply migrations to local D1
 npm run typecheck
+npm test                    # full suite (~1s)
+npm run test:unit           # unit tests only (~0.14s, no workerd)
+npm run test:integration    # DO + D1 tests (~0.5s)
+```
+
+## Models (chunk 4)
+
+```bash
+# Convert the trained sklearn .joblib models to the flat JSON
+# tree format (one-shot; rerun when retraining):
+npm run models:convert -- --in <path>.joblib --out models/<name>.json
+
+# Generate the parity fixture (the test gate for chunk 4):
+npm run models:parity -- --in <path>.joblib --json <model>.json --out test/fixtures/<fixture>.json
+
+# Upload the models to R2 so the bot can find them at /start:
+npm run models:upload
 ```
 
 ## Deploy
@@ -41,4 +58,6 @@ npm run deploy
 
 ## Docs
 
-See `docs/PLAN.md` (TBD) for the full chunk-by-chunk plan.
+- `docs/PLAN.md` — full chunk-by-chunk plan
+- `docs/changelog/2026-08-08-chunk-3-live-bot-do.md` — live bot DO
+- `docs/changelog/2026-08-08-chunk-4-onnx-models.md` — strategy + models
