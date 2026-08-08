@@ -59,17 +59,40 @@ LLM call pattern, or the WS connection strategy.
 - Total storage: ~1MB. At 10GB free, we're at 0.01%.
 - Reads: rare. The bot reads models on /start, daily recap on dashboard load. <100 reads/day.
 
-### Fly.io relay (chunk 11+)
+### Fly.io relay (chunk 10.6+)
 
 - The relay runs on `shared-cpu-1x` (1GB RAM) at $1.94/mo.
 - 24/7 uptime = $1.94/mo. With $0.83 free credit, the first ~12 days are free.
 - The user can shut it down via `fly machines stop` to pause the cost.
+- **Why a relay exists (chunk 10 finding):** CF Workers' native
+  `new WebSocket(url, { headers })` is silently broken (the
+  second arg is treated as a protocols string). Direct Kalshi
+  auth from CF Workers is impossible. The relay runs Python
+  (`websockets` library, which DOES support `extra_headers`) and
+  signs the Kalshi path server-side. The Worker just opens a
+  plain `new WebSocket(url)` (no second arg) to the relay.
+- **Relay auth spec (chunk 10.6):** RSA-PSS with `saltLength =
+  PSS.DIGEST_LENGTH` (32 for SHA-256). NOT PKCS1v15. Reference
+  implementations: `pm-bot/src/kalshi/auth.ts` (TS) and
+  `
+  live/kalshi_auth.py` (Python). Both are correct.
+- **Fly.io API token scope:** a `fm2_*` machine token can't see
+  the app's machines via `GET /v1/apps/{name}/machines` (it
+  returns 404). The cost endpoint falls back to
+  `status: "assumed_running"` and assumes 1 machine × 24/7 when
+  this happens. Use an org-scoped `Fo1_*` token or `fly auth
+  login` (OAuth) to get accurate machine data.
 
 ## Order of operations (what runs when)
 
 1. **Worker starts**: serves dashboard + API endpoints.
 2. **Dashboard auto-start on page load**: hits `POST /api/pm/bot/auto-start`, which opens the WS if not already open.
-3. **WS opens**: signs the path with the demo creds, subscribes to `orderbook_delta + trade + ticker + market_lifecycle_v2` for every ticker in `config.tickers`.
+3. **WS opens**: opens plain `new WebSocket(url)` to the relay
+   (`wss://pm-bot-relay.fly.dev/` by default; configurable via
+   `wrangler.jsonc DEFAULT_URL` or per-/start). The relay signs
+   the Kalshi path server-side. The Worker subscribes to
+   `orderbook_delta + trade + ticker + market_lifecycle_v2` for
+   every ticker in `config.tickers`.
 4. **Every 90 min (alarm)**: the bot's main cycle fires (check positions, maybe signal, maybe exit).
 5. **Every 15 min**: scan cron fires, updates `scans` table.
 6. **Every 6 hours**: news cron fires, asks LLM for each open position, posts Telegram on AT RISK / BROKEN.

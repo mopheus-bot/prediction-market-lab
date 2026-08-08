@@ -7,14 +7,15 @@
 # that updates the running relay.
 #
 # Prerequisites: `brew install flyctl` (or `curl -L https://fly.io/install.sh | sh`).
-# You also need a Fly.io account token (the machine token in
-# ~/Documents/GitHub/Prediction Market Lab/docs/modes/prediction-markets-env.txt
-# is scoped to one app — for `fly launch` you need an account token).
+# Auth: either `fly auth login` (OAuth credentials at ~/.fly/config.yml)
+# OR `export FLY_API_TOKEN=<your-fly-account-token>` (an `Fo1_...` org
+# token, not the `fm2_...` machine token). The deploy script
+# auto-detects which auth you have.
 #
 # Usage:
-#   export FLY_API_TOKEN="<your-fly-account-token>"
-#   ./deploy.sh                       # first-time deploy
-#   ./deploy.sh --update              # update an existing deploy
+#   fly auth login                  # one-time OAuth
+#   ./deploy.sh                     # first-time deploy
+#   ./deploy.sh --update            # update an existing deploy
 #
 set -euo pipefail
 
@@ -22,10 +23,18 @@ APP_NAME="pm-bot-relay"
 DEMO_KEY="/Users/mo/keys/kalshi-demo-keyid.txt"
 DEMO_PEM="/Users/mo/keys/kalshi-demo.pem"
 
+# Auth detection: FLY_API_TOKEN env var > ~/.fly/config.yml OAuth.
+# A machine-scoped `fm2_*` token is NOT enough for `fly launch` —
+# it can manage its own machine but can't create new apps.
 if [[ -z "${FLY_API_TOKEN:-}" ]]; then
-	echo "error: FLY_API_TOKEN is required (your Fly.io account token)"
-	echo "  export FLY_API_TOKEN=\"<your-fly-account-token>\""
-	exit 1
+	if [[ -f "${HOME}/.fly/config.yml" ]] && grep -q "access_token:" "${HOME}/.fly/config.yml"; then
+		echo "==> using OAuth credentials from ~/.fly/config.yml"
+	else
+		echo "error: no Fly.io auth found. Either:"
+		echo "  1. Run 'fly auth login' (OAuth, recommended for first-time deploy)"
+		echo "  2. Or: export FLY_API_TOKEN=\"<your-Fo1-_-org-token>\""
+		exit 1
+	fi
 fi
 
 if [[ ! -f "$DEMO_KEY" ]]; then
