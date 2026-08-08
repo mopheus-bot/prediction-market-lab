@@ -294,17 +294,60 @@ export class LiveBot implements DurableObject {
 	 * where they outperform naive (weather, economic). Failure to
 	 * load is non-fatal — the engine falls back to NaiveSignal for
 	 * the affected vertical.
+	 *
+	 * **Chunk 8 update:** the `models` D1 table is the source of
+	 * truth for "which model_version is active per vertical." When
+	 * `loadActiveFromRegistry` is true (the default), we query the
+	 * `models` table for the active row per vertical and use that
+	 * version. The `version` argument is then a fallback (used
+	 * when the registry is empty, e.g. before any model has been
+	 * registered). This keeps backward compat with the chunk-4
+	 * `config.model_version` field while making the registry
+	 * the canonical source.
 	 */
-	private async loadModels(version: string): Promise<void> {
-		this._modelVersion = version;
+	private async loadModels(
+		version: string,
+		opts: { loadActiveFromRegistry?: boolean } = {},
+	): Promise<void> {
+		const { loadActiveFromRegistry = true } = opts;
+		// Resolve the per-vertical version: registry first, then
+		// the fallback. If the registry is empty, every vertical
+		// uses the fallback (preserves chunk-4 behavior).
+		let weatherVersion = version;
+		let economicVersion = version;
+		if (loadActiveFromRegistry && this.env.DB) {
+			const [w, e] = await Promise.all([
+				this.env.DB
+					.prepare(
+						`SELECT version FROM models
+						 WHERE user_id = ?1 AND vertical = ?2 AND status = 'active'
+						 ORDER BY deployed_at DESC NULLS LAST LIMIT 1`,
+					)
+					.bind("default", "weather")
+					.first<{ version: string }>(),
+				this.env.DB
+					.prepare(
+						`SELECT version FROM models
+						 WHERE user_id = ?1 AND vertical = ?2 AND status = 'active'
+						 ORDER BY deployed_at DESC NULLS LAST LIMIT 1`,
+					)
+					.bind("default", "economic")
+					.first<{ version: string }>(),
+			]);
+			if (w?.version) weatherVersion = w.version;
+			if (e?.version) economicVersion = e.version;
+		}
+		this._modelVersion = weatherVersion; // primary, for display
 		// Load in parallel; each loader is independent.
 		const [weather, economic] = await Promise.all([
-			loadModelFromR2(this.env, "weather", version),
-			loadModelFromR2(this.env, "economic", version),
+			loadModelFromR2(this.env, "weather", weatherVersion),
+			loadModelFromR2(this.env, "economic", economicVersion),
 		]);
 		this._models = { weather, economic };
 		if (weather && economic) {
-			console.log(`[live-bot] loaded reversion models (version=${version})`);
+			console.log(
+				`[live-bot] loaded reversion models (weather=${weatherVersion} economic=${economicVersion})`,
+			);
 		} else if (weather || economic) {
 			console.warn(
 				`[live-bot] partial model load: weather=${!!weather} economic=${!!economic}; ` +
@@ -396,6 +439,23 @@ export class LiveBot implements DurableObject {
 			case "/restart": {
 				await this.restart();
 				return Response.json({ ok: true, restarted: true });
+			}
+
+			case "/reload-models": {
+				// Chunk 8: re-read the active model_version from
+				// the models D1 table and reload from R2. The
+				// caller doesn't have to know the per-vertical
+				// version; the registry is the source of truth.
+				const state = await this.ensureState();
+				await this.loadModels(state.config.model_version ?? this._modelVersion);
+				return Response.json({
+					ok: true,
+					reloaded: true,
+					models: {
+						weather: this._models.weather ? "loaded" : "missing",
+						economic: this._models.economic ? "loaded" : "missing",
+					},
+				});
 			}
 
 			case "/":

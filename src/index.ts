@@ -32,6 +32,15 @@ import {
 	handleSummary,
 	handleTrades,
 } from "./api/status.js";
+import {
+	handleGetActiveModels,
+	handleGetModel,
+	handleListModels,
+	handlePromoteModel,
+	handleRegisterModel,
+	handleRetireModel,
+} from "./api/models.js";
+import { ShadowBot } from "./durable-objects/ShadowBot.js";
 import type { LiveBotConfig } from "./durable-objects/LiveBot.js";
 
 export interface Env extends CronEnv {
@@ -42,6 +51,10 @@ export interface Env extends CronEnv {
 	ASSETS: Fetcher;
 	// Durable Object binding — populated from wrangler.jsonc `durable_objects`.
 	LIVE_BOT?: DurableObjectNamespace;
+	// ShadowBot DO (chunk 8). Optional; if the binding is
+	// missing (e.g. the deployment hasn't migrated yet), the
+	// /api/pm/shadow/* routes return 503.
+	SHADOW_BOT?: DurableObjectNamespace;
 	// Kalshi demo credentials (paper trading). Production creds land in
 	// chunk 9 with the real-trading toggle.
 	KALSHI_DEMO_KEY_ID?: string;
@@ -52,6 +65,7 @@ export interface Env extends CronEnv {
 }
 
 export { LiveBot } from "./durable-objects/LiveBot.js";
+export { ShadowBot } from "./durable-objects/ShadowBot.js";
 
 const DEFAULT_USER_ID = "default";
 
@@ -109,6 +123,13 @@ export default {
 		if (path === "/api/pm/bot/restart" && request.method === "POST") {
 			return forwardToBot(env, request, "/restart");
 		}
+		// Reload models from R2 (chunk 8). After promoting a
+		// new model version via /api/pm/models/promote, hit this
+		// endpoint to load the new version without restarting
+		// the bot's WS.
+		if (path === "/api/pm/bot/reload-models" && request.method === "POST") {
+			return forwardToBot(env, request, "/reload-models");
+		}
 
 		// ─── API: /api/pm/{status,summary,trades,signals,scans,cron-runs} (chunk 6) ──
 		if (path === "/api/pm/status" && request.method === "GET") {
@@ -128,6 +149,33 @@ export default {
 		}
 		if (path === "/api/pm/cron-runs" && request.method === "GET") {
 			return handleCronRuns(env, url);
+		}
+
+		// ─── API: /api/pm/models/* (chunk 8) ───────────────────
+		if (path === "/api/pm/models" && request.method === "GET") {
+			return handleListModels(env, url);
+		}
+		if (path === "/api/pm/models/active" && request.method === "GET") {
+			return handleGetActiveModels(env);
+		}
+		// /api/pm/models/:version — match anything under
+		// /api/pm/models/ that isn't a known sub-path.
+		if (
+			path.startsWith("/api/pm/models/") &&
+			request.method === "GET" &&
+			path !== "/api/pm/models/active"
+		) {
+			const version = path.slice("/api/pm/models/".length);
+			return handleGetModel(env, version);
+		}
+		if (path === "/api/pm/models/register" && request.method === "POST") {
+			return handleRegisterModel(env, request);
+		}
+		if (path === "/api/pm/models/promote" && request.method === "POST") {
+			return handlePromoteModel(env, request);
+		}
+		if (path === "/api/pm/models/retire" && request.method === "POST") {
+			return handleRetireModel(env, request);
 		}
 		// Direct WS upgrade to the live bot DO (no auth — CF Access sits
 		// in front, and the bot is single-user).

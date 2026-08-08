@@ -51,11 +51,19 @@
 	// Durable Object — the live bot. Chunk 3 introduces this. There is
 	// ONE live-bot DO per user, addressed by `idFromName('user:${userId}')`.
 	// The class lives in `src/durable-objects/LiveBot.ts`.
+	//
+	// Chunk 8 adds the shadow bot, addressed by
+	// `idFromName('user:${userId}:shadow:${modelVersion}')`. Each
+	// candidate model gets its own shadow DO.
 	"durable_objects": {
 		"bindings": [
 			{
 				"name": "LIVE_BOT",
 				"class_name": "LiveBot"
+			},
+			{
+				"name": "SHADOW_BOT",
+				"class_name": "ShadowBot"
 			}
 		]
 	},
@@ -64,7 +72,7 @@
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": ["LiveBot"]
+			"new_sqlite_classes": ["LiveBot", "ShadowBot"]
 		}
 	],
 	// Custom-domain routes —  is a CF-proxied subdomain

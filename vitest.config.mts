@@ -57,7 +57,8 @@ export default defineConfig({
 			},
 			{
 				// Integration tests — uses the Worker pool with full
-				// D1/DO bindings. Covers: auth, db, live-bot DO, status API.
+				// D1/DO bindings. Covers: auth, db, live-bot DO, status
+				// API, model registry API.
 				plugins: [cloudflarePlugin],
 				test: {
 					name: "integration",
@@ -66,6 +67,7 @@ export default defineConfig({
 						"test/db.test.ts",
 						"test/live-bot.test.ts",
 						"test/api-status.test.ts",
+						"test/models-api.test.ts",
 					],
 				},
 			},
