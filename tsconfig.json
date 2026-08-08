@@ -4,7 +4,7 @@
     "module": "ES2022",
     "moduleResolution": "Bundler",
     "lib": ["ES2022"],
-    "types": ["@cloudflare/workers-types"],
+    "types": ["./worker-configuration.d.ts"],
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -14,6 +14,6 @@
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*", "migrations/**/*"],
+  "include": ["src/**/*", "migrations/**/*", "worker-configuration.d.ts"],
   "exclude": ["node_modules", "dist", ".wrangler"]
 }

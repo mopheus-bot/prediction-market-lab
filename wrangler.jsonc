@@ -12,7 +12,8 @@
 		"global_fetch_strictly_public"
 	],
 	"assets": {
-		"directory": "./public"
+		"directory": "./public",
+		"binding": "ASSETS"
 	},
 	"observability": {
 		"enabled": true
@@ -42,8 +43,9 @@
 	],
 	// Custom-domain routes —  is a CF-proxied subdomain
 	// under the  zone. CF auto-creates the DNS records on deploy.
+	// Single catch-all so /, /health, /pm/*, /api/pm/* all reach the Worker
+	// (the Worker routes internally).
 	"routes": [
-		{ "pattern": "/pm/*", "zone_name": "" },
-		{ "pattern": "/api/pm/*", "zone_name": "" }
+		{ "pattern": "/*", "zone_name": "" }
 	]
 }
