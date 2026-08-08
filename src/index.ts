@@ -37,6 +37,7 @@ import { handleBotBalance } from "./api/balance.js";
 import { handleCost } from "./api/cost.js";
 import { handleCadence } from "./api/cadence.js";
 import { handleStage } from "./api/stage.js";
+import { handleKalshiSdkTest } from "./api/kalshi-sdk-test.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -243,6 +244,15 @@ export default {
 		// bot doing right now? ELI5 description included.
 		if (path === "/api/pm/bot/stage" && request.method === "GET") {
 			return handleStage(env, url);
+		}
+
+		// ─── API: /api/pm/kalshi-sdk-test (chunk 10.8) ──
+		// Smoke test the kalshi-typescript SDK adapter. Calls
+		// getBalance + getPositions on the demo endpoint and
+		// returns the raw response. Used to verify the SDK
+		// (axios + Node crypto) actually works in CF Workers.
+		if (path === "/api/pm/kalshi-sdk-test" && request.method === "GET") {
+			return handleKalshiSdkTest(env);
 		}
 
 		// ─── API: /api/pm/models/* (chunk 8) ───────────────────
