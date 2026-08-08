@@ -484,6 +484,55 @@
 				.mode-buttons { grid-template-columns: 1fr; }
 			}
 
+			/* ─── Cost (chunk 9.7) ─── */
+			.cost-grid {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 12px;
+				margin: 16px 0 12px;
+			}
+			.cost-card {
+				background: var(--bg-3);
+				border: 1px solid var(--card-border);
+				border-radius: 8px;
+				padding: 16px 18px;
+			}
+			.cost-num {
+				font-size: 24px;
+				font-weight: 600;
+				color: var(--ink);
+				line-height: 1.1;
+				font-variant-numeric: tabular-nums;
+				letter-spacing: -0.01em;
+			}
+			.cost-num.free { color: var(--green); }
+			.cost-label {
+				font-size: 11px;
+				color: var(--ink-faint);
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				margin-top: 4px;
+			}
+			.cost-sub {
+				font-size: 11px;
+				color: var(--ink-faint);
+				margin-top: 2px;
+			}
+			.cost-foot {
+				font-size: 11px;
+				color: var(--ink-faint);
+				padding-top: 10px;
+				border-top: 1px solid var(--card-border);
+				line-height: 1.5;
+			}
+			.cost-foot ul {
+				margin: 4px 0 0;
+				padding-left: 18px;
+			}
+			@media (max-width: 768px) {
+				.cost-grid { grid-template-columns: 1fr; }
+			}
+
 			/* ─── Modal (chunk 9.6) ─── */
 			.modal-back {
 				position: fixed;
@@ -1011,8 +1060,38 @@
 				</div>
 			</section>
 
+			<!-- Cost estimate (chunk 9.7) -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span class="dot"></span>Cost (last 24h, estimated)
+							<a id="cost-cf-dashboard" href="#" target="_blank" rel="noopener" style="margin-left:auto; font-size:11px; color: var(--accent); text-decoration:none;">open CF billing ↗</a>
+						</div>
+						<div class="cost-grid">
+							<div class="cost-card">
+								<div class="cost-num" id="cost-total">$—</div>
+								<div class="cost-label">Total today</div>
+								<div class="cost-sub" id="cost-monthly">≈ $—/mo</div>
+							</div>
+							<div class="cost-card">
+								<div class="cost-num" id="cost-cf">$—</div>
+								<div class="cost-label">Cloudflare</div>
+								<div class="cost-sub" id="cost-cf-detail">— requests · — errors</div>
+							</div>
+							<div class="cost-card">
+								<div class="cost-num" id="cost-mmx">$—</div>
+								<div class="cost-label">MMX (LLM)</div>
+								<div class="cost-sub" id="cost-mmx-detail">— calls · — in / — out tokens</div>
+							</div>
+						</div>
+						<div class="cost-foot" id="cost-foot">loading cost estimate…</div>
+					</div>
+				</div>
+			</section>
+
 			<footer>
-				pm-bot · Prediction Market Lab · chunk 9.5
+				pm-bot · Prediction Market Lab · chunk 9.7
 			</footer>
 		</div>
 
@@ -1390,6 +1469,62 @@
 				$("cf-foot").innerHTML = "";
 			}
 
+			// ─── Cost (chunk 9.7) ───
+			// Pulls /api/pm/cost on a 60s cadence. Shows
+			// the operator a single "how much is this
+			// costing me" number (24h + monthly estimate).
+			// Numbers are estimates, not invoiced.
+			async function refreshCost() {
+				try {
+					const r = await fetch("/api/pm/cost", { credentials: "same-origin" });
+					const d = await r.json();
+					if (!d.ok) {
+						$("cost-total").textContent = "—";
+						$("cost-cf").textContent = "—";
+						$("cost-mmx").textContent = "—";
+						$("cost-foot").innerHTML = `cost unavailable: <code>${esc(d.error || "unknown")}</code>${d.detail ? ` — ${esc(d.detail)}` : ""}`;
+						return;
+					}
+					renderCost(d);
+				} catch (e) {
+					$("cost-total").textContent = "—";
+					$("cost-cf").textContent = "—";
+					$("cost-mmx").textContent = "—";
+					$("cost-foot").textContent = `cost fetch failed: ${e.message}`;
+				}
+			}
+
+			function renderCost(d) {
+				const fmtUsd = (n) => {
+					if (n === 0) return "$0.00";
+					if (n < 0.01) return "<$0.01";
+					return `$${n.toFixed(2)}`;
+				};
+				const totalEl = $("cost-total");
+				totalEl.textContent = fmtUsd(d.total_estimated_cost_24h);
+				totalEl.classList.toggle("free", d.total_estimated_cost_24h === 0);
+				$("cost-monthly").textContent = `≈ ${fmtUsd(d.monthly_estimate)}/mo`;
+
+				const cfEl = $("cost-cf");
+				cfEl.textContent = fmtUsd(d.cf.estimated_cost_24h);
+				cfEl.classList.toggle("free", d.cf.estimated_cost_24h === 0);
+				$("cost-cf-detail").textContent =
+					`${fmtNum(d.cf.requests_24h)} requests · ${fmtNum(d.cf.errors_24h)} errors`;
+
+				const mmxEl = $("cost-mmx");
+				mmxEl.textContent = fmtUsd(d.mmx.estimated_cost_24h);
+				mmxEl.classList.toggle("free", d.mmx.estimated_cost_24h === 0);
+				$("cost-mmx-detail").textContent =
+					`${fmtNum(d.mmx.calls_24h)} calls · ${fmtNum(d.mmx.input_tokens_24h)} in / ${fmtNum(d.mmx.output_tokens_24h)} out tokens`;
+
+				$("cost-cf-dashboard").href = d.dashboard_url;
+				const notesHtml = (d.notes || []).map((n) => `<li>${esc(n)}</li>`).join("");
+				$("cost-foot").innerHTML =
+					`<strong>assumptions:</strong>` +
+					(notesHtml ? `<ul>${notesHtml}</ul>` : " no notes") +
+					`<div style="margin-top:6px; opacity:0.7;">estimates, not invoiced. confirm at the CF billing dashboard.</div>`;
+			}
+
 			// ─── Toast ───
 			let toastTimer = null;
 			function toast(msg, ok = true) {
@@ -1652,28 +1787,36 @@
 			// data is ~1m delayed; faster polling is
 			// wasteful + burns CF API quota.
 			refreshCfAnalytics();
+			// Cost: 60s. Combines CF + D1 + MMX; 24h
+			// data is delayed ~1m anyway.
+			refreshCost();
 			const FAST_REFRESH_MS = 5000;
 			const SLOW_REFRESH_MS = 30000;
 			const CF_REFRESH_MS = 90000;
 			const BALANCE_REFRESH_MS = 30000;
+			const COST_REFRESH_MS = 60000;
 			let fastTimer = setInterval(refresh, FAST_REFRESH_MS);
 			let slowTimer = setInterval(refresh, SLOW_REFRESH_MS);
 			let cfTimer = setInterval(refreshCfAnalytics, CF_REFRESH_MS);
 			let balanceTimer = setInterval(refreshBalance, BALANCE_REFRESH_MS);
+			let costTimer = setInterval(refreshCost, COST_REFRESH_MS);
 			document.addEventListener("visibilitychange", () => {
 				if (document.hidden) {
 					clearInterval(fastTimer);
 					clearInterval(slowTimer);
 					clearInterval(cfTimer);
 					clearInterval(balanceTimer);
+					clearInterval(costTimer);
 				} else {
 					refresh();
 					refreshBalance();
 					refreshCfAnalytics();
+					refreshCost();
 					fastTimer = setInterval(refresh, FAST_REFRESH_MS);
 					slowTimer = setInterval(refresh, SLOW_REFRESH_MS);
 					cfTimer = setInterval(refreshCfAnalytics, CF_REFRESH_MS);
 					balanceTimer = setInterval(refreshBalance, BALANCE_REFRESH_MS);
+					costTimer = setInterval(refreshCost, COST_REFRESH_MS);
 				}
 			});
 		</script>

@@ -36,7 +36,7 @@ export default defineConfig({
 				// Unit tests — pure Node, no Worker bindings, no D1, no DO.
 				// Covers: fees, strategy, risk engine, forest inference,
 				// feature extraction, reversion signal, model loader, cron,
-				// telegram, llm.
+				// telegram, llm, cost.
 				extends: true,
 				test: {
 					name: "unit",
@@ -51,6 +51,7 @@ export default defineConfig({
 						"test/cron.test.ts",
 						"test/telegram.test.ts",
 						"test/llm.test.ts",
+						"test/cost.test.ts",
 					],
 					environment: "node",
 				},

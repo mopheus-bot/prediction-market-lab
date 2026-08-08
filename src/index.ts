@@ -34,6 +34,7 @@ import {
 } from "./api/status.js";
 import { handleCfAnalytics } from "./api/cf-analytics.js";
 import { handleBotBalance } from "./api/balance.js";
+import { handleCost } from "./api/cost.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -197,6 +198,15 @@ export default {
 		// KALSHI_PROD_KEY_ID + KALSHI_PROD_PRIVATE_KEY.
 		if (path === "/api/pm/bot/balance" && request.method === "GET") {
 			return handleBotBalance(env, url);
+		}
+		// ─── API: /api/pm/cost (chunk 9.7: cost estimate) ──
+		// Combines CF Analytics (Workers requests) +
+		// D1 (llm_calls + cron_runs + trades) + MMX
+		// pricing into a single "what's this costing me"
+		// number. Estimates, not invoiced. See
+		// src/api/cost.ts for the assumptions.
+		if (path === "/api/pm/cost" && request.method === "GET") {
+			return handleCost(env, url);
 		}
 
 		// ─── API: /api/pm/models/* (chunk 8) ───────────────────
