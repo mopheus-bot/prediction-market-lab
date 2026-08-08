@@ -4,43 +4,116 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="color-scheme" content="dark" />
-		<title>pm-bot · Prediction Market Lab</title>
-		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a2854'/%3E%3Ctext x='32' y='44' font-family='serif' font-size='32' font-weight='700' fill='%23d4af37' text-anchor='middle'%3EMC%3C/text%3E%3C/svg%3E" />
+		<title>Prediction Market Lab — pm-bot</title>
+		<meta name="description" content="Live trading bot operator dashboard. Kalshi paper + real-money trading, CF Workers + D1 + R2." />
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230e1320'/%3E%3Crect x='14' y='36' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='28' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='20' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='16' r='3' fill='%2310b981'/%3E%3C/svg%3E" />
 		<style>
-			/* ─── Brand tokens (Prediction Market Lab: navy + warm gold) ─── */
+			/* ─── Brand tokens (Prediction Market Lab) ─── */
+			/* Dark theme, caviar + onyx base, financial blue accent,
+			 * Prediction Market Lab gold DNA under the mark, status colors
+			 * distinct from the Prediction Market Lab social-media surface. */
 			:root {
-				--bg-0: #0a2854;
-				--bg-1: #0b3a6f;
-				--bg-2: #133b6e;
-				--bg-3: #08203f;
-				--ink: #e5e7eb;
-				--ink-muted: #9ca3af;
-				--ink-faint: #6b7280;
-				--gold: #d4af37;
+				--bg-0: #0a0e1a;
+				--bg-1: #0e1320;
+				--bg-2: #141a2b;
+				--bg-3: #1c2238;
+				--ink: #e2e8f0;
+				--ink-muted: #94a3b8;
+				--ink-faint: #64748b;
+				--accent: #3b82f6;
+				--accent-soft: #60a5fa;
+				--accent-deep: #1e40af;
+				--gold: #d4af37;        /* Prediction Market Lab DNA, used sparingly */
 				--gold-soft: #f5d77a;
-				--green: #22c55e;
-				--green-soft: #86efac;
+				--green: #10b981;
+				--green-soft: #34d399;
 				--red: #ef4444;
 				--red-soft: #fca5a5;
 				--amber: #f59e0b;
-				--card-bg: rgba(255, 255, 255, 0.04);
-				--card-border: rgba(255, 255, 255, 0.10);
-				--card-border-hover: rgba(255, 255, 255, 0.20);
+				--amber-soft: #fbbf24;
+				--card-bg: rgba(255, 255, 255, 0.03);
+				--card-bg-hover: rgba(255, 255, 255, 0.06);
+				--card-border: rgba(148, 163, 184, 0.12);
+				--card-border-hover: rgba(148, 163, 184, 0.24);
+				--focus-ring: 0 0 0 2px var(--bg-1), 0 0 0 4px var(--accent);
 				--shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.2);
 				--font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
 				--font-mono: ui-monospace, "JetBrains Mono", "SF Mono", Consolas, monospace;
-				--font-display: "Times New Roman", Georgia, serif;
+				--font-display: var(--font-sans);
 			}
 			* { box-sizing: border-box; margin: 0; padding: 0; }
+
+			/* ─── Accessibility (chunk 10) — focus rings, motion, ARIA ─── */
+			/* Visible focus ring on every interactive element. */
+			button:focus-visible,
+			a:focus-visible,
+			input:focus-visible,
+			[role="button"]:focus-visible,
+			.stage-panel-action .btn:focus-visible {
+				outline: none;
+				box-shadow: var(--focus-ring);
+				border-radius: 6px;
+			}
+			/* Respect reduced-motion preference: drop animations + transitions. */
+			@media (prefers-reduced-motion: reduce) {
+				*, *::before, *::after {
+					animation-duration: 0.01ms !important;
+					animation-iteration-count: 1 !important;
+					transition-duration: 0.01ms !important;
+					scroll-behavior: auto !important;
+				}
+			}
+			/* High-contrast mode: bump border contrast. */
+			@media (prefers-contrast: more) {
+				:root {
+					--card-border: rgba(148, 163, 184, 0.32);
+					--ink-muted: #cbd5e1;
+				}
+			}
+			/* Skip-to-content link (visible on focus). */
+			.skip-link {
+				position: absolute;
+				top: -40px;
+				left: 8px;
+				background: var(--accent);
+				color: white;
+				padding: 8px 16px;
+				border-radius: 4px;
+				z-index: 1000;
+				font-weight: 600;
+			}
+			.skip-link:focus { top: 8px; }
+			/* Visually-hidden text for screen readers. */
+			.sr-only {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				padding: 0;
+				margin: -1px;
+				overflow: hidden;
+				clip: rect(0, 0, 0, 0);
+				white-space: nowrap;
+				border: 0;
+			}
 			html, body {
-				background: linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 50%, var(--bg-2) 100%);
+				background: var(--bg-1);
 				background-attachment: fixed;
 				color: var(--ink);
 				font-family: var(--font-sans);
-				font-size: 14px;
-				line-height: 1.5;
+				font-size: 15px;
+				line-height: 1.55;
 				-webkit-font-smoothing: antialiased;
 				min-height: 100vh;
+			}
+			/* Subtle radial accent — premium feel without a heavy gradient */
+			body::before {
+				content: "";
+				position: fixed;
+				inset: 0;
+				background: radial-gradient(circle at 20% 0%, rgba(59, 130, 246, 0.06) 0%, transparent 40%),
+				            radial-gradient(circle at 80% 100%, rgba(16, 185, 129, 0.04) 0%, transparent 40%);
+				pointer-events: none;
+				z-index: -1;
 			}
 			a { color: var(--gold-soft); text-decoration: none; }
 			a:hover { text-decoration: underline; }
@@ -121,27 +194,216 @@
 			.brand-text { line-height: 1.1; }
 			.brand-name {
 				font-family: var(--font-display);
-				font-size: 22px;
-				font-weight: 700;
-				letter-spacing: 0.04em;
-				background: linear-gradient(90deg, var(--gold) 0%, var(--gold-soft) 100%);
-				-webkit-background-clip: text;
-				background-clip: text;
-				color: transparent;
+				font-size: 20px;
+				font-weight: 600;
+				letter-spacing: -0.01em;
+				color: var(--ink);
+			}
+			.brand-sep {
+				color: var(--ink-faint);
+				margin: 0 2px;
+				font-weight: 400;
+			}
+			.brand-finance {
+				color: var(--accent-soft);
+				font-weight: 500;
 			}
 			.brand-name-underline {
 				display: inline-block;
-				margin-top: 2px;
-				width: 90px;
+				margin-top: 4px;
+				width: 64px;
 				height: 2px;
-				background: linear-gradient(90deg, var(--gold) 0%, transparent 100%);
+				background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
 			}
 			.brand-subtitle {
-				font-size: 12px;
+				font-size: 11px;
 				color: var(--ink-muted);
-				letter-spacing: 0.16em;
+				letter-spacing: 0.12em;
 				text-transform: uppercase;
-				margin-top: 2px;
+				margin-top: 6px;
+				font-weight: 500;
+			}
+
+			/* ─── Stage badge (chunk 10) — single source of truth for "what is the bot doing" ─── */
+			.stage-badge {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				padding: 7px 14px;
+				border-radius: 999px;
+				font-size: 12px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				background: var(--bg-2);
+				border: 1px solid var(--card-border);
+				transition: border-color 200ms ease, background 200ms ease;
+			}
+			.stage-badge[data-color="ok"] { border-color: rgba(16, 185, 129, 0.4); }
+			.stage-badge[data-color="live"] {
+				border-color: rgba(16, 185, 129, 0.6);
+				background: rgba(16, 185, 129, 0.10);
+			}
+			.stage-badge[data-color="warn"] { border-color: rgba(245, 158, 11, 0.4); }
+			.stage-badge[data-color="err"] {
+				border-color: rgba(239, 68, 68, 0.5);
+				background: rgba(239, 68, 68, 0.08);
+			}
+			.stage-badge[data-color="off"] { opacity: 0.6; }
+			.stage-dot {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				background: currentColor;
+				animation: pulse 2s ease-in-out infinite;
+			}
+			.stage-badge[data-color="off"] .stage-dot { animation: none; }
+			.stage-badge[data-color="err"] .stage-dot { animation: pulse 1s ease-in-out infinite; }
+
+			/* ─── Stage panel (chunk 10) — large hero panel with current stage + ELI5 ─── */
+			.stage-panel {
+				padding: 24px 28px;
+				margin-bottom: 24px;
+				border-left: 3px solid var(--accent);
+				background: linear-gradient(180deg, var(--card-bg-hover) 0%, var(--card-bg) 100%);
+			}
+			.stage-panel[data-color="ok"], .stage-panel[data-color="live"] { border-left-color: var(--green); }
+			.stage-panel[data-color="warn"] { border-left-color: var(--amber); }
+			.stage-panel[data-color="err"] { border-left-color: var(--red); }
+			.stage-panel[data-color="off"] { border-left-color: var(--ink-faint); }
+			.stage-panel-head {
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-start;
+				gap: 24px;
+			}
+			.stage-panel-title-block { flex: 1; min-width: 0; }
+			.stage-panel-title {
+				font-size: 11px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.14em;
+				color: var(--ink-muted);
+				margin-bottom: 8px;
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.stage-panel-dot {
+				width: 10px;
+				height: 10px;
+				border-radius: 50%;
+				background: currentColor;
+				animation: pulse 2s ease-in-out infinite;
+			}
+			.stage-panel[data-color="off"] .stage-panel-dot { animation: none; }
+			.stage-panel[data-color="err"] .stage-panel-dot { animation: pulse 1s ease-in-out infinite; }
+			.stage-panel[data-color="ok"] .stage-panel-title,
+			.stage-panel[data-color="live"] .stage-panel-title { color: var(--green); }
+			.stage-panel[data-color="warn"] .stage-panel-title { color: var(--amber); }
+			.stage-panel[data-color="err"] .stage-panel-title { color: var(--red); }
+			.stage-panel[data-color="off"] .stage-panel-title { color: var(--ink-faint); }
+			#stage-panel-label {
+				font-family: var(--font-display);
+				font-size: 28px;
+				font-weight: 600;
+				letter-spacing: -0.02em;
+				color: var(--ink);
+				text-transform: none;
+				letter-spacing: -0.01em;
+			}
+			.stage-panel-desc {
+				font-size: 14px;
+				color: var(--ink-muted);
+				line-height: 1.5;
+				margin-top: 6px;
+			}
+			.stage-panel-action { flex-shrink: 0; }
+			.stage-panel-action .btn { white-space: nowrap; }
+
+			/* ─── Cadence panel (chunk 10) — every auto-running service ─── */
+			.cadence-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+				gap: 12px;
+				margin-top: 16px;
+			}
+			.cadence-skeleton {
+				color: var(--ink-faint);
+				font-size: 12px;
+				padding: 16px;
+				text-align: center;
+				grid-column: 1 / -1;
+			}
+			.cadence-item {
+				background: var(--card-bg);
+				border: 1px solid var(--card-border);
+				border-radius: 8px;
+				padding: 14px 16px;
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+				transition: border-color 150ms ease, background 150ms ease;
+			}
+			.cadence-item:hover { border-color: var(--card-border-hover); background: var(--card-bg-hover); }
+			.cadence-item[data-status="ok"], .cadence-item[data-status="running"] {
+				border-left: 2px solid var(--green);
+			}
+			.cadence-item[data-status="error"] {
+				border-left: 2px solid var(--red);
+			}
+			.cadence-item[data-status="warn"], .cadence-item[data-status="starting"] {
+				border-left: 2px solid var(--amber);
+			}
+			.cadence-item[data-status="off"], .cadence-item[data-status="skipped"] {
+				border-left: 2px solid var(--ink-faint);
+				opacity: 0.7;
+			}
+			.cadence-item-head {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 8px;
+			}
+			.cadence-item-name {
+				font-size: 13px;
+				font-weight: 600;
+				color: var(--ink);
+				display: flex;
+				align-items: center;
+				gap: 6px;
+			}
+			.cadence-item-icon { font-size: 14px; }
+			.cadence-item-status {
+				font-size: 10px;
+				font-weight: 600;
+				letter-spacing: 0.08em;
+				padding: 2px 6px;
+				border-radius: 4px;
+				text-transform: uppercase;
+			}
+			.cadence-item-status[data-status="ok"], .cadence-item-status[data-status="running"] {
+				background: rgba(16, 185, 129, 0.15); color: var(--green-soft);
+			}
+			.cadence-item-status[data-status="error"] {
+				background: rgba(239, 68, 68, 0.15); color: var(--red-soft);
+			}
+			.cadence-item-status[data-status="warn"], .cadence-item-status[data-status="starting"] {
+				background: rgba(245, 158, 11, 0.15); color: var(--amber-soft);
+			}
+			.cadence-item-status[data-status="off"], .cadence-item-status[data-status="skipped"] {
+				background: rgba(100, 116, 139, 0.15); color: var(--ink-muted);
+			}
+			.cadence-item-time {
+				font-size: 11px;
+				color: var(--ink-muted);
+				font-family: var(--font-mono);
+			}
+			.cadence-item-details {
+				font-size: 11px;
+				color: var(--ink-faint);
+				line-height: 1.4;
+				word-wrap: break-word;
 			}
 			.brand-right { display: flex; align-items: center; gap: 16px; }
 			.status-pill {
@@ -829,42 +1091,78 @@
 	</head>
 	<body>
 		<div class="shell">
-			<!-- Brand bar -->
+			<!-- Brand bar (chunk 10: Prediction Market Lab sub-brand) -->
 			<header class="brand-bar">
 				<div class="brand-left">
-					<!-- Prediction Market Lab monogram (inlined SVG, no asset request) -->
-					<svg class="brand-mono" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-label="Prediction Market Lab">
+					<!-- Prediction Market Lab mark: ascending bars + data point + gold accent line -->
+					<svg class="brand-mono" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-label="Prediction Market Lab" role="img">
 						<defs>
-							<linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-								<stop offset="0%" stop-color="#0a2854" />
-								<stop offset="100%" stop-color="#0b3a6f" />
+							<linearGradient id="bb-bars" x1="0" y1="0" x2="0" y2="1">
+								<stop offset="0%" stop-color="#60a5fa" />
+								<stop offset="100%" stop-color="#3b82f6" />
+							</linearGradient>
+							<linearGradient id="bb-bg" x1="0" y1="0" x2="0" y2="1">
+								<stop offset="0%" stop-color="#141a2b" />
+								<stop offset="100%" stop-color="#0a0e1a" />
 							</linearGradient>
 						</defs>
-						<rect width="64" height="64" rx="12" fill="url(#g1)" />
-						<rect x="2" y="2" width="60" height="60" rx="10" fill="none" stroke="#d4af37" stroke-width="0.6" opacity="0.4" />
-						<!-- M: four-stroke zig-zag -->
-						<path d="M 12 48 L 12 16 L 22 32 L 32 16 L 32 48" fill="none" stroke="#d4af37" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
-						<!-- C: partial ring interlocked with M -->
-						<path d="M 50 18 A 16 16 0 1 0 50 46" fill="none" stroke="#e5e7eb" stroke-width="2.6" stroke-linecap="round" />
+						<rect width="64" height="64" rx="14" fill="url(#bb-bg)" />
+						<rect x="1" y="1" width="62" height="62" rx="13" fill="none" stroke="rgba(59, 130, 246, 0.25)" stroke-width="0.8" />
+						<!-- Three ascending bars: data → decision → execution -->
+						<rect x="14" y="38" width="8" height="14" rx="2" fill="url(#bb-bars)" opacity="0.5" />
+						<rect x="28" y="30" width="8" height="22" rx="2" fill="url(#bb-bars)" opacity="0.75" />
+						<rect x="42" y="22" width="8" height="30" rx="2" fill="url(#bb-bars)" />
+						<!-- Data point on top of tallest bar -->
+						<circle cx="46" cy="18" r="2.6" fill="#10b981" />
+						<!-- Prediction Market Lab DNA: thin gold line under the bars -->
+						<line x1="14" y1="55" x2="50" y2="55" stroke="#d4af37" stroke-width="0.8" opacity="0.5" />
 					</svg>
 					<div class="brand-text">
-						<div class="brand-name">Prediction Market Lab</div>
+						<div class="brand-name">Prediction Market Lab <span class="brand-sep">·</span> <span class="brand-finance">finance</span></div>
 						<div class="brand-name-underline"></div>
-						<div class="brand-subtitle">pm-bot · paper-trading dashboard</div>
+						<div class="brand-subtitle">pm-bot · automated Kalshi trading</div>
 					</div>
 				</div>
 				<div class="brand-right">
-					<span class="live-indicator" id="live-indicator">
+					<span class="stage-badge" id="stage-badge" data-color="warn">
+						<span class="stage-dot" id="stage-dot"></span>
+						<span class="stage-label" id="stage-label">connecting…</span>
+					</span>
+					<span class="live-indicator" id="live-indicator" aria-label="Refresh status">
 						<span class="live-dot" id="live-dot"></span>
 						<span id="live-text" class="muted mono">connecting…</span>
-					</span>
-					<span class="status-pill" id="status-pill">
-						<span class="status-dot unknown" id="status-dot"></span>
-						<span id="status-text">live</span>
 					</span>
 					<span class="muted mono" id="model-version" style="font-size: 11px;">…</span>
 				</div>
 			</header>
+
+			<!-- Stage panel (chunk 10): the single most important answer — what is the bot doing right now? -->
+			<section class="card stage-panel" id="stage-panel" data-color="warn" aria-labelledby="stage-panel-title">
+				<div class="stage-panel-head">
+					<div class="stage-panel-title-block">
+						<div class="card-title" id="stage-panel-title">
+							<span class="stage-panel-dot" id="stage-panel-dot"></span>
+							<span id="stage-panel-label">Connecting…</span>
+						</div>
+						<div class="stage-panel-desc" id="stage-panel-desc">Opening the WebSocket to Kalshi. This usually takes a few seconds.</div>
+					</div>
+					<div class="stage-panel-action" id="stage-panel-action"></div>
+				</div>
+				<div class="card-blurb" style="margin-top: 12px;">The single badge that says what the bot is doing right now — streaming live data, paused, killed, or in some other state. Green is good, amber is "wait", red is "act now".</div>
+			</section>
+
+			<!-- Cadence panel (chunk 10): every auto-running service -->
+			<section class="card" aria-labelledby="cadence-title" style="margin-bottom: 24px;">
+				<div class="card-title" id="cadence-title">
+					<span aria-hidden="true">⏱</span>
+					<span>Cadence</span>
+					<span class="muted mono" id="cadence-summary" style="margin-left: auto; font-size: 10px; letter-spacing: 0;">…</span>
+				</div>
+				<div class="card-blurb">Every auto-running service with when it last ran and when it'll run next. No buttons — these all just happen on their own. The kill switch above can stop the trading engine; the other services are managed by the cron scheduler.</div>
+				<div class="cadence-grid" id="cadence-grid" role="list">
+					<div class="cadence-skeleton">Loading cadence…</div>
+				</div>
+			</section>
 
 			<!-- Hero overview: 4 stat cards (chunk 9.8) -->
 			<section class="grid hero-grid" style="margin-bottom: 24px;">
@@ -1243,12 +1541,9 @@
 			}
 
 			// ─── Renderers ───
-			function setStatusPill(state, text) {
-				const dot = $("status-dot");
-				dot.classList.remove("live", "cycling", "stopped", "unknown");
-				dot.classList.add(state);
-				$("status-text").textContent = text;
-			}
+			// (setStatusPill removed in chunk 10 — replaced by the
+			// stage badge + stage panel, which derive from
+			// /api/pm/bot/stage.)
 
 			// Live indicator (chunk 9.8). Updated on every
 			// successful refresh. Dot pulses green when data
@@ -1265,6 +1560,120 @@
 				}
 				const el = $("live-text");
 				if (el) el.textContent = text;
+			}
+
+			// ─── Stage (chunk 10) — the single badge that says what the bot is doing ───
+			// Driven by /api/pm/bot/stage. Updates the brand-bar badge,
+			// the large stage panel, and the action button.
+			let _lastStage = null;
+			async function fetchStage() {
+				try {
+					const data = await fetchJSON("/api/pm/bot/stage");
+					_lastStage = data;
+					renderStage(data);
+					return data;
+				} catch (e) {
+					console.warn("stage fetch failed", e);
+					return null;
+				}
+			}
+			function renderStage(data) {
+				// Brand-bar badge (small, compact).
+				const badge = $("stage-badge");
+				if (badge) badge.setAttribute("data-color", data.color);
+				$("stage-label").textContent = data.label;
+
+				// Big stage panel.
+				const panel = $("stage-panel");
+				if (panel) panel.setAttribute("data-color", data.color);
+				$("stage-panel-label").textContent = data.label;
+				$("stage-panel-desc").textContent = data.description;
+
+				// Action button (start / restart / kill-switch / etc).
+				const actionWrap = $("stage-panel-action");
+				if (actionWrap) {
+					if (data.action_label && data.action_path) {
+						actionWrap.innerHTML = `<button class="btn" data-action="${esc(data.action_path)}">${esc(data.action_label)}</button>`;
+					} else {
+						actionWrap.innerHTML = "";
+					}
+				}
+			}
+
+			// ─── Cadence (chunk 10) — every auto-running service ───
+			async function fetchCadence() {
+				try {
+					const data = await fetchJSON("/api/pm/cadence");
+					renderCadence(data);
+					return data;
+				} catch (e) {
+					console.warn("cadence fetch failed", e);
+					$("cadence-grid").innerHTML = `<div class="cadence-skeleton">Cadence unavailable — check API</div>`;
+					return null;
+				}
+			}
+			function renderCadence(data) {
+				const grid = $("cadence-grid");
+				if (!grid || !data || !data.services) return;
+				const summary = data.summary;
+				$("cadence-summary").textContent =
+					`${summary.n_ok} ok · ${summary.n_error} error${summary.n_error === 1 ? "" : "s"} · ${summary.n_starting} starting`;
+
+				grid.innerHTML = data.services
+					.map(
+						(s) => `
+					<div class="cadence-item" role="listitem" data-status="${esc(s.status)}" aria-label="${esc(s.name)}: ${esc(s.status)}, last run ${esc(s.last_ran_label)}">
+						<div class="cadence-item-head">
+							<div class="cadence-item-name">
+								<span class="cadence-item-icon" aria-hidden="true">${esc(s.icon || "•")}</span>
+								<span>${esc(s.name)}</span>
+							</div>
+							<span class="cadence-item-status" data-status="${esc(s.status)}">${esc(s.status)}</span>
+						</div>
+						<div class="cadence-item-time">
+							<span>last: ${esc(s.last_ran_label)}</span>${s.next_in_ms !== null ? ` <span aria-hidden="true">·</span> <span>${esc(s.next_label)}</span>` : ""}
+						</div>
+						<div class="cadence-item-details" title="${esc(s.description)}">${esc(s.details)}</div>
+					</div>`,
+					)
+					.join("");
+			}
+
+			// Stage action button handler (delegated).
+			document.addEventListener("click", (e) => {
+				const btn = e.target.closest("[data-action]");
+				if (!btn) return;
+				const path = btn.getAttribute("data-action");
+				if (path === "start" || path === "restart" || path === "stop") {
+					postBotAction(path);
+				} else if (path === "kill-switch?on=true" || path === "kill-switch?on=false") {
+					const on = path.endsWith("true");
+					postBotAction("kill-switch", { on });
+				} else if (path === "trading-mode?mode=paper") {
+					postBotAction("trading-mode", { trading_mode: "paper" });
+				} else if (path === "trading-mode?mode=real") {
+					postBotAction("trading-mode", { trading_mode: "real" });
+				}
+			});
+			async function postBotAction(path, body) {
+				const url = `/api/pm/bot/${path}`;
+				toast(`bot ${path}…`);
+				try {
+					const r = await fetch(url, {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: body ? JSON.stringify(body) : undefined,
+					});
+					const data = await r.json().catch(() => ({}));
+					if (r.ok && data.ok) {
+						toast(`bot ${path} — ok`, true);
+						setTimeout(() => { void fetchStage(); void fetchCadence(); }, 600);
+					} else {
+						toast(`${path} failed: ${data.message ?? r.statusText}`, false);
+					}
+				} catch (e) {
+					toast(`${path} failed: ${e.message}`, false);
+				}
 			}
 
 			// Render the 4 hero stat cards (chunk 9.8):
@@ -1466,7 +1875,7 @@
 				let okCount = 0;
 				const tick = (n) => { okCount += n; };
 				try {
-					const [status, summary, scans, signals, trades, crons, botStatus] = await Promise.all([
+					const [status, summary, scans, signals, trades, crons, botStatus, stage, cadence] = await Promise.all([
 						fetchJSON("/api/pm/status").then((v) => { tick(1); return v; }).catch(() => null),
 						fetchJSON("/api/pm/summary").then((v) => { tick(1); return v; }).catch(() => null),
 						fetchJSON("/api/pm/scans").then((v) => { tick(1); return v; }).catch(() => null),
@@ -1474,6 +1883,8 @@
 						fetchJSON("/api/pm/trades?limit=20").then((v) => { tick(1); return v; }).catch(() => ({ trades: [] })),
 						fetchJSON("/api/pm/cron-runs?limit=10").then((v) => { tick(1); return v; }).catch(() => ({ runs: [] })),
 						fetchJSON("/api/pm/bot/status").then((v) => { tick(1); return v; }).catch(() => null),
+						fetchStage().then((v) => { tick(1); return v; }).catch(() => null),
+						fetchCadence().then((v) => { tick(1); return v; }).catch(() => null),
 					]);
 
 					// Chunk 9.8: hero stat cards.
@@ -1500,23 +1911,16 @@
 						renderVerticals(summary.recap.verticals);
 					}
 
-					// Bot status pill
+					// Bot status pill (chunk 10: setStatusPill
+					// removed — the stage badge in the brand bar
+					// + the stage panel below are the single
+					// source of truth. Keep the model-version
+					// + trading controls render here.)
 					if (botStatus) {
-						const running = botStatus.connected === true;
-						const cycling = botStatus.connected === false && botStatus.user_id === "default";
-						if (running) {
-							setStatusPill("live", "bot · live");
-						} else if (cycling) {
-							setStatusPill("cycling", "bot · stopped");
-						} else {
-							setStatusPill("stopped", "bot · stopped");
-						}
 						$("model-version").textContent = `v${esc(botStatus.config?.model_version ?? "?")}`;
 						// Chunk 9.6: trading mode + caps + kill
 						// switch state.
 						renderTradingControls(botStatus);
-					} else {
-						setStatusPill("unknown", "bot · ?");
 					}
 					// Chunk 9.8: live indicator. OK if at
 					// least 5 of 7 endpoints returned data.

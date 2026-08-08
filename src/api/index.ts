@@ -8,3 +8,5 @@ export * from "./daily-recap.js";
 export * from "./cf-analytics.js";
 export * from "./balance.js";
 export * from "./cost.js";
+export * from "./cadence.js";
+export * from "./stage.js";

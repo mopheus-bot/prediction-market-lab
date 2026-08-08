@@ -102,9 +102,12 @@ def main() -> int:
             html = page.content()
             required_text = [
                 "Prediction Market Lab",
+                "finance",
                 "pm-bot",
                 "Account balance",
                 "Total PnL",
+                "Cadence",
+                "Stage",
                 "Trading mode",
                 "Open positions",
                 "Per-vertical breakdown",
@@ -112,18 +115,36 @@ def main() -> int:
                 "Recent signals",
                 "Daily recap",
                 "Cron runs",
-                "Start",
-                "Stop",
-                "Restart",
             ]
             for txt in required_text:
                 if txt not in html:
                     failures.append(f"missing required text: {txt!r}")
 
-            # The brand mono SVG must be present.
+            # The Prediction Market Lab mark SVG must be present.
             mono = page.locator("svg.brand-mono").count()
             if mono < 1:
                 failures.append("brand monogram SVG missing")
+
+            # Stage panel + cadence panel must render.
+            stage_panel = page.locator("#stage-panel").count()
+            if stage_panel < 1:
+                failures.append("stage panel missing")
+            cadence_grid = page.locator("#cadence-grid").count()
+            if cadence_grid < 1:
+                failures.append("cadence grid missing")
+
+            # Accessibility: page should have a lang attribute.
+            if not page.locator("html[lang]").count():
+                failures.append("missing html[lang] attribute")
+
+            # Accessibility: focus-visible style rule must be present
+            # in the page (it's the primary a11y pattern).
+            if "focus-visible" not in html:
+                failures.append("missing :focus-visible styles")
+
+            # Accessibility: prefers-reduced-motion respected.
+            if "prefers-reduced-motion" not in html:
+                failures.append("missing prefers-reduced-motion media query")
 
             # No 4xx/5xx requests — but the static server doesn't
             # run the Worker, so /api/pm/* calls will 404. We

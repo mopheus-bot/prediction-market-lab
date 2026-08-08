@@ -52,6 +52,7 @@ export default defineConfig({
 						"test/telegram.test.ts",
 						"test/llm.test.ts",
 						"test/cost.test.ts",
+						"test/stage.test.ts",
 					],
 					environment: "node",
 				},

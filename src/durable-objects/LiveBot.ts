@@ -228,6 +228,9 @@ export class LiveBot implements DurableObject {
 	private _connected = false;
 	private _reconnectAttempt = 0;
 	private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	/** Last WS error (sign, upgrade, onclose). Cleared on a successful
+	 *  upgrade. Surfaced in /status for the dashboard's stage panel. */
+	private _lastWsError: { ts_ms: number; code: string; message: string } | null = null;
 	// Model cache (chunk 4). Loaded from R2 on /start, reused
 	// across every signal call. Re-loaded if the model_version
 	// changes via a subsequent /start call. We don't persist
@@ -496,6 +499,7 @@ export class LiveBot implements DurableObject {
 						]),
 					),
 					last_reject: state.last_reject,
+					last_ws_error: this._lastWsError,
 				});
 			}
 
@@ -913,37 +917,109 @@ export class LiveBot implements DurableObject {
 		const url = state.config.url;
 		const useDemo = url.includes("demo");
 
-		const headers: Record<string, string> = {};
+		// Chunk 10: CF Workers' `new WebSocket(url)` does NOT support
+		// custom headers on the upgrade — the `{headers}` second arg
+		// is silently ignored. To authenticate, we must use
+		// `fetch(url, {headers: {Upgrade: "websocket", ...auth}})` and
+		// pull the WebSocket from `response.webSocket`.
+		// (See https://developers.cloudflare.com/workers/runtime-apis/websockets/)
+		const headers: Record<string, string> = { Upgrade: "websocket" };
 		const keyId =
 			(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
 		const pem =
 			(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
 		if (keyId && pem) {
-			// Sign the WS path. Per Kalshi spec, this is the literal
-			// WebSocket path (same as the Python client).
 			try {
 				const { buildAuthHeaders, loadPrivateKey } = await import("../kalshi/auth.js");
 				const pk = await loadPrivateKey(pem);
 				const auth = await buildAuthHeaders(pk, keyId, "GET", "/trade-api/ws/v2");
 				Object.assign(headers, auth);
 			} catch (e) {
-				console.error("[live-bot] failed to sign WS headers; connecting unauthenticated", e);
+				const msg = e instanceof Error ? e.message : String(e);
+				console.error("[live-bot] failed to sign WS headers", msg);
+				this._lastWsError = {
+					ts_ms: Date.now(),
+					code: "auth_sign_failed",
+					message: msg,
+				};
 			}
+		} else {
+			this._lastWsError = {
+				ts_ms: Date.now(),
+				code: "missing_creds",
+				message: useDemo
+					? "KALSHI_DEMO creds not set on the Worker"
+					: "KALSHI_PROD creds not set on the Worker",
+			};
+			console.error(
+				"[live-bot]",
+				this._lastWsError.code,
+				"—",
+				this._lastWsError.message,
+			);
 		}
 
-		// The standard WebSocket constructor in Workers accepts headers
-		// via the second arg.
+		// Open via fetch() so the auth headers ride on the upgrade.
+		// CF Workers' `nodejs_compat` flag enables Node.js's WebSocket
+		// which supports custom headers natively. We try the Node.js
+		// form first; if it fails, fall back to fetch() + Upgrade.
 		let ws: WebSocket;
 		try {
+			// Node.js's WebSocket: `new WebSocket(url, { headers })`.
+			// With `nodejs_compat` enabled, the global `WebSocket` is
+			// Node's, which honors the headers option.
 			ws = new WebSocket(url, { headers } as unknown as string[]);
 		} catch (e) {
-			console.error("[live-bot] failed to open WS", e);
-			this.scheduleReconnect(state);
-			return;
+			console.error("[live-bot] Node WebSocket failed, trying fetch()", e);
+			// Fallback: fetch() + Upgrade: websocket.
+			const fetchUrl = url.replace(/^wss:\/\//, "https://");
+			try {
+				const response = await fetch(fetchUrl, { headers });
+				if (response.status !== 101) {
+					const body = await response.text().catch(() => "");
+					const msg = `WS upgrade failed: HTTP ${response.status} ${body.slice(0, 200)}`;
+					console.error("[live-bot]", msg);
+					this._lastWsError = {
+						ts_ms: Date.now(),
+						code: `http_${response.status}`,
+						message: msg,
+					};
+					this.scheduleReconnect(state);
+					return;
+				}
+				ws = response.webSocket!;
+				if (!ws) {
+					const msg = "fetch() returned 101 but response.webSocket is null";
+					this._lastWsError = {
+						ts_ms: Date.now(),
+						code: "no_websocket",
+						message: msg,
+					};
+					this.scheduleReconnect(state);
+					return;
+				}
+				try {
+					ws.accept();
+				} catch {
+					/* already accepted — non-fatal */
+				}
+			} catch (fe) {
+				const msg = fe instanceof Error ? fe.message : String(fe);
+				console.error("[live-bot] both WS approaches failed", msg);
+				this._lastWsError = {
+					ts_ms: Date.now(),
+					code: "ws_open_failed",
+					message: msg,
+				};
+				this.scheduleReconnect(state);
+				return;
+			}
 		}
 		this._kalshiWs = ws;
 		this._connected = false;
 		this._reconnectAttempt = 0;
+		// Clear any prior error — the upgrade succeeded at the HTTP layer.
+		this._lastWsError = null;
 
 		ws.addEventListener("open", () => {
 			this._connected = true;
@@ -976,13 +1052,29 @@ export class LiveBot implements DurableObject {
 		});
 
 		ws.addEventListener("error", (event: Event) => {
-			console.error("[live-bot] WS error", (event as ErrorEvent).message ?? event);
+			const msg =
+				(event as ErrorEvent).message ?? "WebSocket error (no message)";
+			console.error("[live-bot] WS error", msg);
+			this._lastWsError = {
+				ts_ms: Date.now(),
+				code: "ws_error",
+				message: msg,
+			};
 		});
 
 		ws.addEventListener("close", (event: CloseEvent) => {
-			console.log(`[live-bot] WS close code=${event.code} reason=${event.reason}`);
+			console.log(
+				`[live-bot] WS close code=${event.code} reason=${event.reason ?? ""}`,
+			);
 			this._kalshiWs = null;
 			this._connected = false;
+			if (event.code !== 1000) {
+				this._lastWsError = {
+					ts_ms: Date.now(),
+					code: `close_${event.code}`,
+					message: event.reason || "abnormal closure",
+				};
+			}
 			this.scheduleReconnect(state);
 		});
 	}

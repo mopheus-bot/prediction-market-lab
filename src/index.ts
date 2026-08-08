@@ -35,6 +35,8 @@ import {
 import { handleCfAnalytics } from "./api/cf-analytics.js";
 import { handleBotBalance } from "./api/balance.js";
 import { handleCost } from "./api/cost.js";
+import { handleCadence } from "./api/cadence.js";
+import { handleStage } from "./api/stage.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -215,6 +217,19 @@ export default {
 		// src/api/cost.ts for the assumptions.
 		if (path === "/api/pm/cost" && request.method === "GET") {
 			return handleCost(env, url);
+		}
+		// ─── API: /api/pm/cadence (chunk 10) ──
+		// Every auto-running service + last-ran +
+		// next-scheduled + status. The single source
+		// of truth for the cadence panel.
+		if (path === "/api/pm/cadence" && request.method === "GET") {
+			return handleCadence(env, url);
+		}
+		// ─── API: /api/pm/bot/stage (chunk 10) ──
+		// Single badge in the brand bar — what is the
+		// bot doing right now? ELI5 description included.
+		if (path === "/api/pm/bot/stage" && request.method === "GET") {
+			return handleStage(env, url);
 		}
 
 		// ─── API: /api/pm/models/* (chunk 8) ───────────────────
