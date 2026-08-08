@@ -339,6 +339,71 @@
 				font-size: 13px;
 			}
 
+			/* ─── CF Workers analytics (chunk 9.5) ─── */
+			.cf-stats {
+				display: grid;
+				grid-template-columns: repeat(4, 1fr);
+				gap: 12px;
+				margin: 16px 0 20px;
+			}
+			.cf-stat {
+				background: var(--bg-3);
+				border: 1px solid var(--card-border);
+				border-radius: 8px;
+				padding: 14px 16px;
+			}
+			.cf-stat-num {
+				font-size: 22px;
+				font-weight: 600;
+				color: var(--ink);
+				line-height: 1.1;
+				letter-spacing: -0.01em;
+			}
+			.cf-stat-num.neg { color: var(--red); }
+			.cf-stat-num.pos { color: var(--green); }
+			.cf-stat-label {
+				font-size: 11px;
+				color: var(--ink-faint);
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				margin-top: 4px;
+			}
+			.cf-chart {
+				display: flex;
+				gap: 2px;
+				align-items: flex-end;
+				height: 80px;
+				padding: 8px 0;
+				border-top: 1px solid var(--card-border);
+				border-bottom: 1px solid var(--card-border);
+				margin: 8px 0 12px;
+			}
+			.cf-bar {
+				flex: 1;
+				background: var(--accent);
+				opacity: 0.7;
+				border-radius: 2px 2px 0 0;
+				min-height: 1px;
+				position: relative;
+				transition: opacity 200ms ease;
+			}
+			.cf-bar:hover { opacity: 1; }
+			.cf-bar.err {
+				background: var(--red);
+				opacity: 0.8;
+			}
+			.cf-foot {
+				font-size: 11px;
+				color: var(--ink-faint);
+				margin-top: 8px;
+				display: flex;
+				justify-content: space-between;
+				gap: 12px;
+			}
+			@media (max-width: 768px) {
+				.cf-stats { grid-template-columns: repeat(2, 1fr); }
+			}
+
 			/* ─── Footer ─── */
 			footer {
 				margin-top: 48px;
@@ -529,8 +594,42 @@
 				</div>
 			</section>
 
+			<!-- CF Workers Analytics (chunk 9.5: inline Cloudflare metrics) -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span class="dot"></span>Cloudflare Workers usage (last 24h)
+							<a id="cf-dashboard-link" href="#" target="_blank" rel="noopener" style="margin-left:auto; font-size:11px; color: var(--accent); text-decoration:none;">open CF dashboard ↗</a>
+						</div>
+						<div class="cf-stats" id="cf-stats">
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="cf-requests">—</div>
+								<div class="cf-stat-label">Requests</div>
+							</div>
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="cf-errors">—</div>
+								<div class="cf-stat-label">Errors</div>
+							</div>
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="cf-success">—</div>
+								<div class="cf-stat-label">Success rate</div>
+							</div>
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="cf-subrequests">—</div>
+								<div class="cf-stat-label">Subrequests</div>
+							</div>
+						</div>
+						<div class="cf-chart" id="cf-chart">
+							<div class="empty">loading CF analytics…</div>
+						</div>
+						<div class="cf-foot" id="cf-foot"></div>
+					</div>
+				</div>
+			</section>
+
 			<footer>
-				pm-bot · Prediction Market Lab · chunk 7
+				pm-bot · Prediction Market Lab · chunk 9.5
 			</footer>
 		</div>
 
@@ -822,6 +921,85 @@
 				}
 			}
 
+			// ─── CF Workers analytics (chunk 9.5) ───
+			// Pulls /api/pm/cf-analytics on a slower cadence
+			// (CF data is ~1m delayed; 90s is enough). On
+			// error, shows the message + link to the CF
+			// dashboard.
+			async function refreshCfAnalytics() {
+				try {
+					const r = await fetch("/api/pm/cf-analytics?hours=24", {
+						credentials: "same-origin",
+					});
+					const data = await r.json();
+					if (!data.ok) {
+						renderCfAnalyticsError(data);
+						return;
+					}
+					renderCfAnalytics(data);
+				} catch (e) {
+					renderCfAnalyticsError({
+						error: "fetch_failed",
+						detail: String(e).slice(0, 200),
+						dashboard_url:
+							"https://dash.cloudflare.com/8c995c329fee2ee6ab33d9d3d6a30e55" +
+							"/workers/services/view/pm-bot/production/metrics",
+					});
+				}
+			}
+
+			function renderCfAnalytics(data) {
+				$("cf-requests").textContent = fmtNum(data.totals.requests);
+				$("cf-errors").textContent = fmtNum(data.totals.errors);
+				const successEl = $("cf-success");
+				successEl.textContent = `${data.totals.success_rate_pct.toFixed(2)}%`;
+				successEl.classList.toggle("pos", data.totals.success_rate_pct >= 99);
+				successEl.classList.toggle("neg", data.totals.success_rate_pct < 99);
+				$("cf-subrequests").textContent = fmtNum(data.totals.subrequests);
+				$("cf-dashboard-link").href = data.dashboard_url;
+
+				// Render the bar chart.
+				const chart = $("cf-chart");
+				chart.innerHTML = "";
+				if (!data.hourly || data.hourly.length === 0) {
+					chart.innerHTML = '<div class="empty">no requests in the last 24h</div>';
+				} else {
+					const max = Math.max(1, ...data.hourly.map((b) => b.requests));
+					for (const b of data.hourly) {
+						const bar = document.createElement("div");
+						bar.className = "cf-bar" + (b.errors > 0 ? " err" : "");
+						const h = Math.max(1, Math.round((b.requests / max) * 72));
+						bar.style.height = `${h}px`;
+						const ts = b.datetime.replace("T", " ").replace("Z", "Z").slice(0, 16);
+						bar.title = `${ts}Z · ${fmtNum(b.requests)} req, ${fmtNum(b.errors)} err`;
+						chart.appendChild(bar);
+					}
+				}
+				const since = (data.since || "").slice(0, 16).replace("T", " ");
+				$("cf-foot").innerHTML =
+					`<span>since ${esc(since)}Z</span>` +
+					`<span>window: last 24h</span>` +
+					`<span>updated ${new Date().toISOString().slice(11, 19)}Z</span>`;
+			}
+
+			function renderCfAnalyticsError(data) {
+				$("cf-requests").textContent = "—";
+				$("cf-errors").textContent = "—";
+				$("cf-success").textContent = "—";
+				$("cf-subrequests").textContent = "—";
+				$("cf-dashboard-link").href =
+					data.dashboard_url ||
+					"https://dash.cloudflare.com/8c995c329fee2ee6ab33d9d3d6a30e55" +
+						"/workers/services/view/pm-bot/production/metrics";
+				$("cf-chart").innerHTML =
+					`<div class="empty">` +
+					`CF analytics unavailable: <code>${esc(data.error || "unknown")}</code>` +
+					(data.detail ? ` — ${esc(data.detail)}` : "") +
+					`<br><br><a href="${esc($("cf-dashboard-link").href)}" target="_blank" rel="noopener" style="color: var(--accent);">view at dash.cloudflare.com ↗</a>` +
+					`</div>`;
+				$("cf-foot").innerHTML = "";
+			}
+
 			// ─── Toast ───
 			let toastTimer = null;
 			function toast(msg, ok = true) {
@@ -876,18 +1054,27 @@
 
 			// ─── Initial load + auto-refresh ───
 			refresh();
+			// CF analytics: 90s cadence. The CF GraphQL
+			// data is ~1m delayed; faster polling is
+			// wasteful + burns CF API quota.
+			refreshCfAnalytics();
 			const FAST_REFRESH_MS = 5000;
 			const SLOW_REFRESH_MS = 30000;
+			const CF_REFRESH_MS = 90000;
 			let fastTimer = setInterval(refresh, FAST_REFRESH_MS);
 			let slowTimer = setInterval(refresh, SLOW_REFRESH_MS);
+			let cfTimer = setInterval(refreshCfAnalytics, CF_REFRESH_MS);
 			document.addEventListener("visibilitychange", () => {
 				if (document.hidden) {
 					clearInterval(fastTimer);
 					clearInterval(slowTimer);
+					clearInterval(cfTimer);
 				} else {
 					refresh();
+					refreshCfAnalytics();
 					fastTimer = setInterval(refresh, FAST_REFRESH_MS);
 					slowTimer = setInterval(refresh, SLOW_REFRESH_MS);
+					cfTimer = setInterval(refreshCfAnalytics, CF_REFRESH_MS);
 				}
 			});
 		</script>

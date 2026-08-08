@@ -32,6 +32,7 @@ import {
 	handleSummary,
 	handleTrades,
 } from "./api/status.js";
+import { handleCfAnalytics } from "./api/cf-analytics.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -62,6 +63,15 @@ export interface Env extends CronEnv {
 	// Bot defaults (overridable per-/start call).
 	DEFAULT_TICKERS?: string;
 	DEFAULT_URL?: string;
+	// Cloudflare API token for the /api/pm/cf-analytics
+	// endpoint. Reads CF Workers Analytics via the GraphQL
+	// API. Needs `account:read` scope. Set via
+	// `wrangler secret put CF_API_TOKEN`.
+	CF_API_TOKEN?: string;
+	// Optional overrides for the cf-analytics endpoint.
+	// Default values are the pm-bot account + script name.
+	CF_ACCOUNT_TAG?: string;
+	CF_SCRIPT_NAME?: string;
 }
 
 export { LiveBot } from "./durable-objects/LiveBot.js";
@@ -169,6 +179,15 @@ export default {
 		}
 		if (path === "/api/pm/cron-runs" && request.method === "GET") {
 			return handleCronRuns(env, url);
+		}
+		// ─── API: /api/pm/cf-analytics (chunk 9.5: Cloudflare inline analytics) ──
+		// Proxies the CF GraphQL Analytics API. Reads the
+		// same metrics the dash.cloudflare.com Workers
+		// dashboard shows (requests, errors, subrequests)
+		// for the last 24h by default (?hours= for 1..168).
+		// Requires CF_API_TOKEN secret.
+		if (path === "/api/pm/cf-analytics" && request.method === "GET") {
+			return handleCfAnalytics(env, url);
 		}
 
 		// ─── API: /api/pm/models/* (chunk 8) ───────────────────
