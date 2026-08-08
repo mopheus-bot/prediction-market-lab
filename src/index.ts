@@ -180,6 +180,18 @@ export default {
 		if (path === "/api/pm/bot/place-test-order" && request.method === "POST") {
 			return forwardToBot(env, request, "/place-test-order");
 		}
+		// Manual close-position (chunk 10.9). Body: { ticker }.
+		// Closes the open position at the current mark. Works
+		// for paper + real positions.
+		if (path === "/api/pm/bot/close-position" && request.method === "POST") {
+			return forwardToBot(env, request, "/close-position");
+		}
+		// Manual cancel-order (chunk 10.9). Body: { order_id }.
+		// Cancels a GTC order on Kalshi. Only meaningful in
+		// real mode (paper orders are local-only).
+		if (path === "/api/pm/bot/cancel-order" && request.method === "POST") {
+			return forwardToBot(env, request, "/cancel-order");
+		}
 		// Auto-start (chunk 9.8): idempotent bot start. If
 		// already running, returns current state. Otherwise
 		// starts with default config. The dashboard calls

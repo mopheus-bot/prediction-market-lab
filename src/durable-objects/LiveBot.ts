@@ -936,6 +936,131 @@ export class LiveBot implements DurableObject {
 				});
 			}
 
+			case "/close-position": {
+				// Chunk 10.9: manual operator exit. Body:
+				// { "ticker": "KXWARMING-50" } — closes the open
+				// position at the current mark. Works for both
+				// paper + real positions. Returns the realized
+				// PnL + the close trade id.
+				const body = (await request.json().catch(() => ({}))) as {
+					ticker?: string;
+					rationale?: string;
+				};
+				const ticker = String(body.ticker ?? "").trim();
+				if (!ticker) {
+					return Response.json(
+						{ ok: false, error: "missing_ticker", message: "ticker is required" },
+						{ status: 400 },
+					);
+				}
+				const s = await this.ensureState();
+				const t = s.tickers[ticker];
+				if (!t || !t.position) {
+					return Response.json(
+						{ ok: false, error: "no_position", message: `no open position on ${ticker}` },
+						{ status: 400 },
+					);
+				}
+				// Use the current mid as the mark. If the book
+				// is empty, fall back to the entry price (so the
+				// close still records at a known mark).
+				let markCents = t.last_trade_price_cents ?? t.position.entry_price_cents;
+				if (t.book) {
+					const yesCents = orderbookMidCents({
+						ticker,
+						yes_levels: t.book.yes_levels,
+						no_levels: t.book.no_levels,
+					});
+					if (yesCents != null) markCents = yesCents;
+				}
+				const openedPnlCents = t.position.size > 0 && markCents > 0
+					? t.position.side === "yes"
+						? (markCents - t.position.entry_price_cents) * t.position.size
+						: (t.position.entry_price_cents - markCents) * t.position.size
+					: 0;
+				const pos = t.position;
+				this.autoCloseAtMark(s, ticker, markCents, body.rationale ?? "manual_close");
+				await this.saveState(s);
+				return Response.json({
+					ok: true,
+					ticker,
+					side: pos.side,
+					size: pos.size,
+					entry_price_cents: pos.entry_price_cents,
+					mark_cents: markCents,
+					pnl_cents: openedPnlCents,
+					rationale: body.rationale ?? "manual_close",
+				});
+			}
+
+			case "/cancel-order": {
+				// Chunk 10.9: cancel a GTC order. Body:
+				// { "order_id": "..." }. Returns the cancellation
+				// status from Kalshi. Only meaningful when
+				// trading_mode === "real" — paper orders are
+				// local-only and don't need cancellation.
+				const body = (await request.json().catch(() => ({}))) as {
+					order_id?: string;
+				};
+				const orderId = String(body.order_id ?? "").trim();
+				if (!orderId) {
+					return Response.json(
+						{ ok: false, error: "missing_order_id", message: "order_id is required" },
+						{ status: 400 },
+					);
+				}
+				const s = await this.ensureState();
+				if (s.config.trading_mode !== "real") {
+					return Response.json(
+						{
+							ok: false,
+							error: "not_real_mode",
+							message: "cancel-order is only meaningful in real mode (paper orders don't go to Kalshi)",
+						},
+						{ status: 400 },
+					);
+				}
+				const useDemo = s.config.url.includes("demo");
+				const keyId =
+					(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
+				const pem =
+					(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
+				if (!keyId || !pem) {
+					return Response.json(
+						{ ok: false, error: "missing_credentials", message: "Kalshi creds not set" },
+						{ status: 500 },
+					);
+				}
+				try {
+					const { KalshiSdkClient } = await import("../kalshi/sdk-adapter.js");
+					const { loadPrivateKey, KalshiCredentials } = await import("../kalshi/auth.js");
+					const pk = await loadPrivateKey(pem);
+					const credentials = new KalshiCredentials(keyId, pk);
+					const client = new KalshiSdkClient({
+						creds: credentials,
+						privateKeyPem: pem,
+						env: useDemo ? "demo" : "prod",
+						requestsPerSecond: 0,
+					});
+					const result = (await client.cancelOrderV2(orderId)) as Record<string, unknown>;
+					return Response.json({
+						ok: true,
+						order_id: orderId,
+						result,
+					});
+				} catch (e) {
+					const msg = e instanceof Error ? e.message : String(e);
+					return Response.json(
+						{
+							ok: false,
+							error: "kalshi_cancel_failed",
+							detail: msg.slice(0, 300),
+						},
+						{ status: 502 },
+					);
+				}
+			}
+
 			case "/":
 			case "/index.html": {
 				return Response.json({

@@ -77,6 +77,8 @@ export default defineConfig({
 						"test/models-api.test.ts",
 					"test/verticals.test.ts",
 					"test/backtest-run.test.ts",
+					"test/close-cancel.test.ts",
+					"test/auto-pilot.test.ts",
 					],
 				},
 			},
