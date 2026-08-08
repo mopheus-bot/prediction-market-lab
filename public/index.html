@@ -707,6 +707,69 @@
 				font-weight: 500;
 				font-variant-numeric: tabular-nums;
 			}
+			.vertical-cap-tag {
+				display: inline-block;
+				font-family: var(--font-mono);
+				font-size: 11px;
+				padding: 2px 8px;
+				margin: 2px 4px 2px 0;
+				background: var(--bg-3);
+				border: 1px solid var(--card-border);
+				border-radius: 4px;
+				color: var(--ink-muted);
+			}
+			.blocklist-wrap {
+				display: flex;
+				flex-direction: column;
+				gap: 6px;
+				flex: 1;
+			}
+			.blocklist-tags {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 4px;
+				min-height: 24px;
+			}
+			.blocklist-tag {
+				display: inline-flex;
+				align-items: center;
+				gap: 4px;
+				font-family: var(--font-mono);
+				font-size: 11px;
+				padding: 2px 6px 2px 8px;
+				background: var(--bg-3);
+				border: 1px solid var(--card-border);
+				border-radius: 4px;
+				color: var(--ink-muted);
+			}
+			.blocklist-remove {
+				background: none;
+				border: none;
+				color: var(--ink-faint);
+				font-size: 14px;
+				line-height: 1;
+				padding: 0 2px;
+				cursor: pointer;
+			}
+			.blocklist-remove:hover { color: var(--red); }
+			.blocklist-input-row {
+				display: flex;
+				gap: 6px;
+			}
+			.blocklist-input {
+				flex: 1;
+				background: var(--bg-2);
+				border: 1px solid var(--card-border);
+				color: var(--ink);
+				padding: 4px 8px;
+				border-radius: 4px;
+				font-family: var(--font-mono);
+				font-size: 12px;
+			}
+			.blocklist-input:focus {
+				outline: none;
+				border-color: var(--accent);
+			}
 			.caps-bar-wrap {
 				height: 4px;
 				background: var(--bg-3);
@@ -1241,7 +1304,7 @@
 					</div>
 					<div class="stage-panel-action" id="stage-panel-action"></div>
 				</div>
-				<div class="card-blurb" style="margin-top: 12px;">The single badge that says what the bot is doing right now — streaming live data, paused, killed, or in some other state. Green is good, amber is "wait", red is "act now".</div>
+				<div class="card-blurb" style="margin-top: 12px;">On Kalshi, every market is a binary question: YES resolves at 100¢, NO at 0¢. The bot buys YES or NO contracts at a market price, then either sells before resolution or holds until the market settles. This badge is the live state: streaming (reading the orderbook), paused (won't trade but WS is open), killed (panic mode, all trades blocked), or error (WS can't connect — usually a relay issue).</div>
 			</section>
 
 			<!-- Cadence panel (chunk 10): every auto-running service -->
@@ -1251,7 +1314,7 @@
 					<span>Cadence</span>
 					<span class="muted mono" id="cadence-summary" style="margin-left: auto; font-size: 10px; letter-spacing: 0;">…</span>
 				</div>
-				<div class="card-blurb">Every auto-running service with when it last ran and when it'll run next. No buttons — these all just happen on their own. The kill switch above can stop the trading engine; the other services are managed by the cron scheduler.</div>
+				<div class="card-blurb">The full automation pipeline. The WS is a single persistent connection to Kalshi that pushes orderbook + trade + ticker frames in real time. The 4 cron jobs fire on a schedule (scan every 15 min, news every 6h, daily 06:00 UTC, train + backtest weekly). LLM calls power the news + daily summaries. The model registry tracks which ML model is active per vertical. None of these need operator action — they all just run.</div>
 				<div class="cadence-grid" id="cadence-grid" role="list">
 					<div class="cadence-skeleton">Loading cadence…</div>
 				</div>
@@ -1289,7 +1352,7 @@
 							<span class="dot"></span>Trading mode
 							<span class="pill paper" id="mode-pill">paper</span>
 						</div>
-						<div class="card-blurb">Pause stops new trades, paper is fake money, Go live places real orders on Kalshi. Kill switch is the panic button.</div>
+						<div class="card-blurb">On Kalshi, a "fill" means the bot bought (or sold) a YES/NO contract at a market price. paper = log only, no real money. real = place actual orders on Kalshi's exchange with your $9.73 account. off = no new trades; the WS keeps streaming so you can see state. Kill switch is the panic button — flips the bot into a state where every new trade is rejected with reason "kill_switch_active".</div>
 						<div class="mode-buttons">
 							<button class="btn mode-btn" id="btn-pause" data-mode="off">
 								<span class="mode-num">1 · pause</span>
@@ -1319,7 +1382,7 @@
 				<div class="col-4">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Caps & today</div>
-						<div class="card-blurb">Hard limits. The bot refuses to trade past these even if it's "feeling confident." Bump via the API if you want to test bigger.</div>
+						<div class="card-blurb">Hard limits on Kalshi exposure. per-trade cap = max cents the bot will deploy on a single fill (default 25¢ — about 1 share at 25¢, or 0.5 shares at 50¢). Daily cap = max cents deployed in any 24h rolling window (default 150¢). The bot refuses every trade that would push it over either cap, regardless of model confidence. You can override per-vertical via /start (e.g. cap politics at 5¢/trade while keeping 25¢ on weather).</div>
 						<div class="caps-row">
 							<div class="caps-label">Account balance</div>
 							<div class="caps-val" id="caps-balance">$—</div>
@@ -1335,6 +1398,29 @@
 						<div class="caps-bar-wrap">
 							<div class="caps-bar" id="caps-bar" style="width: 0%"></div>
 						</div>
+						<div class="caps-row" style="margin-top: 12px;">
+							<div class="caps-label">Per-vertical overrides</div>
+							<div class="caps-val" id="per-vertical-caps" style="font-size: 11px; line-height: 1.5;"></div>
+						</div>
+						<div class="caps-row" style="margin-top: 12px;">
+							<div class="caps-label">
+								Blocklist
+								<span class="muted" style="font-size:10px; font-weight: 400;">— tickers the bot will skip</span>
+							</div>
+							<div class="blocklist-wrap">
+								<div class="blocklist-tags" id="blocklist"></div>
+								<div class="blocklist-input-row">
+									<input
+										type="text"
+										id="blocklist-input"
+										class="blocklist-input"
+										placeholder="add ticker (e.g. KXWARMING-50)"
+										aria-label="Add ticker to blocklist"
+									/>
+									<button class="btn small" id="blocklist-add-btn">Add</button>
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 			</section>
@@ -1344,7 +1430,7 @@
 				<div class="col-12">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Last 5 trades</div>
-						<div class="card-blurb">The most recent trades, paper + real combined. Each row shows the mode the bot was in when the trade fired.</div>
+						<div class="card-blurb">The 5 most recent Kalshi fills. On Kalshi, a "fill" happens when the bot's order matches a counterparty. Each row shows the entry price (in cents), the model's probability that this trade wins (p(model), 0-100%), the mode (paper or real), and a one-line rationale. paper trades are simulated; real trades are on your $9.73 Kalshi account.</div>
 						<table class="tbl last-trades-tbl">
 							<thead>
 								<tr>
@@ -1412,7 +1498,7 @@
 				<div class="col-6">
 					<div class="card">
 						<div class="card-title"><span class="dot"></span>Open positions</div>
-						<div class="card-blurb">Trades the bot is currently holding. PnL is "unrealized" — it only becomes realized when the position closes.</div>
+						<div class="card-blurb">Markets where the bot is currently holding a YES or NO position. On Kalshi, a position has an entry price (what the bot paid) and a "mark" price (the current mid-market, which is what you'd get if you sold right now). Unrealized PnL = (mark - entry) × size for YES, or (100 - entry - mark + 100) × size for No, capped at the resolution value.</div>
 						<div id="positions-list">
 							<div class="empty">no open positions</div>
 						</div>
@@ -1760,6 +1846,63 @@
 					postBotAction("trading-mode", { trading_mode: "paper" });
 				} else if (path === "trading-mode?mode=real") {
 					postBotAction("trading-mode", { trading_mode: "real" });
+				}
+			});
+
+			// Chunk 11b: blocklist (per-ticker kill switch).
+			// The dashboard reads the current disabled_tickers
+			// from /api/pm/bot/status; the user can add/remove
+			// via the input below the tags. We PATCH the bot
+			// config via /api/pm/bot/start (preserving other
+			// fields) and re-render.
+			async function updateBlocklist(action, ticker) {
+				const t = (ticker ?? "").trim().toUpperCase();
+				if (!t) return;
+				const cur = window._lastBotStatus?.config?.disabled_tickers ?? [];
+				let next;
+				if (action === "add") {
+					if (cur.includes(t)) return;
+					next = [...cur, t];
+				} else {
+					next = cur.filter((x) => x !== t);
+				}
+				toast(`${action === "add" ? "blocklisting" : "unblocking"} ${t}…`);
+				const r = await fetch("/api/pm/bot/start", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ disabled_tickers: next }),
+				});
+				if (r.ok) {
+					setTimeout(() => { void refresh(); }, 600);
+				} else {
+					const data = await r.json().catch(() => ({}));
+					toast(`blocklist update failed: ${data.message ?? r.statusText}`, false);
+				}
+			}
+			document.addEventListener("click", (e) => {
+				const rm = e.target.closest(".blocklist-remove");
+				if (rm) {
+					e.preventDefault();
+					void updateBlocklist("remove", rm.dataset.ticker);
+				}
+			});
+			document.addEventListener("click", (e) => {
+				if (e.target.id === "blocklist-add-btn") {
+					const input = $("blocklist-input");
+					if (input?.value) {
+						void updateBlocklist("add", input.value);
+						input.value = "";
+					}
+				}
+			});
+			document.addEventListener("keydown", (e) => {
+				if (e.target.id === "blocklist-input" && e.key === "Enter") {
+					e.preventDefault();
+					const input = e.target;
+					if (input.value) {
+						void updateBlocklist("add", input.value);
+						input.value = "";
+					}
 				}
 			});
 			async function postBotAction(path, body) {
@@ -2378,6 +2521,8 @@
 				const dailyCap = (status.config.daily_notional_cents_cap ?? 0) / 100;
 				const dailyUsed = (status.risk?.daily_notional_cents ?? 0) / 100;
 				const killOn = !!status.config.kill_switch;
+				const disabledTickers = status.config.disabled_tickers ?? [];
+				const perVertical = status.config.per_vertical_max_notional_cents ?? {};
 
 				// Active button highlight.
 				for (const btn of document.querySelectorAll(".mode-btn")) {
@@ -2402,6 +2547,37 @@
 				bar.classList.remove("warn", "over");
 				if (pct >= 100) bar.classList.add("over");
 				else if (pct >= 80) bar.classList.add("warn");
+
+				// Per-vertical caps (chunk 11b). Display in the
+				// caps panel if any are set.
+				const perVerticalEl = $("per-vertical-caps");
+				if (perVerticalEl) {
+					const entries = Object.entries(perVertical);
+					if (entries.length === 0) {
+						perVerticalEl.innerHTML =
+							'<div class="muted" style="font-size:11px;">no per-vertical overrides (using global cap)</div>';
+					} else {
+						perVerticalEl.innerHTML = entries
+							.map(
+								([v, c]) =>
+									`<span class="vertical-cap-tag">${esc(v)}: $${(c / 100).toFixed(2)}</span>`,
+							)
+							.join(" ");
+					}
+				}
+
+				// Blocklist (chunk 11b). Display the disabled
+				// tickers as tags + an input to add more.
+				const blocklistEl = $("blocklist");
+				if (blocklistEl) {
+					const tagHtml = disabledTickers
+						.map(
+							(t) =>
+								`<span class="blocklist-tag">${esc(t)}<button class="blocklist-remove" data-ticker="${esc(t)}" aria-label="Remove ${esc(t)}">×</button></span>`,
+						)
+						.join("");
+					blocklistEl.innerHTML = tagHtml;
+				}
 
 				// Kill switch state.
 				const killEl = $("kill-state");

@@ -144,6 +144,20 @@ export interface LiveBotState {
 		daily_notional_cents_cap: number;
 		/** Chunk 9: kill switch. */
 		kill_switch: boolean;
+		/** Chunk 11b: per-vertical caps. Optional override
+		 *  of the global `max_notional_cents_per_trade` per
+		 *  vertical (weather / economic / politics / sports).
+		 *  When a vertical is in this map, that cap is used;
+		 *  else the global cap. Useful because weather is more
+		 *  predictable than politics — you can cap politics at
+		 *  5¢/trade while keeping 25¢/trade on weather. */
+		per_vertical_max_notional_cents?: Record<string, number> | null;
+		/** Chunk 11b: per-ticker blocklist. The bot skips
+		 *  trades on these tickers even when the global kill
+		 *  switch is OFF. Useful for "I don't want to trade
+		 *  KXTICKER because the model isn't reliable for it"
+		 *  without flipping the global kill switch. */
+		disabled_tickers?: string[] | null;
 	};
 	/** The most recent risk reject reason (per-ticker, for /status). */
 	last_reject: { ts_ms: number; ticker: string; code: string; message: string } | null;
@@ -191,6 +205,16 @@ export interface LiveBotConfig {
 	 * positions at the next mark. Use this as the panic
 	 * button. */
 	kill_switch?: boolean;
+	/** Chunk 11b: per-vertical caps. Optional override of
+	 * the global `max_notional_cents_per_trade` per vertical
+	 * (weather / economic / politics / sports). When a
+	 * vertical is in this map, that cap is used; else the
+	 * global cap. */
+	per_vertical_max_notional_cents?: Record<string, number> | null;
+	/** Chunk 11b: per-ticker blocklist. The bot skips trades
+	 * on these tickers even when the global kill switch is
+	 * OFF. */
+	disabled_tickers?: string[] | null;
 }
 
 // ─── Env (subset we need) ─────────────────────────────────────────────
@@ -325,6 +349,13 @@ export class LiveBot implements DurableObject {
 				max_notional_cents_per_trade: 25, // $0.25
 				daily_notional_cents_cap: 150, // $1.50
 				kill_switch: false,
+				// Chunk 11b: per-vertical caps + per-ticker
+				// blocklist. Default to "no override" (null)
+				// which falls back to the global cap. Operators
+				// set these via /start to enforce tighter
+				// caps on risky verticals.
+				per_vertical_max_notional_cents: null,
+				disabled_tickers: null,
 			},
 			last_reject: null,
 		};
@@ -669,16 +700,26 @@ export class LiveBot implements DurableObject {
 						{ status: 400 },
 					);
 				}
-				// Enforce per-trade cap.
+				// Enforce per-trade cap. Chunk 11b: prefer the
+				// per-vertical cap if the ticker's vertical is
+				// in the override map; else fall back to the
+				// global cap.
 				const notionalCents = side === "yes" ? priceCents * size : (100 - priceCents) * size;
-				if (notionalCents > s.config.max_notional_cents_per_trade) {
+				const tState = s.tickers[ticker];
+				const tickerVertical = tState?.vertical
+					? String(tState.vertical)
+					: (s.config.ticker_verticals?.[ticker] ?? "unknown");
+				const verticalCap =
+					(s.config.per_vertical_max_notional_cents ?? {})[tickerVertical] ??
+					s.config.max_notional_cents_per_trade;
+				if (notionalCents > verticalCap) {
 					return Response.json(
 						{
 							ok: false,
 							error: "per_trade_cap_exceeded",
 							message:
-								`notional=${notionalCents}c > cap=${s.config.max_notional_cents_per_trade}c. ` +
-								`bump max_notional_cents_per_trade via /start.`,
+								`notional=${notionalCents}c > cap=${verticalCap}c. ` +
+								`bump the cap via /start (per-vertical: per_vertical_max_notional_cents, global: max_notional_cents_per_trade).`,
 						},
 						{ status: 400 },
 					);
@@ -880,6 +921,19 @@ export class LiveBot implements DurableObject {
 				state.config.max_notional_cents_per_trade,
 			daily_notional_cents_cap:
 				config.daily_notional_cents_cap ?? state.config.daily_notional_cents_cap,
+			// Chunk 11b: per-vertical caps + per-ticker blocklist.
+			// null is an explicit value (operator cleared the
+			// override), undefined means "leave the current
+			// value alone" (don't accidentally wipe the
+			// blocklist by passing an unrelated /start).
+			per_vertical_max_notional_cents:
+				config.per_vertical_max_notional_cents !== undefined
+					? config.per_vertical_max_notional_cents
+					: state.config.per_vertical_max_notional_cents,
+			disabled_tickers:
+				config.disabled_tickers !== undefined
+					? config.disabled_tickers
+					: state.config.disabled_tickers,
 			started_ts_ms: Date.now(),
 		};
 		if (config.user_id) state.user_id = config.user_id;
@@ -1352,6 +1406,25 @@ export class LiveBot implements DurableObject {
 		const t = state.tickers[ticker];
 		if (!t) return;
 		const pos = t.position;
+
+		// Chunk 11b: per-ticker blocklist. Skip tickers the
+		// operator has explicitly disabled, even when the
+		// global kill switch is OFF. Useful for "I don't want
+		// to trade KXTICKER because the model isn't reliable
+		// for it" without flipping the global kill switch.
+		if (
+			state.config.disabled_tickers !== null &&
+			state.config.disabled_tickers !== undefined &&
+			state.config.disabled_tickers.includes(ticker)
+		) {
+			state.last_reject = {
+				ts_ms: Date.now(),
+				ticker,
+				code: "ticker_blocklisted",
+				message: `ticker ${ticker} is on the blocklist`,
+			};
+			return;
+		}
 
 		// Chunk 9: kill switch — refuse all new trades. The
 		// open positions are NOT auto-closed here (that's a
