@@ -75,7 +75,7 @@ export async function loadPrivateKeyWithOptions(
 
 	return await crypto.subtle.importKey(
 		"pkcs8",
-		bytes,
+		bytes as BufferSource,
 		{ name: "RSA-PSS", hash: "SHA-256" },
 		opts.extractable,
 		[opts.usage ?? "sign"],
@@ -139,7 +139,7 @@ export async function signRequest(
 	const signature = await crypto.subtle.sign(
 		{ name: "RSA-PSS", saltLength: 32 },
 		privateKey,
-		data,
+		data as BufferSource,
 	);
 
 	return bytesToBase64(new Uint8Array(signature));
