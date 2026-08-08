@@ -1,0 +1,38 @@
+# fly.toml — pm-bot Kalshi WebSocket relay (chunk 10.6)
+# Deploy: `fly launch --no-deploy` (one-time, creates the app) + `fly deploy`.
+# See README.md for the full one-command deploy.
+
+app = "pm-bot-relay"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  KALSHI_WS_URL = "wss://external-api-ws.demo.kalshi.co/trade-api/ws/v2"
+  PORT = "8080"
+  LOG_LEVEL = "INFO"
+
+# Run as a single shared-cpu-1x machine (1GB RAM) — $1.94/mo.
+# 24/7 uptime. With Fly.io's $0.83 free credit, ~12 days are free.
+[vm]
+  size = "shared-cpu-1x"
+  memory = "1gb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Expose the WS port. Fly's edge will terminate TLS and forward
+# to the machine's $PORT.
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "10s"
+
+[deploy]
+  release_command = "echo 'relay deployed'"

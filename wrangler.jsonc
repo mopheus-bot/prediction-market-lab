@@ -26,9 +26,17 @@
 		// LiveBot DO can be reconfigured via POST /start with a different
 		// set; this is the bootstrap default before any /start call.
 		"DEFAULT_TICKERS": "KXWARMING-50",
-		// Default WS URL. Demo by default; the /start command can flip
-		// to production with `{"url": "wss://external-api-ws.kalshi.com/..."}`.
+		// Default WS URL. CF Workers can't add auth headers on
+		// outbound WS, so the direct URL won't actually auth
+		// with Kalshi. The fallback is the relay at
+		// pm-bot-relay.fly.dev — see pm-bot/relay/. After
+		// deploying the relay, update this to
+		// "wss://pm-bot-relay.fly.dev/" (or set per-/start).
 		"DEFAULT_URL": "wss://external-api-ws.demo.kalshi.co/trade-api/ws/v2",
+		// Optional: the public relay URL. When set, the bot
+		// uses this instead of DEFAULT_URL. Leave unset until
+		// the relay is deployed at pm-bot/relay/.
+		// "KALSHI_WS_RELAY_URL": "wss://pm-bot-relay.fly.dev/",
 		// CF Workers Paid plan billing cycle (chunk 10.5).
 		// User signed up 2026-08-08. Resets monthly on this date.
 		// Used by /api/pm/cost to compute "resets in N days".
