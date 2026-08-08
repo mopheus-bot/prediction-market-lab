@@ -1,0 +1,32 @@
+[
+  {
+    "ts": "1703000000000",
+    "method": "GET",
+    "path": "/trade-api/v2/markets",
+    "python_signature_b64": "hNuBsn4XwNQ72UX1peBjxus2KO7z2yc1cHGP2ooJzFswMd8hzKB87DcCcw42WchLLAcO21jcHnYuzZciAk4yBGJbY3rRaeQKBzzRFo2wNSc8ZKjLxYNdiq7jbWD3YB1BrCpeHTtYMwYYoV2kBJhTe8Y2eiqHKhgqLB9Z4x7n6Gopyb6P264XP+n85RV4NO8pdeA6BB/dLjb1hW4V0Fb9mNnaZ7SxPpbKlGjZsUWtss0m7Yn9k/sCww0ni5Ilzx8s5LKN/z1+cpP6qlVUs+4uW+LLLaQPEl/e72bsKTPZudvYADf0zGrkOn8BbsK0KvAqeMYgOAUE7hLRA2hkrdtolQ=="
+  },
+  {
+    "ts": "1703000123456",
+    "method": "GET",
+    "path": "/trade-api/v2/markets/KXCPI-26JUL-T0.1",
+    "python_signature_b64": "gB59f0Hdu13G33oilMQClvPGMI/SxocJEwPNL/9J40VtY1B1JwSyuIAFOVw83na4OctIReI1fp39scpx4xiGG212Hdc+0nVidJLyE2lyhxU1XdriZHACvzR2KjvoncvFOEtGyyy2GRPzT+8Xgxmqi0zz2cSP4Ng+18c2EjFsxqQWjhT9Oata+Xbzlu+yeCl8ubsnL1evl32kFuIwnCv07Y9qmc74nmOySvDRe9vWMeh7MMiQGc+AXdSSC5bZVFCj9VkCjckJ0PWDCVMR2Gbq/kvAxK8gDtvr+s/IZOdifHAaP0r0GzZjyjNuRDGeQYZ87rwjtKSkGFXiQgzMawxEHA=="
+  },
+  {
+    "ts": "1703000999999",
+    "method": "POST",
+    "path": "/trade-api/v2/portfolio/orders",
+    "python_signature_b64": "lkCNbuX24EXiSkZM3CGuCrAoJch8qSYzmrXASExn2hWHRjofzXg7c1mG1YIb5PXre3hQhwhKBzisE0R2i80VQ35Nos2EK4YHmKxmhWb5G5RxH941C5+xM8BSvQsfoO57uC6CT1vzkhak3Nsv1KC2qxJ2buW0yy8JEiqlh5sRrUkk/8CqcdCg8nPHATakkY36cvsBFx+1li39EHI0Hx7ry43Uv5EC32jEN+l5OHXrY0bLna2W0XTNVr1lLTyvdlm6+mfJ0q2/CAJrX1ob53m0SHSHaed/tHEg96bQnvIEXKUTSp0jIZFV1M8pKmLIDWn+EefpmWyyK3HsLHCnbM0RnA=="
+  },
+  {
+    "ts": "1703001111111",
+    "method": "GET",
+    "path": "/trade-api/ws/v2",
+    "python_signature_b64": "aGv5muFUAjTaVrjyi5zqu0kfq9GprryUHl9YZFr4xcZDGQqoZNaD+0jRakvvko2UxngU15JMO6vPZhFcKNeCAi8K+bIRnZnIwkIpF3EPjXkWXJFtqi/e7i/zBvsw7J4PTLnM/hUX4b5uFZYyIyj+pOL1S6sF1aMtjlZRK7U/z3Hm4fd7pPw5tjU4pcH50U8deCtCWnw6W8Q8GQOn8Q4WF6d5i69r6kD9ojSejNEb92XgqD0neRwk/RT8o4pKSNr36JG7Idi5lxnqEkV+ttMnqaaamsxiDYvNSJt05hepaeWa165DEd5MLii+bvE2gdiLOl9Ti3MyCoVyegsXgpXCdQ=="
+  },
+  {
+    "ts": "1703002222222",
+    "method": "GET",
+    "path": "/trade-api/v2/portfolio/balance",
+    "python_signature_b64": "XD0d9m3ng6z3TUIN79ZoQQy67CA8qrfTY0ud+lr9e3qx6K67pN4WXU+ggsi6bx1o9RQxnWwDkM0ZIwqC7JM9RzHwZm4aLsFVutkHp7Yk3/p7SS9h+kVLyoEg5bxaGB7fXWna850kFblFXFnmiKNom8nRLGY7Fao3X6ZBjWNLEhUixRhuWB9gnbZfjPsVa1QGEl5QwDC0K3s6qoJmW+hITlz+dqETsWq6ReFrntoA1UX2nFUHnq6ZPl/jOmlTHjSWrfYbAUlGBC5m7nrKdC878x7TGDoHm+8Nkg5V+U+rfmOM2yHsNEgbg9uATXfDsZrvK3UCcl+5DhKS4Ex3RLMWPQ=="
+  }
+]

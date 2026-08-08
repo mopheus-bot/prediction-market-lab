@@ -1,0 +1,44 @@
+[
+  {
+    "name": "simple-get",
+    "timestamp_ms": "1703000000000",
+    "method": "GET",
+    "path": "/trade-api/v2/markets",
+    "expected_signature": "TKfNsU2wflpKjBNWY8QGrVHu+3ndeMRN2nDQhIOI4zbQnFv9E3apthptrgrxsZ4Ve12HyZxCllo4nBSXEu3Wol81iJq/dhAWkkcMLGvQ8MYhhZvk9LRBlrq+P26tYv4kRmlZhF9SgOE0bnr/m60P8WVwOvAcPGgtz/jxOZfdbDdDkeVuLMoFq/rM/XkzhJeQVNi8PCmyKvjhA/uLFzL6xzMfdioh42WrSc6JmXOijzVgx0U01ifuitAyTJM9POLs33JaC8D2ufOeUpPlBPuHABMNVuNvtPObXSLwP4cqzBixSDqPDj4hnyMr5rwGejg6c9hCyBiN69Dk5dBgRPxjJw=="
+  },
+  {
+    "name": "with-kxcpi-ticker",
+    "timestamp_ms": "1703000123456",
+    "method": "GET",
+    "path": "/trade-api/v2/markets/KXCPI-26JUL-T0.1",
+    "expected_signature": "Zb099TQDdBM/1ZlI6UqnGTJzBEB49cTQR5wVjovqE9vHcRvqh3BdOEm4id04v9F5a2/yNlUKcdgbZJSU+Qmufs7GwxyO8fIxRytiQKjQpZhJo/jq77yBgTydvu1xPeuCoZh5mslRNIkuSb7eNfbS3ifQGyNsS3cNbKbYl3M1p6LVohBRNU1p5zHTA4lnTHsjTgYRXyQ39bjCI4jwYnE1pnKIheA5SD+R/TUBk8D694MfnwBUVOrtxMwCyJAe0H1JVFSxeJVNonBd+Cesm6uY7RTYRQfW8QEcT8DARLsjbF9ASqdFnnRCyKE88lgpHunq+98KOVRqp2mXqzmiYOtQnQ=="
+  },
+  {
+    "name": "post-portfolio-orders",
+    "timestamp_ms": "1703000999999",
+    "method": "POST",
+    "path": "/trade-api/v2/portfolio/orders",
+    "expected_signature": "GJ3K7O9CoHIr6cprueIqUI06YEQjbM+yX9JKqcNgQKNcC7khLELDlQNquM65vjJ7gF0YOtcWAyKAL+HTIjxm3+4JFAtiwnXH0N01djIt1PUVHm7afpZG3oIOuCw3787UWJnblKvtqSxfsCsta7+aguCeSyPVUOsmEmHJb20chtHqlugcJg1imJoa5pFrMT1mNwIWzStKLPBTg37+MaMqIRYC9dK/el+JSSNw84Mxgjk4LhZaMCK/jQ+W2melFS6Uai+XU2+uyY+fT/oiiLT2T4Yw8Zc4YaK0F82jHmHOZdSycy0xsywCfKsH3FXHLiDSGKJjO21Uq/39IiXD6XYc3g=="
+  },
+  {
+    "name": "ws-handshake",
+    "timestamp_ms": "1703001111111",
+    "method": "GET",
+    "path": "/trade-api/ws/v2",
+    "expected_signature": "sWbi22wTDTrwT4eyzzLj5gtGXYupituvUwFC98Bb5DgGea0KM8vkrC7piMTYP0mxFOe1CMa+Ze/jTaKT2nsuA8q86uoau5/p2EfDsTC/bUzIydLpZHz6pGn2eYvok43MzG3B4yORVdPAlljK+QlAg+uRW1U1IoqdWRVHmER1BUGNH4byE2sbwBAdo0OaCsXxokGnPqSIrG4akvEQ8QsRyosXwsvv67XAD9B+xqqfsQO47MsdXE2wZZHSJCy1fNf8lfiudT9ls1tUI4oNZB2R+zjyTmfOaSLeUA9/Pp5vwCMd1Z5JmCHvgTgRPLRuDJgV9RcaYg+YPKguJNzdE7TNXA=="
+  },
+  {
+    "name": "with-query-stripped",
+    "timestamp_ms": "1703002222222",
+    "method": "GET",
+    "path": "/trade-api/v2/portfolio/balance?limit=5",
+    "expected_signature": "iS2qW8+E6e5UD/vFc1kKKZwx+0/PDhzM6bkd9MFVHwDIV5lc+3hf9/wohMraXPubk0/mhHqYEcYvTBGLkquKZ6VtFAZ16/qk60dR6Eut3ZvrzHWm6RYURtSoQdSHRlAI24mdzDJlhfQ8wl7tR78e82AHloqN/47nwwBaaulw9yt/CeAetu/ZgQSHNL94fWmzFnGM6vt7Wo3gn7zfcEWrqF5oEcjqrPOfnkp/9NNnDPrLWBKY6+sDkwjtM49vnVP4dSWlH3mYHkXsgIo/BsGxO/GJNyMR9bsGX9lVsOg/9h7eyGKx3nE+VbzdQXCHtImzY1+hf7PJXhi3p5ckP3gFnA=="
+  },
+  {
+    "name": "lowercase-method-uppercased",
+    "timestamp_ms": "1703003333333",
+    "method": "get",
+    "path": "/trade-api/v2/markets",
+    "expected_signature": "WNiaiHdZB8Iigva/nklu77iqQIYxox8KB4jPOviqezK3rkhvMeCt+8dUHQ7AXZpL4nqkXXVamJgWRd/dTXbzl4XDSfnvUZ+pShldVLBYG+t5ckOkzIARIY5uDrpBLp+SV5CXOJm7BkKs7ARxma/gCYW3icW8uss+On7Xqfxj317B2sOTPLnwu9T020g3D7KAuAFVznCCTKFeqClsT8twLaqTUT9HDAHherG5TbcozAr84+chLHWvko0Zv+eLyd15Epc7fQEgbwDgu4zMuJqyeZzuJ0LmvFOWuTOToup7kH/M47+PwojCwrwt2N7Ytfmj89v7FlD6ENouX95JNbmthA=="
+  }
+]
