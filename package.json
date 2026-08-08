@@ -11,10 +11,14 @@
     "d1:migrate:prod": "wrangler d1 migrations apply pm-bot-prod --remote",
     "d1:shell:local": "wrangler d1 execute pm-bot-prod --local --command",
     "types": "wrangler types",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "wrangler": "^4.0.0",
-    "typescript": "^5.4.0"
+    "@cloudflare/vitest-pool-workers": "^0.20.3",
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.0.0"
   }
 }
