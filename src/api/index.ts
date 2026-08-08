@@ -6,3 +6,4 @@
 export * from "./status.js";
 export * from "./daily-recap.js";
 export * from "./cf-analytics.js";
+export * from "./balance.js";

@@ -308,12 +308,14 @@ export class LiveBot implements DurableObject {
 				profit_target_pct: null,
 				stop_loss_pct: null,
 				model_version: "v1",
-				// Chunk 9 defaults. Paper-by-default + conservative
-				// caps ($1.00 per trade, $10.00 daily) — operators
-				// bump via /start when they want to test real.
+				// Chunk 9.6 defaults (revised for a $9.73
+				// account). 25c per trade = 2.5% of balance;
+				// 150c daily deployed notional = 15% of
+				// balance. Operators bump via /start when
+				// ready to test with a bigger bag.
 				trading_mode: "paper",
-				max_notional_cents_per_trade: 100, // $1.00
-				daily_notional_cents_cap: 1000, // $10.00
+				max_notional_cents_per_trade: 25, // $0.25
+				daily_notional_cents_cap: 150, // $1.50
 				kill_switch: false,
 			},
 			last_reject: null,

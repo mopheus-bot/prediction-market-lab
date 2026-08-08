@@ -339,6 +339,266 @@
 				font-size: 13px;
 			}
 
+			/* ─── Trading mode + caps (chunk 9.6) ─── */
+			.mode-buttons {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 12px;
+				margin: 12px 0 16px;
+			}
+			.mode-btn {
+				display: flex;
+				flex-direction: column;
+				align-items: flex-start;
+				gap: 4px;
+				padding: 14px 16px;
+				text-align: left;
+				background: var(--bg-3);
+				border: 1px solid var(--card-border);
+				color: var(--ink);
+				font-size: 14px;
+				font-weight: 500;
+				opacity: 0.6;
+				transition: opacity 200ms ease, border-color 200ms ease, background 200ms ease;
+			}
+			.mode-btn:hover { opacity: 0.85; }
+			.mode-btn.active {
+				opacity: 1;
+				border-color: var(--accent);
+				background: rgba(58, 111, 170, 0.10);
+			}
+			.mode-btn.active.primary {
+				border-color: var(--green);
+				background: rgba(34, 197, 94, 0.10);
+			}
+			.mode-num {
+				font-size: 10px;
+				color: var(--ink-faint);
+				letter-spacing: 0.10em;
+				text-transform: uppercase;
+			}
+			.mode-name {
+				font-size: 16px;
+				font-weight: 600;
+				color: var(--ink);
+			}
+			.mode-desc {
+				font-size: 11px;
+				color: var(--ink-faint);
+				line-height: 1.3;
+			}
+			.pill {
+				margin-left: auto;
+				font-size: 10px;
+				font-weight: 600;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				padding: 4px 10px;
+				border-radius: 999px;
+				border: 1px solid var(--card-border);
+				color: var(--ink-faint);
+				background: var(--bg-3);
+			}
+			.pill.paper { color: var(--ink); }
+			.pill.real { color: var(--green); border-color: rgba(34, 197, 94, 0.4); background: rgba(34, 197, 94, 0.10); }
+			.pill.off { color: var(--accent); border-color: rgba(58, 111, 170, 0.4); background: rgba(58, 111, 170, 0.10); }
+			.kill-row {
+				display: flex;
+				align-items: center;
+				gap: 14px;
+				padding-top: 12px;
+				border-top: 1px solid var(--card-border);
+			}
+			.kill-state {
+				font-size: 10px;
+				font-weight: 600;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				padding: 2px 8px;
+				border-radius: 999px;
+				background: var(--bg-3);
+				color: var(--ink-faint);
+				margin-left: 8px;
+			}
+			.kill-state.on { color: var(--red); background: rgba(239, 68, 68, 0.15); }
+			.kill-help {
+				font-size: 11px;
+				color: var(--ink-faint);
+			}
+			.caps-row {
+				display: flex;
+				justify-content: space-between;
+				align-items: baseline;
+				padding: 8px 0;
+				border-bottom: 1px solid var(--card-border);
+			}
+			.caps-row:last-of-type { border-bottom: none; }
+			.caps-label {
+				font-size: 11px;
+				color: var(--ink-faint);
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+			}
+			.caps-val {
+				font-size: 14px;
+				color: var(--ink);
+				font-weight: 500;
+				font-variant-numeric: tabular-nums;
+			}
+			.caps-bar-wrap {
+				height: 4px;
+				background: var(--bg-3);
+				border-radius: 2px;
+				overflow: hidden;
+				margin-top: 12px;
+			}
+			.caps-bar {
+				height: 100%;
+				background: var(--accent);
+				transition: width 200ms ease;
+			}
+			.caps-bar.warn { background: #f59e0b; }
+			.caps-bar.over { background: var(--red); }
+			.last-trades-tbl th,
+			.last-trades-tbl td {
+				font-size: 12px;
+				padding: 6px 8px;
+			}
+			.trade-mode-tag {
+				font-size: 10px;
+				font-weight: 600;
+				letter-spacing: 0.04em;
+				padding: 1px 6px;
+				border-radius: 3px;
+				background: var(--bg-3);
+				color: var(--ink-faint);
+			}
+			.trade-mode-tag.real {
+				color: var(--green);
+				background: rgba(34, 197, 94, 0.10);
+			}
+			.trade-mode-tag.paper {
+				color: var(--ink);
+			}
+			@media (max-width: 768px) {
+				.mode-buttons { grid-template-columns: 1fr; }
+			}
+
+			/* ─── Modal (chunk 9.6) ─── */
+			.modal-back {
+				position: fixed;
+				inset: 0;
+				background: rgba(0, 0, 0, 0.65);
+				display: none;
+				align-items: center;
+				justify-content: center;
+				z-index: 300;
+				backdrop-filter: blur(2px);
+			}
+			.modal-back.show { display: flex; }
+			.modal {
+				background: var(--bg-1);
+				border: 1px solid var(--card-border);
+				border-radius: 12px;
+				padding: 28px;
+				max-width: 540px;
+				width: 90%;
+				max-height: 90vh;
+				overflow-y: auto;
+				box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+			}
+			.modal-title {
+				font-size: 18px;
+				font-weight: 600;
+				color: var(--ink);
+				margin-bottom: 12px;
+			}
+			.modal-warn {
+				padding: 12px 14px;
+				background: rgba(245, 158, 11, 0.10);
+				border: 1px solid rgba(245, 158, 11, 0.3);
+				border-radius: 8px;
+				color: #fbbf24;
+				font-size: 13px;
+				margin-bottom: 16px;
+				line-height: 1.4;
+			}
+			.modal-row {
+				display: flex;
+				justify-content: space-between;
+				align-items: baseline;
+				padding: 8px 0;
+				border-bottom: 1px solid var(--card-border);
+			}
+			.modal-label {
+				font-size: 12px;
+				color: var(--ink-faint);
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+			}
+			.modal-val {
+				font-size: 14px;
+				color: var(--ink);
+				font-weight: 500;
+				font-variant-numeric: tabular-nums;
+			}
+			.modal-section {
+				font-size: 12px;
+				color: var(--ink-faint);
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+				margin: 20px 0 8px;
+			}
+			.modal-tbl {
+				width: 100%;
+				font-size: 12px;
+			}
+			.modal-tbl th,
+			.modal-tbl td {
+				padding: 4px 6px;
+				text-align: left;
+			}
+			.modal-prompt {
+				font-size: 13px;
+				color: var(--ink);
+				margin: 16px 0 8px;
+			}
+			.modal-prompt code {
+				font-family: ui-monospace, "SF Mono", monospace;
+				background: var(--bg-3);
+				padding: 1px 6px;
+				border-radius: 3px;
+				color: var(--green);
+				font-weight: 600;
+			}
+			.modal-input {
+				width: 100%;
+				padding: 10px 14px;
+				background: var(--bg-3);
+				border: 1px solid var(--card-border);
+				border-radius: 6px;
+				color: var(--ink);
+				font-family: ui-monospace, "SF Mono", monospace;
+				font-size: 14px;
+				letter-spacing: 0.10em;
+			}
+			.modal-input:focus {
+				outline: none;
+				border-color: var(--accent);
+			}
+			.modal-input.bad {
+				border-color: var(--red);
+			}
+			.modal-input.good {
+				border-color: var(--green);
+			}
+			.modal-actions {
+				display: flex;
+				justify-content: flex-end;
+				gap: 10px;
+				margin-top: 20px;
+			}
+
 			/* ─── CF Workers analytics (chunk 9.5) ─── */
 			.cf-stats {
 				display: grid;
@@ -488,6 +748,129 @@
 					</div>
 				</div>
 			</section>
+
+			<!-- Trading mode + caps + kill switch (chunk 9.6) -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-8">
+					<div class="card">
+						<div class="card-title">
+							<span class="dot"></span>Trading mode
+							<span class="pill paper" id="mode-pill">paper</span>
+						</div>
+						<div class="mode-buttons">
+							<button class="btn mode-btn" id="btn-pause" data-mode="off">
+								<span class="mode-num">1 · pause</span>
+								<span class="mode-name">Pause</span>
+								<span class="mode-desc">WS keeps running, no new trades. Use this to stop losses or step away.</span>
+							</button>
+							<button class="btn mode-btn active" id="btn-paper" data-mode="paper">
+								<span class="mode-num">2 · paper</span>
+								<span class="mode-name">Paper</span>
+								<span class="mode-desc">Signals + paper fills. No real money. Default mode.</span>
+							</button>
+							<button class="btn mode-btn primary" id="btn-live" data-mode="real">
+								<span class="mode-num">3 · real money</span>
+								<span class="mode-name">Go live</span>
+								<span class="mode-desc">Place real orders on Kalshi. Confirmation modal required.</span>
+							</button>
+						</div>
+						<div class="kill-row">
+							<button class="btn danger" id="btn-killswitch">
+								Kill switch
+								<span class="kill-state" id="kill-state">off</span>
+							</button>
+							<span class="kill-help">panic-stop: refuses all new trades immediately. No auto-close of open positions.</span>
+						</div>
+					</div>
+				</div>
+				<div class="col-4">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Caps & today</div>
+						<div class="caps-row">
+							<div class="caps-label">Account balance</div>
+							<div class="caps-val" id="caps-balance">$—</div>
+						</div>
+						<div class="caps-row">
+							<div class="caps-label">Per-trade cap</div>
+							<div class="caps-val" id="caps-per-trade">$0.25</div>
+						</div>
+						<div class="caps-row">
+							<div class="caps-label">Daily deployed</div>
+							<div class="caps-val" id="caps-daily">$0.00 / $1.50</div>
+						</div>
+						<div class="caps-bar-wrap">
+							<div class="caps-bar" id="caps-bar" style="width: 0%"></div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Last 5 trades (chunk 9.6) -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Last 5 trades</div>
+						<table class="tbl last-trades-tbl">
+							<thead>
+								<tr>
+									<th>When</th>
+									<th>Ticker</th>
+									<th>Side</th>
+									<th>Mode</th>
+									<th class="num">Price</th>
+									<th class="num">Size</th>
+									<th class="num">PnL</th>
+								</tr>
+							</thead>
+							<tbody id="last-trades-tbody">
+								<tr><td colspan="7" class="empty">no trades yet</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+
+			<!-- Go-live confirmation modal (chunk 9.6) -->
+			<div class="modal-back" id="modal-live-back">
+				<div class="modal">
+					<div class="modal-title">Go live with real money</div>
+					<div class="modal-warn">
+						⚠ This will place real orders on Kalshi using your prod credentials. The bot will respect the caps shown below. Open positions are NOT auto-closed.
+					</div>
+					<div class="modal-row">
+						<div class="modal-label">Account balance</div>
+						<div class="modal-val" id="modal-balance">$—</div>
+					</div>
+					<div class="modal-row">
+						<div class="modal-label">Per-trade cap</div>
+						<div class="modal-val" id="modal-per-trade">$0.25</div>
+					</div>
+					<div class="modal-row">
+						<div class="modal-label">Daily cap (24h)</div>
+						<div class="modal-val" id="modal-daily-cap">$1.50</div>
+					</div>
+					<div class="modal-row">
+						<div class="modal-label">Today's deployed</div>
+						<div class="modal-val" id="modal-today">$0.00 / $1.50</div>
+					</div>
+					<div class="modal-row">
+						<div class="modal-label">Kill switch</div>
+						<div class="modal-val" id="modal-kill">off</div>
+					</div>
+					<div class="modal-section">Last 5 trades (real + paper)</div>
+					<table class="tbl modal-tbl">
+						<tbody id="modal-trades-tbody">
+							<tr><td colspan="4" class="empty">no trades yet</td></tr>
+						</tbody>
+					</table>
+					<div class="modal-prompt">Type <code>LIVE</code> to confirm:</div>
+					<input type="text" id="modal-live-input" class="modal-input" placeholder="LIVE" autocomplete="off" />
+					<div class="modal-actions">
+						<button class="btn" id="modal-live-cancel">Cancel</button>
+						<button class="btn primary" id="modal-live-confirm" disabled>Go live (real money)</button>
+					</div>
+				</div>
+			</div>
 
 			<!-- Open positions + per-vertical -->
 			<section class="grid" style="margin-bottom: 24px;">
@@ -889,8 +1272,12 @@
 					if (trades?.trades) {
 						renderTrades(trades.trades);
 						renderPositions(await fetchOpenPositions());
+						// Chunk 9.6: last-5-trades panel +
+						// the modal's trade list.
+						renderLastTrades(trades.trades);
 					} else {
 						renderPositions([]);
+						renderLastTrades([]);
 					}
 					if (crons?.runs) renderCronRuns(crons.runs);
 
@@ -912,6 +1299,9 @@
 							setStatusPill("stopped", "bot · stopped");
 						}
 						$("model-version").textContent = `v${esc(botStatus.config?.model_version ?? "?")}`;
+						// Chunk 9.6: trading mode + caps + kill
+						// switch state.
+						renderTradingControls(botStatus);
 					} else {
 						setStatusPill("unknown", "bot · ?");
 					}
@@ -1014,6 +1404,209 @@
 				toastTimer = setTimeout(() => el.classList.remove("show"), 3500);
 			}
 
+			// ─── Trading mode + caps + kill switch (chunk 9.6) ───
+			// Set the trading mode via the API. The "real"
+			// mode opens a confirmation modal first.
+			async function setTradingMode(mode) {
+				try {
+					const r = await fetch("/api/pm/bot/trading-mode", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ trading_mode: mode }),
+					});
+					if (!r.ok) throw new Error(`HTTP ${r.status}`);
+					const body = await r.json();
+					if (!body.ok) throw new Error(body.error ?? "unknown");
+					toast(`trading mode → ${mode}`, true);
+					await refresh();
+					await refreshBalance();
+				} catch (e) {
+					toast(`trading mode failed: ${e.message}`, false);
+				}
+			}
+
+			// Toggle the kill switch (one-click, no confirm).
+			async function setKillSwitch(on) {
+				try {
+					const r = await fetch("/api/pm/bot/kill-switch", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ on }),
+					});
+					if (!r.ok) throw new Error(`HTTP ${r.status}`);
+					const body = await r.json();
+					if (!body.ok) throw new Error(body.error ?? "unknown");
+					toast(`kill switch → ${on ? "ON" : "off"}`, on ? false : true);
+					await refresh();
+				} catch (e) {
+					toast(`kill switch failed: ${e.message}`, false);
+				}
+			}
+
+			// Fetch the live Kalshi account balance.
+			async function refreshBalance() {
+				try {
+					const r = await fetch("/api/pm/bot/balance", { credentials: "same-origin" });
+					if (!r.ok) return;
+					const d = await r.json();
+					if (!d.ok) {
+						$("caps-balance").textContent = "—";
+						return;
+					}
+					$("caps-balance").textContent = `$${d.balance_dollars}`;
+					// Also update the modal's balance field.
+					$("modal-balance").textContent = `$${d.balance_dollars}`;
+				} catch (_e) {
+					$("caps-balance").textContent = "—";
+				}
+			}
+
+			// Render the trading mode section from the
+			// current /api/pm/bot/status. Updates the
+			// active button + mode pill + caps panel +
+			// kill switch state.
+			function renderTradingControls(status) {
+				if (!status?.config) return;
+				const mode = status.config.trading_mode ?? "paper";
+				const perTrade = (status.config.max_notional_cents_per_trade ?? 0) / 100;
+				const dailyCap = (status.config.daily_notional_cents_cap ?? 0) / 100;
+				const dailyUsed = (status.risk?.daily_notional_cents ?? 0) / 100;
+				const killOn = !!status.config.kill_switch;
+
+				// Active button highlight.
+				for (const btn of document.querySelectorAll(".mode-btn")) {
+					btn.classList.remove("active", "active primary");
+					if (btn.dataset.mode === mode) {
+						btn.classList.add("active");
+						if (mode === "real") btn.classList.add("primary");
+					}
+				}
+				// Mode pill.
+				const pill = $("mode-pill");
+				pill.classList.remove("paper", "real", "off");
+				pill.classList.add(mode);
+				pill.textContent = mode;
+
+				// Caps panel.
+				$("caps-per-trade").textContent = `$${perTrade.toFixed(2)}`;
+				$("caps-daily").textContent = `$${dailyUsed.toFixed(2)} / $${dailyCap.toFixed(2)}`;
+				const bar = $("caps-bar");
+				const pct = dailyCap > 0 ? Math.min(100, (dailyUsed / dailyCap) * 100) : 0;
+				bar.style.width = `${pct}%`;
+				bar.classList.remove("warn", "over");
+				if (pct >= 100) bar.classList.add("over");
+				else if (pct >= 80) bar.classList.add("warn");
+
+				// Kill switch state.
+				const killEl = $("kill-state");
+				killEl.classList.toggle("on", killOn);
+				killEl.textContent = killOn ? "ON" : "off";
+
+				// Modal (mirror the live values for the
+				// confirmation dialog).
+				$("modal-per-trade").textContent = `$${perTrade.toFixed(2)}`;
+				$("modal-daily-cap").textContent = `$${dailyCap.toFixed(2)}`;
+				$("modal-today").textContent = `$${dailyUsed.toFixed(2)} / $${dailyCap.toFixed(2)}`;
+				$("modal-kill").textContent = killOn ? "ON" : "off";
+			}
+
+			// Render the "last 5 trades" panel + the
+			// modal's trade list. Same data both places.
+			function renderLastTrades(trades) {
+				const tbodies = [
+					$("last-trades-tbody"),
+					$("modal-trades-tbody"),
+				];
+				const last = (trades || []).slice(0, 5);
+				if (last.length === 0) {
+					for (const tb of tbodies) {
+						tb.innerHTML = '<tr><td colspan="7" class="empty">no trades yet</td></tr>';
+					}
+					return;
+				}
+				const rows = last.map((t) => {
+					const mode = t.trading_mode ?? "paper";
+					const pnl = t.pnl_cents;
+					const pnlTxt = pnl === null || pnl === undefined
+						? "—"
+						: `${pnl < 0 ? "−" : pnl > 0 ? "+" : ""}$${(Math.abs(pnl) / 100).toFixed(2)}`;
+					const pnlClass = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "";
+					return `<tr>
+						<td>${esc(fmtTime(t.ts))}</td>
+						<td><code>${esc(t.ticker)}</code></td>
+						<td>${esc(t.side)}</td>
+						<td><span class="trade-mode-tag ${esc(mode)}">${esc(mode)}</span></td>
+						<td class="num">${(t.price_cents ?? 0)}c</td>
+						<td class="num">${fmtNum(t.size)}</td>
+						<td class="num ${pnlClass}">${esc(pnlTxt)}</td>
+					</tr>`;
+				}).join("");
+				// Full table (last-trades-tbl) needs colspan=7;
+				// modal tbl is colspan=4 (no When/Size/Price
+				// columns in the modal — just Ticker/Side/Mode/PnL).
+				$("last-trades-tbody").innerHTML = rows;
+				const modalRows = last.map((t) => {
+					const mode = t.trading_mode ?? "paper";
+					const pnl = t.pnl_cents;
+					const pnlTxt = pnl === null || pnl === undefined
+						? "—"
+						: `${pnl < 0 ? "−" : pnl > 0 ? "+" : ""}$${(Math.abs(pnl) / 100).toFixed(2)}`;
+					const pnlClass = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "";
+					return `<tr>
+						<td><code>${esc(t.ticker)}</code></td>
+						<td>${esc(t.side)}</td>
+						<td><span class="trade-mode-tag ${esc(mode)}">${esc(mode)}</span></td>
+						<td class="num ${pnlClass}">${esc(pnlTxt)}</td>
+					</tr>`;
+				}).join("");
+				$("modal-trades-tbody").innerHTML = modalRows;
+			}
+
+			// Wire the mode buttons.
+			$("btn-pause").addEventListener("click", () => setTradingMode("off"));
+			$("btn-paper").addEventListener("click", () => setTradingMode("paper"));
+			$("btn-live").addEventListener("click", () => {
+				$("modal-live-back").classList.add("show");
+				$("modal-live-input").value = "";
+				$("modal-live-confirm").disabled = true;
+				$("modal-live-input").classList.remove("good", "bad");
+				// Focus after a tick so the modal is
+				// already visible.
+				setTimeout(() => $("modal-live-input").focus(), 50);
+			});
+			$("btn-killswitch").addEventListener("click", () => {
+				const cur = $("kill-state").textContent.trim().toUpperCase() === "ON";
+				setKillSwitch(!cur);
+			});
+
+			// Modal: cancel + live-input typing + confirm.
+			$("modal-live-cancel").addEventListener("click", () => {
+				$("modal-live-back").classList.remove("show");
+			});
+			$("modal-live-input").addEventListener("input", (e) => {
+				const v = e.target.value;
+				const ok = v === "LIVE";
+				e.target.classList.toggle("good", ok);
+				e.target.classList.toggle("bad", v.length > 0 && !ok);
+				$("modal-live-confirm").disabled = !ok;
+			});
+			$("modal-live-confirm").addEventListener("click", () => {
+				$("modal-live-back").classList.remove("show");
+				setTradingMode("real");
+			});
+			// ESC closes the modal.
+			document.addEventListener("keydown", (e) => {
+				if (e.key === "Escape" && $("modal-live-back").classList.contains("show")) {
+					$("modal-live-back").classList.remove("show");
+				}
+			});
+			// Click outside the modal closes it.
+			$("modal-live-back").addEventListener("click", (e) => {
+				if (e.target === $("modal-live-back")) {
+					$("modal-live-back").classList.remove("show");
+				}
+			});
+
 			// ─── Bot controls ───
 			async function botCall(action) {
 				const endpoints = {
@@ -1054,6 +1647,7 @@
 
 			// ─── Initial load + auto-refresh ───
 			refresh();
+			refreshBalance();
 			// CF analytics: 90s cadence. The CF GraphQL
 			// data is ~1m delayed; faster polling is
 			// wasteful + burns CF API quota.
@@ -1061,20 +1655,25 @@
 			const FAST_REFRESH_MS = 5000;
 			const SLOW_REFRESH_MS = 30000;
 			const CF_REFRESH_MS = 90000;
+			const BALANCE_REFRESH_MS = 30000;
 			let fastTimer = setInterval(refresh, FAST_REFRESH_MS);
 			let slowTimer = setInterval(refresh, SLOW_REFRESH_MS);
 			let cfTimer = setInterval(refreshCfAnalytics, CF_REFRESH_MS);
+			let balanceTimer = setInterval(refreshBalance, BALANCE_REFRESH_MS);
 			document.addEventListener("visibilitychange", () => {
 				if (document.hidden) {
 					clearInterval(fastTimer);
 					clearInterval(slowTimer);
 					clearInterval(cfTimer);
+					clearInterval(balanceTimer);
 				} else {
 					refresh();
+					refreshBalance();
 					refreshCfAnalytics();
 					fastTimer = setInterval(refresh, FAST_REFRESH_MS);
 					slowTimer = setInterval(refresh, SLOW_REFRESH_MS);
 					cfTimer = setInterval(refreshCfAnalytics, CF_REFRESH_MS);
+					balanceTimer = setInterval(refreshBalance, BALANCE_REFRESH_MS);
 				}
 			});
 		</script>

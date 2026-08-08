@@ -33,6 +33,7 @@ import {
 	handleTrades,
 } from "./api/status.js";
 import { handleCfAnalytics } from "./api/cf-analytics.js";
+import { handleBotBalance } from "./api/balance.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -188,6 +189,14 @@ export default {
 		// Requires CF_API_TOKEN secret.
 		if (path === "/api/pm/cf-analytics" && request.method === "GET") {
 			return handleCfAnalytics(env, url);
+		}
+		// ─── API: /api/pm/bot/balance (chunk 9.6: Kalshi account balance) ──
+		// Returns the live account balance + portfolio
+		// value so the dashboard can show "Account: $X.XX"
+		// in the trading-mode panel. Requires
+		// KALSHI_PROD_KEY_ID + KALSHI_PROD_PRIVATE_KEY.
+		if (path === "/api/pm/bot/balance" && request.method === "GET") {
+			return handleBotBalance(env, url);
 		}
 
 		// ─── API: /api/pm/models/* (chunk 8) ───────────────────

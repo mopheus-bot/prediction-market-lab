@@ -274,7 +274,7 @@ describe("LiveBot Durable Object", () => {
 		};
 		expect(typeof risk.daily_notional_cents).toBe("number");
 		expect(risk.daily_notional_cents).toBe(0);
-		expect(risk.daily_notional_cap_cents).toBe(1000); // default $10
+		expect(risk.daily_notional_cap_cents).toBe(150); // chunk 9.6 default ($1.50 for a $9.73 account)
 		expect(risk.daily_notional_history_len).toBe(0);
 	});
 
