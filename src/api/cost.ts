@@ -97,8 +97,8 @@ export interface CfMonthlySection {
 export interface FlyRelaySection {
 	ok: boolean;
 	reason?: string;
-	/** "running" | "stopped" | "unknown" | "no_token" */
-	status: "running" | "stopped" | "unknown" | "no_token" | "not_deployed";
+	/** "running" | "stopped" | "unknown" | "no_token" | "assumed_running" */
+	status: "running" | "stopped" | "unknown" | "no_token" | "not_deployed" | "assumed_running";
 	plan: "shared-cpu-1x-1gb";
 	price_per_month: number;
 	hours_this_month: number;
@@ -243,20 +243,17 @@ async function getFlyRelaySection(env: CostEnv): Promise<FlyRelaySection> {
 			headers: { Authorization: `Bearer ${env.FLY_API_TOKEN}` },
 		});
 		if (resp.status === 404) {
-			notes.push(`App "${appName}" not found on Fly.io (not yet deployed?)`);
-			return {
-				ok: false,
-				reason: "app_not_found",
-				status: "not_deployed",
-				plan: "shared-cpu-1x-1gb",
-				price_per_month: FLY_PRICING.sharedCpu1x1GB.pricePerMonth,
-				hours_this_month: 0,
-				estimated_cost_month: 0,
-				free_credit_remaining_usd: freeCredit,
-				notes,
-			};
-		}
-		if (!resp.ok) {
+			// Chunk 10.7: a machine-scoped token (`fm2_*`) can't see
+			// the app's machines via the org-level endpoint, so the
+			// API returns 404 even when the app IS deployed and
+			// running. Don't fall through to "not_deployed" — the
+			// user clearly has a token, so they set it for a reason.
+			// Fall through to the cost estimate using assumed
+			// 24/7 operation and surface the API failure as a note.
+			notes.push(
+				`App "${appName}" not visible via this token (machine-scoped, not org-scoped). Cost estimated assuming 24/7 operation.`,
+			);
+		} else if (!resp.ok) {
 			notes.push(`Fly.io API returned HTTP ${resp.status}`);
 			return {
 				ok: false,
@@ -269,9 +266,10 @@ async function getFlyRelaySection(env: CostEnv): Promise<FlyRelaySection> {
 				free_credit_remaining_usd: freeCredit,
 				notes,
 			};
+		} else {
+			const data = (await resp.json()) as { machines?: Array<{ state?: string }> };
+			machines = data.machines ?? [];
 		}
-		const data = (await resp.json()) as { machines?: Array<{ state?: string }> };
-		machines = data.machines ?? [];
 	} catch (e) {
 		notes.push(`Fly.io API fetch failed: ${e instanceof Error ? e.message : String(e)}`);
 		return {
@@ -294,16 +292,26 @@ async function getFlyRelaySection(env: CostEnv): Promise<FlyRelaySection> {
 	const monthStartMs = monthStart.getTime();
 	const nowMs = Date.now();
 	const runningMachines = machines.filter((m) => m.state === "started");
-	const hoursThisMonth =
-		((nowMs - monthStartMs) / 3600000) * (runningMachines.length || 0);
+	// Chunk 10.7: if the API returned no machines (either the app
+	// really doesn't exist, or our token can't see it because it's
+	// machine-scoped, not org-scoped), assume 1 machine running
+	// 24/7. The `notes` will surface which case it is.
+	const assumedRunning = runningMachines.length > 0 ? runningMachines.length : 1;
+	const hoursThisMonth = ((nowMs - monthStartMs) / 3600000) * assumedRunning;
 	const estimatedCost = hoursThisMonth * FLY_PRICING.sharedCpu1x1GB.pricePerHour;
-	notes.push(
-		`${runningMachines.length}/${machines.length} machine(s) running; ${hoursThisMonth.toFixed(1)}h @ $${FLY_PRICING.sharedCpu1x1GB.pricePerHour.toFixed(4)}/h.`,
-	);
+	if (runningMachines.length > 0) {
+		notes.push(
+			`${runningMachines.length}/${machines.length} machine(s) running; ${hoursThisMonth.toFixed(1)}h @ $${FLY_PRICING.sharedCpu1x1GB.pricePerHour.toFixed(4)}/h.`,
+		);
+	} else {
+		notes.push(
+			`No machine data visible (machine-scoped token); assuming 1 machine running 24/7: ${hoursThisMonth.toFixed(1)}h @ $${FLY_PRICING.sharedCpu1x1GB.pricePerHour.toFixed(4)}/h.`,
+		);
+	}
 
 	return {
 		ok: true,
-		status: runningMachines.length > 0 ? "running" : "stopped",
+		status: runningMachines.length > 0 ? "running" : "assumed_running",
 		plan: "shared-cpu-1x-1gb",
 		price_per_month: FLY_PRICING.sharedCpu1x1GB.pricePerMonth,
 		hours_this_month: round4(hoursThisMonth),

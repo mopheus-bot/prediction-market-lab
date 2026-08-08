@@ -160,4 +160,22 @@ describe("Fly.io relay pricing (chunk 10.5)", () => {
 		// 0.83 - 0.32 = 0.51
 		expect(round4(remaining)).toBeCloseTo(0.5108, 3);
 	});
+
+	// Chunk 10.7: when the Fly.io API returns 404 (machine-scoped
+	// token can't see its own app), we assume 1 machine running 24/7
+	// and surface `status: "assumed_running"` instead of "not_deployed"
+	// (which would zero the cost). This pins the math.
+	it("assumed_running falls back to 1 machine × 24/7", () => {
+		const freeCredit = 0.83;
+		const assumedMachines = 1;
+		const hoursThisMonth = 24 * 30 * assumedMachines; // 720h
+		const cost = hoursThisMonth * FLY.pricePerHour;
+		const remaining = Math.max(0, freeCredit - cost);
+		// ~12.3 days of 24/7 are covered by the $0.83 free credit
+		const daysCovered = (freeCredit / cost) * 30;
+		expect(round4(cost)).toBeCloseTo(1.9134, 3);
+		expect(daysCovered).toBeGreaterThan(11);
+		expect(daysCovered).toBeLessThan(14);
+		expect(round4(remaining)).toBe(0); // cost > credit
+	});
 });
