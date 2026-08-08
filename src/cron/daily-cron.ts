@@ -28,6 +28,8 @@
  */
 
 import { DEFAULT_USER_ID } from "../lib/types.js";
+import { chat } from "../llm/index.js";
+import { sendMarkdown, telegramConfigured } from "../telegram/index.js";
 import type { CronEnv, CronResult } from "./dispatcher.js";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -148,6 +150,32 @@ export async function runDailyCron(env: CronEnv): Promise<CronResult> {
 			});
 		}
 
+		// 6. Optional: LLM-generated markdown recap + Telegram
+		//    summary. The LLM is purely advisory; failures
+		//    here don't fail the cron (the R2 JSON is the
+		//    canonical record).
+		let nTelegramSent = 0;
+		if (telegramConfigured(env) || env.MMX_API_KEY) {
+			const sysPrompt = (
+				"You are a quant analyst. Given a daily paper-trading " +
+				"summary, output a one-paragraph markdown recap with " +
+				"PnL, top vertical, and any concerns. Keep it under " +
+				"200 words. Use **bold** for key numbers."
+			);
+			const userPrompt = JSON.stringify(recap, null, 2);
+			const llmResult = await chat(env, sysPrompt, userPrompt, {
+				max_tokens: 1000,
+			});
+			if (llmResult.ok && telegramConfigured(env)) {
+				const tg = await sendMarkdown(
+					env,
+					`*Daily recap — ${recap.date}*\n\n${llmResult.text}`,
+				);
+				if (tg.ok) nTelegramSent += 1;
+				else console.error(`[cron:daily] telegram failed`, tg.error_message);
+			}
+		}
+
 		return {
 			ok: true,
 			cron_name: "daily",
@@ -158,6 +186,7 @@ export async function runDailyCron(env: CronEnv): Promise<CronResult> {
 				realized_pnl_cents: recap.trades.realized_pnl_cents,
 				n_open_positions: recap.open_positions,
 				r2_key: env.BUCKET ? `daily-recap/${recap.date}.json` : null,
+				n_telegram_sent: nTelegramSent,
 			},
 		};
 	} catch (e) {

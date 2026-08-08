@@ -40,6 +40,8 @@ import { runScanCron } from "./scan-cron.js";
 import { runNewsCron } from "./news-cron.js";
 import { runDailyCron } from "./daily-cron.js";
 import { runTrainCron } from "./train-cron.js";
+import type { LLMEnv } from "../llm/index.js";
+import type { TelegramEnv } from "../telegram/index.js";
 
 // ─── Cron schedule (must match wrangler.jsonc) ──────────────────────
 
@@ -67,8 +69,9 @@ export function jobForCron(cronExpression: string): CronName | null {
 // ─── Cron job contract ───────────────────────────────────────────────
 
 /** Per-job env. Subset of the full Env (the cron Worker doesn't
- *  need the DO bindings). */
-export interface CronEnv {
+ *  need the DO bindings). Includes LLM + Telegram creds so
+ *  the news + daily crons can post verdicts. */
+export interface CronEnv extends LLMEnv, TelegramEnv {
 	DB?: D1Database;
 	BUCKET?: R2Bucket;
 	ENVIRONMENT?: string;

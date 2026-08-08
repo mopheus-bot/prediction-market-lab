@@ -24,6 +24,14 @@
  */
 
 import { dispatchScheduledEvent, type CronEnv } from "./cron/dispatcher.js";
+import {
+	handleCronRuns,
+	handleScans,
+	handleSignals,
+	handleStatus,
+	handleSummary,
+	handleTrades,
+} from "./api/status.js";
 import type { LiveBotConfig } from "./durable-objects/LiveBot.js";
 
 export interface Env extends CronEnv {
@@ -100,6 +108,26 @@ export default {
 		}
 		if (path === "/api/pm/bot/restart" && request.method === "POST") {
 			return forwardToBot(env, request, "/restart");
+		}
+
+		// ─── API: /api/pm/{status,summary,trades,signals,scans,cron-runs} (chunk 6) ──
+		if (path === "/api/pm/status" && request.method === "GET") {
+			return handleStatus(env);
+		}
+		if (path === "/api/pm/summary" && request.method === "GET") {
+			return handleSummary(env, url);
+		}
+		if (path === "/api/pm/trades" && request.method === "GET") {
+			return handleTrades(env, url);
+		}
+		if (path === "/api/pm/signals" && request.method === "GET") {
+			return handleSignals(env, url);
+		}
+		if (path === "/api/pm/scans" && request.method === "GET") {
+			return handleScans(env);
+		}
+		if (path === "/api/pm/cron-runs" && request.method === "GET") {
+			return handleCronRuns(env, url);
 		}
 		// Direct WS upgrade to the live bot DO (no auth — CF Access sits
 		// in front, and the bot is single-user).

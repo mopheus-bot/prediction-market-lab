@@ -35,7 +35,8 @@ export default defineConfig({
 			{
 				// Unit tests — pure Node, no Worker bindings, no D1, no DO.
 				// Covers: fees, strategy, risk engine, forest inference,
-				// feature extraction, reversion signal, model loader, cron.
+				// feature extraction, reversion signal, model loader, cron,
+				// telegram, llm.
 				extends: true,
 				test: {
 					name: "unit",
@@ -48,13 +49,15 @@ export default defineConfig({
 						"test/features.test.ts",
 						"test/model-loader.test.ts",
 						"test/cron.test.ts",
+						"test/telegram.test.ts",
+						"test/llm.test.ts",
 					],
 					environment: "node",
 				},
 			},
 			{
 				// Integration tests — uses the Worker pool with full
-				// D1/DO bindings. Covers: auth, db, live-bot DO.
+				// D1/DO bindings. Covers: auth, db, live-bot DO, status API.
 				plugins: [cloudflarePlugin],
 				test: {
 					name: "integration",
@@ -62,6 +65,7 @@ export default defineConfig({
 						"test/auth.test.ts",
 						"test/db.test.ts",
 						"test/live-bot.test.ts",
+						"test/api-status.test.ts",
 					],
 				},
 			},

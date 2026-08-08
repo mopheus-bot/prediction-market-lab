@@ -188,6 +188,7 @@ export const signals = {
 			source?: SignalSource;
 			model_version?: string;
 			since_ts?: number;
+			ticker?: string;
 		} = {},
 	): Promise<SignalRow[]> {
 		const limit = opts.limit ?? 100;
@@ -204,6 +205,10 @@ export const signals = {
 		if (opts.since_ts !== undefined) {
 			where.push("ts >= ?");
 			params.push(opts.since_ts);
+		}
+		if (opts.ticker !== undefined) {
+			where.push("ticker = ?");
+			params.push(opts.ticker);
 		}
 		const sql = `SELECT * FROM signals WHERE ${where.join(" AND ")} ORDER BY ts DESC LIMIT ?`;
 		params.push(limit);
