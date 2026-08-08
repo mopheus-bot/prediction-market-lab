@@ -975,59 +975,79 @@ export class LiveBot implements DurableObject {
 		if (this._kalshiWs) return; // already open
 		const url = state.config.url;
 		const useDemo = url.includes("demo");
+		// Chunk 10.6: if the URL points at a relay (or any non-Kalshi
+		// host), the relay handles Kalshi auth server-side — the Worker
+		// just opens a plain WebSocket with no extra headers. CF Workers'
+		// `new WebSocket(url, { headers })` is silently broken (the
+		// second arg is treated as a protocols string), so this is the
+		// only reliable form when the URL is not a raw Kalshi endpoint.
+		const isRelay = !url.includes("kalshi");
+		console.log(
+			`[live-bot] openKalshiWs url=${url} useDemo=${useDemo} isRelay=${isRelay}`,
+		);
 
-		// Chunk 10: CF Workers' `new WebSocket(url)` does NOT support
-		// custom headers on the upgrade — the `{headers}` second arg
-		// is silently ignored. To authenticate, we must use
-		// `fetch(url, {headers: {Upgrade: "websocket", ...auth}})` and
-		// pull the WebSocket from `response.webSocket`.
-		// (See https://developers.cloudflare.com/workers/runtime-apis/websockets/)
+		// Build auth headers ONLY for the direct-Kalshi path. The relay
+		// path doesn't need them — and sending them breaks the upgrade.
 		const headers: Record<string, string> = { Upgrade: "websocket" };
-		const keyId =
-			(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
-		const pem =
-			(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
-		if (keyId && pem) {
-			try {
-				const { buildAuthHeaders, loadPrivateKey } = await import("../kalshi/auth.js");
-				const pk = await loadPrivateKey(pem);
-				const auth = await buildAuthHeaders(pk, keyId, "GET", "/trade-api/ws/v2");
-				Object.assign(headers, auth);
-			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
-				console.error("[live-bot] failed to sign WS headers", msg);
+		if (!isRelay) {
+			const keyId =
+				(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
+			const pem =
+				(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
+			if (keyId && pem) {
+				try {
+					const { buildAuthHeaders, loadPrivateKey } = await import("../kalshi/auth.js");
+					const pk = await loadPrivateKey(pem);
+					const auth = await buildAuthHeaders(pk, keyId, "GET", "/trade-api/ws/v2");
+					Object.assign(headers, auth);
+				} catch (e) {
+					const msg = e instanceof Error ? e.message : String(e);
+					console.error("[live-bot] failed to sign WS headers", msg);
+					this._lastWsError = {
+						ts_ms: Date.now(),
+						code: "auth_sign_failed",
+						message: msg,
+					};
+				}
+			} else {
 				this._lastWsError = {
 					ts_ms: Date.now(),
-					code: "auth_sign_failed",
-					message: msg,
+					code: "missing_creds",
+					message: useDemo
+						? "KALSHI_DEMO creds not set on the Worker"
+						: "KALSHI_PROD creds not set on the Worker",
 				};
+				console.error(
+					"[live-bot]",
+					this._lastWsError.code,
+					"—",
+					this._lastWsError.message,
+				);
 			}
 		} else {
-			this._lastWsError = {
-				ts_ms: Date.now(),
-				code: "missing_creds",
-				message: useDemo
-					? "KALSHI_DEMO creds not set on the Worker"
-					: "KALSHI_PROD creds not set on the Worker",
-			};
-			console.error(
-				"[live-bot]",
-				this._lastWsError.code,
-				"—",
-				this._lastWsError.message,
-			);
+			// Relay path: clear any prior error from a previous
+			// direct-Kalshi attempt; the relay doesn't need creds.
+			this._lastWsError = null;
 		}
 
-		// Open via fetch() so the auth headers ride on the upgrade.
-		// CF Workers' `nodejs_compat` flag enables Node.js's WebSocket
-		// which supports custom headers natively. We try the Node.js
-		// form first; if it fails, fall back to fetch() + Upgrade.
+		// Open the WebSocket.
+		//   Relay path: `new WebSocket(url)` — the standard form, no
+		//   second arg. This is what CF Workers handles correctly.
+		//   Direct path: try Node's `new WebSocket(url, { headers })`
+		//   first; fall back to `fetch(url, { headers })` if that
+		//   fails. (Direct path from CF Workers is known not to work
+		//   — see chunk 10 finding. Kept for completeness / local dev.)
 		let ws: WebSocket;
 		try {
-			// Node.js's WebSocket: `new WebSocket(url, { headers })`.
-			// With `nodejs_compat` enabled, the global `WebSocket` is
-			// Node's, which honors the headers option.
-			ws = new WebSocket(url, { headers } as unknown as string[]);
+			if (isRelay) {
+				console.log(`[live-bot] relay: plain new WebSocket(${url})`);
+				ws = new WebSocket(url);
+			} else {
+				// Node.js's WebSocket: `new WebSocket(url, { headers })`.
+				// With `nodejs_compat` enabled, the global `WebSocket` is
+				// Node's, which honors the headers option.
+				ws = new WebSocket(url, { headers } as unknown as string[]);
+			}
 		} catch (e) {
 			console.error("[live-bot] Node WebSocket failed, trying fetch()", e);
 			// Fallback: fetch() + Upgrade: websocket.
@@ -1080,7 +1100,32 @@ export class LiveBot implements DurableObject {
 		// Clear any prior error — the upgrade succeeded at the HTTP layer.
 		this._lastWsError = null;
 
+		// Connection timeout: if `open` doesn't fire within 10s, treat
+		// as a failure and schedule a reconnect. CF Workers' outbound
+		// WebSocket has a known silent-CLOSING state (readyState=2
+		// without ever firing `open`); the timeout catches that case
+		// so the dashboard doesn't sit on "Connecting…" forever.
+		const connectTimeoutMs = 10_000;
+		const connectTimeout = setTimeout(() => {
+			if (!this._connected) {
+				console.error(
+					`[live-bot] WS open did not fire within ${connectTimeoutMs}ms; closing + reconnecting`,
+				);
+				this._lastWsError = {
+					ts_ms: Date.now(),
+					code: "open_timeout",
+					message: `WebSocket open event did not fire within ${connectTimeoutMs}ms (silent CLOSING?)`,
+				};
+				try {
+					ws.close(1000, "open_timeout");
+				} catch {
+					/* ignore */
+				}
+			}
+		}, connectTimeoutMs);
+
 		ws.addEventListener("open", () => {
+			clearTimeout(connectTimeout);
 			this._connected = true;
 			this._reconnectAttempt = 0;
 			// Subscribe to orderbook_delta + trade + ticker for every

@@ -56,6 +56,7 @@ export default defineConfig({
 						"test/backtest.test.ts",
 						"test/sharpe.test.ts",
 						"test/stage.test.ts",
+						"test/ws-relay.test.ts",
 					],
 					environment: "node",
 				},
