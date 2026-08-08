@@ -3,29 +3,892 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Hello, World!</title>
+		<meta name="color-scheme" content="dark" />
+		<title>pm-bot · Prediction Market Lab</title>
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a2854'/%3E%3Ctext x='32' y='44' font-family='serif' font-size='32' font-weight='700' fill='%23d4af37' text-anchor='middle'%3EMC%3C/text%3E%3C/svg%3E" />
+		<style>
+			/* ─── Brand tokens (Prediction Market Lab: navy + warm gold) ─── */
+			:root {
+				--bg-0: #0a2854;
+				--bg-1: #0b3a6f;
+				--bg-2: #133b6e;
+				--bg-3: #08203f;
+				--ink: #e5e7eb;
+				--ink-muted: #9ca3af;
+				--ink-faint: #6b7280;
+				--gold: #d4af37;
+				--gold-soft: #f5d77a;
+				--green: #22c55e;
+				--green-soft: #86efac;
+				--red: #ef4444;
+				--red-soft: #fca5a5;
+				--amber: #f59e0b;
+				--card-bg: rgba(255, 255, 255, 0.04);
+				--card-border: rgba(255, 255, 255, 0.10);
+				--card-border-hover: rgba(255, 255, 255, 0.20);
+				--shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.2);
+				--font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+				--font-mono: ui-monospace, "JetBrains Mono", "SF Mono", Consolas, monospace;
+				--font-display: "Times New Roman", Georgia, serif;
+			}
+			* { box-sizing: border-box; margin: 0; padding: 0; }
+			html, body {
+				background: linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 50%, var(--bg-2) 100%);
+				background-attachment: fixed;
+				color: var(--ink);
+				font-family: var(--font-sans);
+				font-size: 14px;
+				line-height: 1.5;
+				-webkit-font-smoothing: antialiased;
+				min-height: 100vh;
+			}
+			a { color: var(--gold-soft); text-decoration: none; }
+			a:hover { text-decoration: underline; }
+			button { font-family: inherit; font-size: inherit; }
+			code, .mono { font-family: var(--font-mono); }
+			.muted { color: var(--ink-muted); }
+			.faint { color: var(--ink-faint); }
+			.pos { color: var(--green); }
+			.neg { color: var(--red); }
+			.amber { color: var(--amber); }
+			.gold { color: var(--gold); }
+
+			/* ─── Layout ─── */
+			.shell {
+				max-width: 1200px;
+				margin: 0 auto;
+				padding: 32px 24px 96px;
+			}
+			.grid {
+				display: grid;
+				grid-template-columns: repeat(12, 1fr);
+				gap: 24px;
+			}
+			.col-3 { grid-column: span 3; }
+			.col-4 { grid-column: span 4; }
+			.col-6 { grid-column: span 6; }
+			.col-8 { grid-column: span 8; }
+			.col-12 { grid-column: span 12; }
+			@media (max-width: 1024px) {
+				.col-3, .col-4 { grid-column: span 6; }
+				.col-8 { grid-column: span 12; }
+			}
+			@media (max-width: 640px) {
+				.col-3, .col-4, .col-6, .col-8 { grid-column: span 12; }
+			}
+
+			/* ─── Cards ─── */
+			.card {
+				background: var(--card-bg);
+				border: 1px solid var(--card-border);
+				border-radius: 12px;
+				padding: 24px;
+				box-shadow: var(--shadow);
+				backdrop-filter: blur(8px);
+			}
+			.card-title {
+				font-size: 11px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.12em;
+				color: var(--ink-muted);
+				margin-bottom: 12px;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+			}
+			.card-title .dot {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				background: var(--gold);
+			}
+
+			/* ─── Header / brand bar ─── */
+			.brand-bar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				margin-bottom: 32px;
+				padding-bottom: 24px;
+				border-bottom: 1px solid var(--card-border);
+			}
+			.brand-left { display: flex; align-items: center; gap: 16px; }
+			.brand-mono {
+				width: 44px; height: 44px;
+				flex-shrink: 0;
+			}
+			.brand-text { line-height: 1.1; }
+			.brand-name {
+				font-family: var(--font-display);
+				font-size: 22px;
+				font-weight: 700;
+				letter-spacing: 0.04em;
+				background: linear-gradient(90deg, var(--gold) 0%, var(--gold-soft) 100%);
+				-webkit-background-clip: text;
+				background-clip: text;
+				color: transparent;
+			}
+			.brand-name-underline {
+				display: inline-block;
+				margin-top: 2px;
+				width: 90px;
+				height: 2px;
+				background: linear-gradient(90deg, var(--gold) 0%, transparent 100%);
+			}
+			.brand-subtitle {
+				font-size: 12px;
+				color: var(--ink-muted);
+				letter-spacing: 0.16em;
+				text-transform: uppercase;
+				margin-top: 2px;
+			}
+			.brand-right { display: flex; align-items: center; gap: 16px; }
+			.status-pill {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				padding: 6px 12px;
+				border-radius: 999px;
+				font-size: 12px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				background: var(--card-bg);
+				border: 1px solid var(--card-border);
+			}
+			.status-dot {
+				width: 8px;
+				height: 8px;
+				border-radius: 50%;
+				animation: pulse 2s ease-in-out infinite;
+			}
+			.status-dot.live { background: var(--green); }
+			.status-dot.cycling { background: var(--amber); }
+			.status-dot.stopped { background: var(--red); animation: none; }
+			.status-dot.unknown { background: var(--ink-faint); animation: none; }
+			@keyframes pulse {
+				0%, 100% { opacity: 1; }
+				50% { opacity: 0.45; }
+			}
+
+			/* ─── Hero PnL ─── */
+			.pnl-hero {
+				background: linear-gradient(135deg, rgba(212, 175, 55, 0.10) 0%, rgba(212, 175, 55, 0.02) 100%);
+				border: 1px solid rgba(212, 175, 55, 0.25);
+				padding: 32px;
+				border-radius: 12px;
+				position: relative;
+				overflow: hidden;
+			}
+			.pnl-hero::before {
+				content: "";
+				position: absolute;
+				left: 0;
+				top: 0;
+				bottom: 0;
+				width: 4px;
+				background: linear-gradient(180deg, var(--gold) 0%, transparent 100%);
+			}
+			.pnl-hero .label {
+				font-size: 11px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.14em;
+				color: var(--ink-muted);
+			}
+			.pnl-hero .num {
+				font-family: var(--font-display);
+				font-size: 56px;
+				font-weight: 700;
+				letter-spacing: -0.02em;
+				color: var(--gold);
+				margin: 4px 0 8px;
+				font-variant-numeric: tabular-nums;
+			}
+			.pnl-hero .delta { font-size: 14px; }
+			.pnl-hero .num.neg { color: var(--red); }
+			.pnl-hero .num.pos { color: var(--green); }
+
+			/* ─── Stats grid ─── */
+			.stat-num {
+				font-family: var(--font-display);
+				font-size: 32px;
+				font-weight: 700;
+				font-variant-numeric: tabular-nums;
+				line-height: 1.1;
+			}
+			.stat-num.pos { color: var(--green); }
+			.stat-num.neg { color: var(--red); }
+			.stat-label { font-size: 12px; color: var(--ink-muted); margin-top: 4px; }
+			.stat-sub { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+
+			/* ─── Tables ─── */
+			.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+			.tbl th, .tbl td {
+				padding: 8px 12px;
+				text-align: left;
+				border-bottom: 1px solid var(--card-border);
+			}
+			.tbl th {
+				font-weight: 600;
+				color: var(--ink-muted);
+				font-size: 11px;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+			}
+			.tbl tr:last-child td { border-bottom: none; }
+			.tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+			.tbl td.ticker { font-family: var(--font-mono); font-size: 12px; }
+
+			/* ─── Position row ─── */
+			.position-row {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				padding: 12px 0;
+				border-bottom: 1px solid var(--card-border);
+			}
+			.position-row:last-child { border-bottom: none; }
+			.position-ticker { font-family: var(--font-mono); font-weight: 600; }
+			.position-meta { font-size: 12px; color: var(--ink-muted); }
+			.side-badge {
+				display: inline-block;
+				font-size: 10px;
+				font-weight: 700;
+				letter-spacing: 0.08em;
+				padding: 2px 6px;
+				border-radius: 4px;
+				margin-left: 6px;
+			}
+			.side-badge.yes { background: rgba(34, 197, 94, 0.15); color: var(--green-soft); }
+			.side-badge.no { background: rgba(239, 68, 68, 0.15); color: var(--red-soft); }
+			.pnl-pill {
+				font-family: var(--font-mono);
+				font-size: 13px;
+				font-weight: 600;
+				padding: 4px 10px;
+				border-radius: 6px;
+			}
+			.pnl-pill.pos { background: rgba(34, 197, 94, 0.10); color: var(--green); }
+			.pnl-pill.neg { background: rgba(239, 68, 68, 0.10); color: var(--red); }
+			.pnl-pill.zero { background: rgba(156, 163, 175, 0.10); color: var(--ink-muted); }
+
+			/* ─── Controls (floating action bar) ─── */
+			.controls {
+				position: fixed;
+				bottom: 24px;
+				right: 24px;
+				display: flex;
+				gap: 8px;
+				padding: 8px;
+				background: var(--bg-3);
+				border: 1px solid var(--card-border);
+				border-radius: 12px;
+				box-shadow: var(--shadow);
+				backdrop-filter: blur(12px);
+				z-index: 100;
+			}
+			.btn {
+				appearance: none;
+				border: 1px solid var(--card-border);
+				background: var(--card-bg);
+				color: var(--ink);
+				padding: 8px 14px;
+				border-radius: 6px;
+				font-size: 12px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				cursor: pointer;
+				transition: all 120ms ease;
+			}
+			.btn:hover { border-color: var(--card-border-hover); background: rgba(255, 255, 255, 0.08); }
+			.btn:active { transform: translateY(1px); }
+			.btn.primary { background: var(--gold); color: var(--bg-3); border-color: var(--gold); }
+			.btn.primary:hover { background: var(--gold-soft); border-color: var(--gold-soft); }
+			.btn.danger { background: rgba(239, 68, 68, 0.10); color: var(--red); border-color: rgba(239, 68, 68, 0.30); }
+			.btn.danger:hover { background: rgba(239, 68, 68, 0.20); }
+
+			/* ─── Toast ─── */
+			.toast {
+				position: fixed;
+				top: 24px;
+				right: 24px;
+				padding: 12px 16px;
+				border-radius: 8px;
+				font-size: 13px;
+				font-weight: 500;
+				background: var(--bg-3);
+				border: 1px solid var(--card-border);
+				box-shadow: var(--shadow);
+				max-width: 360px;
+				transform: translateX(420px);
+				transition: transform 240ms ease;
+				z-index: 200;
+			}
+			.toast.show { transform: translateX(0); }
+			.toast.ok { border-color: rgba(34, 197, 94, 0.4); }
+			.toast.err { border-color: rgba(239, 68, 68, 0.4); }
+
+			/* ─── Empty state ─── */
+			.empty {
+				padding: 32px;
+				text-align: center;
+				color: var(--ink-faint);
+				font-size: 13px;
+			}
+
+			/* ─── Footer ─── */
+			footer {
+				margin-top: 48px;
+				text-align: center;
+				color: var(--ink-faint);
+				font-size: 11px;
+				letter-spacing: 0.08em;
+			}
+
+			/* ─── Loading shimmer ─── */
+			.shimmer {
+				background: linear-gradient(90deg, var(--card-bg) 0%, rgba(255, 255, 255, 0.08) 50%, var(--card-bg) 100%);
+				background-size: 200% 100%;
+				animation: shimmer 1.4s ease-in-out infinite;
+				border-radius: 4px;
+				color: transparent;
+			}
+			@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+		</style>
 	</head>
 	<body>
-		<h1 id="heading"></h1>
-		<p>This page comes from a static asset stored at `public/index.html` as configured in `wrangler.jsonc`.</p>
-		<button id="button" type="button">Fetch a random UUID</button>
-		<output id="random" for="button"></output>
-		<script>
-			fetch('/message')
-				.then((resp) => resp.text())
-				.then((text) => {
-					const h1 = document.getElementById('heading');
-					h1.textContent = text;
-				});
+		<div class="shell">
+			<!-- Brand bar -->
+			<header class="brand-bar">
+				<div class="brand-left">
+					<!-- Prediction Market Lab monogram (inlined SVG, no asset request) -->
+					<svg class="brand-mono" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-label="Prediction Market Lab">
+						<defs>
+							<linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+								<stop offset="0%" stop-color="#0a2854" />
+								<stop offset="100%" stop-color="#0b3a6f" />
+							</linearGradient>
+						</defs>
+						<rect width="64" height="64" rx="12" fill="url(#g1)" />
+						<rect x="2" y="2" width="60" height="60" rx="10" fill="none" stroke="#d4af37" stroke-width="0.6" opacity="0.4" />
+						<!-- M: four-stroke zig-zag -->
+						<path d="M 12 48 L 12 16 L 22 32 L 32 16 L 32 48" fill="none" stroke="#d4af37" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+						<!-- C: partial ring interlocked with M -->
+						<path d="M 50 18 A 16 16 0 1 0 50 46" fill="none" stroke="#e5e7eb" stroke-width="2.6" stroke-linecap="round" />
+					</svg>
+					<div class="brand-text">
+						<div class="brand-name">Prediction Market Lab</div>
+						<div class="brand-name-underline"></div>
+						<div class="brand-subtitle">pm-bot · paper-trading dashboard</div>
+					</div>
+				</div>
+				<div class="brand-right">
+					<span class="status-pill" id="status-pill">
+						<span class="status-dot unknown" id="status-dot"></span>
+						<span id="status-text">connecting…</span>
+					</span>
+					<span class="muted mono" id="model-version" style="font-size: 11px;">…</span>
+				</div>
+			</header>
 
-			const button = document.getElementById("button");
-			button.addEventListener("click", () => {
-				fetch('/random')
-					.then((resp) => resp.text())
-					.then((text) => {
-						const random = document.getElementById('random');
-						random.textContent = text;
+			<!-- Hero PnL + stats grid -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-8">
+					<div class="pnl-hero">
+						<div class="label">Total realized PnL</div>
+						<div class="num" id="pnl-total">— —</div>
+						<div class="delta" id="pnl-delta"><span class="muted">loading…</span></div>
+					</div>
+				</div>
+				<div class="col-4">
+					<div class="card" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+						<div>
+							<div class="card-title"><span class="dot"></span>Counts</div>
+							<div class="stat-num" id="count-trades">—</div>
+							<div class="stat-label">trades</div>
+						</div>
+						<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+							<div>
+								<div class="stat-num" id="count-signals" style="font-size: 22px;">—</div>
+								<div class="stat-sub">signals</div>
+							</div>
+							<div>
+								<div class="stat-num" id="count-open" style="font-size: 22px;">—</div>
+								<div class="stat-sub">open positions</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Open positions + per-vertical -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Open positions</div>
+						<div id="positions-list">
+							<div class="empty">no open positions</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Per-vertical breakdown (24h)</div>
+						<table class="tbl" id="vertical-tbl">
+							<thead>
+								<tr>
+									<th>Vertical</th>
+									<th class="num">Trades</th>
+									<th class="num">Realized PnL</th>
+									<th class="num">Open</th>
+								</tr>
+							</thead>
+							<tbody id="vertical-tbody">
+								<tr><td colspan="4" class="empty">loading…</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+
+			<!-- Recent trades + signals -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Recent trades</div>
+						<table class="tbl">
+							<thead>
+								<tr>
+									<th>Time</th>
+									<th>Ticker</th>
+									<th>Side</th>
+									<th>Action</th>
+									<th class="num">Price</th>
+									<th class="num">Size</th>
+									<th class="num">PnL</th>
+								</tr>
+							</thead>
+							<tbody id="trades-tbody">
+								<tr><td colspan="7" class="empty">loading…</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Recent signals</div>
+						<table class="tbl">
+							<thead>
+								<tr>
+									<th>Time</th>
+									<th>Ticker</th>
+									<th>Side</th>
+									<th class="num">P</th>
+									<th>Source</th>
+									<th>Filled</th>
+								</tr>
+							</thead>
+							<tbody id="signals-tbody">
+								<tr><td colspan="6" class="empty">loading…</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+
+			<!-- Daily recap + cron runs -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Daily recap (today)</div>
+						<div id="recap-body">
+							<div class="empty">no recap yet — runs at 06:00 UTC</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Cron runs (latest 10)</div>
+						<table class="tbl">
+							<thead>
+								<tr>
+									<th>Cron</th>
+									<th>Status</th>
+									<th>When</th>
+									<th class="num">ms</th>
+								</tr>
+							</thead>
+							<tbody id="cron-tbody">
+								<tr><td colspan="4" class="empty">loading…</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+
+			<footer>
+				pm-bot · Prediction Market Lab · chunk 7
+			</footer>
+		</div>
+
+		<!-- Bot controls -->
+		<div class="controls" id="controls">
+			<button class="btn primary" id="btn-start">Start</button>
+			<button class="btn" id="btn-restart">Restart</button>
+			<button class="btn danger" id="btn-stop">Stop</button>
+		</div>
+
+		<!-- Toast -->
+		<div class="toast" id="toast"></div>
+
+		<script>
+			// ─── Utilities ───
+			const $ = (id) => document.getElementById(id);
+			const fmtCents = (c) => {
+				if (c === null || c === undefined) return "—";
+				const sign = c < 0 ? "−" : c > 0 ? "+" : "";
+				const abs = Math.abs(c);
+				const dollars = (abs / 100).toFixed(2);
+				return `${sign}$${dollars}`;
+			};
+			const fmtNum = (n) => (n === null || n === undefined ? "—" : n.toLocaleString());
+			const fmtTime = (ts) => {
+				if (!ts) return "—";
+				const d = new Date(ts);
+				const now = new Date();
+				const diffSec = (now - d) / 1000;
+				if (diffSec < 60) return `${Math.floor(diffSec)}s ago`;
+				if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+				if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+				return d.toISOString().slice(0, 10);
+			};
+			const fmtTimeFull = (ts) => {
+				if (!ts) return "—";
+				return new Date(ts).toISOString().replace("T", " ").slice(0, 19) + "Z";
+			};
+			const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+			// ─── API fetchers ───
+			async function fetchJSON(path) {
+				const r = await fetch(path, { credentials: "same-origin" });
+				if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
+				return r.json();
+			}
+
+			// ─── Renderers ───
+			function setStatusPill(state, text) {
+				const dot = $("status-dot");
+				dot.classList.remove("live", "cycling", "stopped", "unknown");
+				dot.classList.add(state);
+				$("status-text").textContent = text;
+			}
+
+			function renderPnl(status) {
+				const pnl = status.pnl?.total_cents ?? 0;
+				const pnl24 = status.pnl?.last_24h_cents ?? 0;
+				const cls = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "";
+				$("pnl-total").className = `num ${cls}`;
+				$("pnl-total").textContent = fmtCents(pnl);
+				const dCls = pnl24 > 0 ? "pos" : pnl24 < 0 ? "neg" : "muted";
+				$("pnl-delta").innerHTML = `<span class="${dCls}">${fmtCents(pnl24)}</span> <span class="muted">last 24h</span>`;
+				$("count-trades").textContent = fmtNum(status.counts?.n_trades);
+				$("count-signals").textContent = fmtNum(status.counts?.n_signals);
+				$("count-open").textContent = fmtNum(status.counts?.n_open_positions);
+			}
+
+			function renderPositions(positions) {
+				const el = $("positions-list");
+				if (!positions || positions.length === 0) {
+					el.innerHTML = '<div class="empty">no open positions</div>';
+					return;
+				}
+				el.innerHTML = positions.map((p) => {
+					const sideCls = p.side === "yes" ? "yes" : "no";
+					const pnl = p.unrealized_pnl_cents;
+					const pnlCls = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "zero";
+					const pnlStr = pnl === null || pnl === undefined ? "—" : fmtCents(pnl);
+					return `
+						<div class="position-row">
+							<div>
+								<div><span class="position-ticker">${esc(p.ticker)}</span><span class="side-badge ${sideCls}">${esc(p.side.toUpperCase())}</span></div>
+								<div class="position-meta">${esc(p.size)} contracts @ ${esc(p.entry_price_cents)}c · open ${esc(fmtTime(p.opened_ts))}</div>
+							</div>
+							<div class="pnl-pill ${pnlCls}">${pnlStr}</div>
+						</div>
+					`;
+				}).join("");
+			}
+
+			function renderVerticals(verticals) {
+				const tbody = $("vertical-tbody");
+				if (!verticals || Object.keys(verticals).length === 0) {
+					tbody.innerHTML = '<tr><td colspan="4" class="empty">no trades in the last 24h</td></tr>';
+					return;
+				}
+				tbody.innerHTML = Object.entries(verticals).map(([v, d]) => {
+					const pnlCls = d.pnl_cents > 0 ? "pos" : d.pnl_cents < 0 ? "neg" : "muted";
+					return `
+						<tr>
+							<td>${esc(v)}</td>
+							<td class="num">${fmtNum(d.n_trades)}</td>
+							<td class="num ${pnlCls}">${fmtCents(d.pnl_cents)}</td>
+							<td class="num">${fmtNum(d.n_open ?? 0)}</td>
+						</tr>
+					`;
+				}).join("");
+			}
+
+			function renderTrades(trades) {
+				const tbody = $("trades-tbody");
+				if (!trades || trades.length === 0) {
+					tbody.innerHTML = '<tr><td colspan="7" class="empty">no trades yet</td></tr>';
+					return;
+				}
+				tbody.innerHTML = trades.slice(0, 20).map((t) => {
+					const pnl = t.pnl_cents;
+					const pnlCls = pnl === null ? "muted" : pnl > 0 ? "pos" : pnl < 0 ? "neg" : "muted";
+					const pnlStr = pnl === null || pnl === undefined ? "—" : fmtCents(pnl);
+					const sideCls = t.side === "yes" ? "yes" : "no";
+					return `
+						<tr>
+							<td class="muted">${esc(fmtTime(t.ts))}</td>
+							<td class="ticker">${esc(t.ticker)}</td>
+							<td><span class="side-badge ${sideCls}">${esc(t.side.toUpperCase())}</span></td>
+							<td>${esc(t.action)}</td>
+							<td class="num">${esc(t.price_cents)}c</td>
+							<td class="num">${fmtNum(t.size)}</td>
+							<td class="num ${pnlCls}">${pnlStr}</td>
+						</tr>
+					`;
+				}).join("");
+			}
+
+			function renderSignals(signals) {
+				const tbody = $("signals-tbody");
+				if (!signals || signals.length === 0) {
+					tbody.innerHTML = '<tr><td colspan="6" class="empty">no signals yet</td></tr>';
+					return;
+				}
+				tbody.innerHTML = signals.slice(0, 20).map((s) => {
+					const sideStr = s.side ? s.side.toUpperCase() : "—";
+					const pStr = s.signal_p !== null ? s.signal_p.toFixed(2) : "—";
+					return `
+						<tr>
+							<td class="muted">${esc(fmtTime(s.ts))}</td>
+							<td class="ticker">${esc(s.ticker)}</td>
+							<td>${esc(sideStr)}</td>
+							<td class="num">${esc(pStr)}</td>
+							<td>${esc(s.source)}</td>
+							<td>${s.was_filled ? '<span class="pos">yes</span>' : '<span class="faint">no</span>'}</td>
+						</tr>
+					`;
+				}).join("");
+			}
+
+			function renderRecap(recap) {
+				const el = $("recap-body");
+				if (!recap) {
+					el.innerHTML = '<div class="empty">no recap yet — runs at 06:00 UTC</div>';
+					return;
+				}
+				const t = recap.trades ?? {};
+				const s = recap.signals ?? {};
+				const pnlCls = (t.realized_pnl_cents ?? 0) > 0 ? "pos" : (t.realized_pnl_cents ?? 0) < 0 ? "neg" : "muted";
+				el.innerHTML = `
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+						<div>
+							<div class="stat-label">Date</div>
+							<div class="stat-num" style="font-size: 18px;">${esc(recap.date ?? "—")}</div>
+						</div>
+						<div>
+							<div class="stat-label">Realized PnL</div>
+							<div class="stat-num ${pnlCls}" style="font-size: 22px;">${fmtCents(t.realized_pnl_cents ?? 0)}</div>
+						</div>
+					</div>
+					<div style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; font-size: 12px;">
+						<div><span class="muted">Trades:</span> ${fmtNum(t.n_total ?? 0)} <span class="faint">(${fmtNum(t.n_opens ?? 0)}o / ${fmtNum(t.n_closes ?? 0)}c)</span></div>
+						<div><span class="muted">Signals:</span> ${fmtNum(s.n_total ?? 0)} <span class="faint">(${fmtNum(s.n_filled ?? 0)} filled)</span></div>
+						<div><span class="muted">Open:</span> ${fmtNum(recap.open_positions ?? 0)}</div>
+					</div>
+				`;
+			}
+
+			function renderCronRuns(runs) {
+				const tbody = $("cron-tbody");
+				if (!runs || runs.length === 0) {
+					tbody.innerHTML = '<tr><td colspan="4" class="empty">no cron runs yet</td></tr>';
+					return;
+				}
+				tbody.innerHTML = runs.slice(0, 10).map((r) => {
+					const statusCls = r.status === "success" ? "pos" : r.status === "error" ? "neg" : "muted";
+					return `
+						<tr>
+							<td>${esc(r.cron_name)}</td>
+							<td class="${statusCls}">${esc(r.status)}</td>
+							<td class="muted">${esc(fmtTime(r.ts))}</td>
+							<td class="num">${fmtNum(r.duration_ms ?? 0)}</td>
+						</tr>
+					`;
+				}).join("");
+			}
+
+			// ─── Bot control → derive open positions from the trades table ───
+			async function fetchOpenPositions() {
+				try {
+					// Open positions are the LATEST trade per ticker
+					// that is "open" with no subsequent "close".
+					// The trades API returns all trades; we derive
+					// on the client. (Cheap: we already loaded
+					// trades for the table.)
+					const data = await fetchJSON("/api/pm/trades?limit=200");
+					const trades = data.trades ?? [];
+					const sorted = [...trades].sort((a, b) => b.id - a.id);
+					const seen = new Set();
+					const opens = [];
+					for (const t of sorted) {
+						if (seen.has(t.ticker)) continue;
+						seen.add(t.ticker);
+						if (t.action === "open") opens.push(t);
+					}
+					// Compute unrealized PnL from the most recent
+					// mid price in the bot state. The bot status
+					// doesn't expose per-position marks (that's a
+					// chunk 7+ enhancement); for now, show the
+					// entry price and "— —" for the PnL.
+					return opens.map((t) => ({
+						ticker: t.ticker,
+						side: t.side,
+						size: t.size,
+						entry_price_cents: t.price_cents,
+						opened_ts: t.ts,
+						unrealized_pnl_cents: null, // TODO chunk 7+: bot status should include per-position marks
+					}));
+				} catch (e) {
+					return [];
+				}
+			}
+
+			// ─── Main refresh ───
+			async function refresh() {
+				try {
+					const [status, summary, scans, signals, trades, crons, botStatus] = await Promise.all([
+						fetchJSON("/api/pm/status").catch(() => null),
+						fetchJSON("/api/pm/summary").catch(() => null),
+						fetchJSON("/api/pm/scans").catch(() => null),
+						fetchJSON("/api/pm/signals?limit=20").catch(() => ({ signals: [] })),
+						fetchJSON("/api/pm/trades?limit=20").catch(() => ({ trades: [] })),
+						fetchJSON("/api/pm/cron-runs?limit=10").catch(() => ({ runs: [] })),
+						fetchJSON("/api/pm/bot/status").catch(() => null),
+					]);
+
+					if (status) renderPnl(status);
+					if (summary?.recap) renderRecap(summary.recap);
+					if (signals?.signals) renderSignals(signals.signals);
+					if (trades?.trades) {
+						renderTrades(trades.trades);
+						renderPositions(await fetchOpenPositions());
+					} else {
+						renderPositions([]);
+					}
+					if (crons?.runs) renderCronRuns(crons.runs);
+
+					// Per-vertical: derive from summary.recap.verticals
+					// if present, else from trades.
+					if (summary?.recap?.verticals) {
+						renderVerticals(summary.recap.verticals);
+					}
+
+					// Bot status pill
+					if (botStatus) {
+						const running = botStatus.connected === true;
+						const cycling = botStatus.connected === false && botStatus.user_id === "default";
+						if (running) {
+							setStatusPill("live", "bot · live");
+						} else if (cycling) {
+							setStatusPill("cycling", "bot · stopped");
+						} else {
+							setStatusPill("stopped", "bot · stopped");
+						}
+						$("model-version").textContent = `v${esc(botStatus.config?.model_version ?? "?")}`;
+					} else {
+						setStatusPill("unknown", "bot · ?");
+					}
+				} catch (e) {
+					console.error("refresh failed", e);
+					setStatusPill("unknown", "refresh failed");
+				}
+			}
+
+			// ─── Toast ───
+			let toastTimer = null;
+			function toast(msg, ok = true) {
+				const el = $("toast");
+				el.textContent = msg;
+				el.classList.remove("ok", "err", "show");
+				el.classList.add(ok ? "ok" : "err");
+				// Force reflow for animation restart.
+				void el.offsetWidth;
+				el.classList.add("show");
+				if (toastTimer) clearTimeout(toastTimer);
+				toastTimer = setTimeout(() => el.classList.remove("show"), 3500);
+			}
+
+			// ─── Bot controls ───
+			async function botCall(action) {
+				const endpoints = {
+					start: "/api/pm/bot/start",
+					stop: "/api/pm/bot/stop",
+					restart: "/api/pm/bot/restart",
+				};
+				try {
+					const r = await fetch(endpoints[action], {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: action === "start" ? JSON.stringify({}) : "{}",
 					});
+					if (!r.ok) throw new Error(`HTTP ${r.status}`);
+					const body = await r.json();
+					if (body.ok) {
+						toast(`${action} ok`, true);
+					} else {
+						toast(`${action} failed: ${body.error ?? "?"}`, false);
+					}
+					await refresh();
+				} catch (e) {
+					toast(`${action} failed: ${e.message}`, false);
+				}
+			}
+
+			$("btn-start").addEventListener("click", () => botCall("start"));
+			$("btn-stop").addEventListener("click", () => {
+				if (confirm("Stop the live bot? Open positions will be held but no new signals will fire.")) {
+					botCall("stop");
+				}
+			});
+			$("btn-restart").addEventListener("click", () => {
+				if (confirm("Restart the live bot? This re-establishes the WebSocket.")) {
+					botCall("restart");
+				}
+			});
+
+			// ─── Initial load + auto-refresh ───
+			refresh();
+			const FAST_REFRESH_MS = 5000;
+			const SLOW_REFRESH_MS = 30000;
+			let fastTimer = setInterval(refresh, FAST_REFRESH_MS);
+			let slowTimer = setInterval(refresh, SLOW_REFRESH_MS);
+			document.addEventListener("visibilitychange", () => {
+				if (document.hidden) {
+					clearInterval(fastTimer);
+					clearInterval(slowTimer);
+				} else {
+					refresh();
+					fastTimer = setInterval(refresh, FAST_REFRESH_MS);
+					slowTimer = setInterval(refresh, SLOW_REFRESH_MS);
+				}
 			});
 		</script>
 	</body>

@@ -20,3 +20,6 @@ tokens/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+
+# Dashboard validation artifacts (chunk 7)
+public/_validate-screenshot.png
