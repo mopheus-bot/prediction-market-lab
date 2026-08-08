@@ -75,6 +75,7 @@ export default defineConfig({
 						"test/live-bot.test.ts",
 						"test/api-status.test.ts",
 						"test/models-api.test.ts",
+					"test/verticals.test.ts",
 					],
 				},
 			},

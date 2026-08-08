@@ -673,6 +673,143 @@
 				.skel-bar { animation: none; background: var(--card-border); }
 			}
 
+			/* ─── Verticals grid (chunk 10.8c) ─── */
+			.verticals-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+				gap: 12px;
+				margin-top: 8px;
+			}
+			.vertical-card {
+				background: var(--bg-2);
+				border: 1px solid var(--card-border);
+				border-radius: 6px;
+				padding: 14px;
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+				transition: border-color 200ms ease, opacity 200ms ease;
+			}
+			.vertical-card.disabled {
+				opacity: 0.55;
+			}
+			.vertical-card.disabled .vertical-name,
+			.vertical-card.disabled .vertical-strategy {
+				text-decoration: line-through;
+				text-decoration-color: var(--ink-faint);
+			}
+			.vertical-card-head {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+			}
+			.vertical-emoji {
+				font-size: 20px;
+				line-height: 1;
+			}
+			.vertical-name {
+				flex: 1;
+				font-weight: 600;
+				font-size: 14px;
+				color: var(--ink);
+			}
+			.vertical-status {
+				font-family: var(--font-mono);
+				font-size: 10px;
+				padding: 2px 6px;
+				border-radius: 3px;
+				background: rgba(34, 197, 94, 0.15);
+				color: rgb(34, 197, 94);
+				text-transform: uppercase;
+				letter-spacing: 0.5px;
+			}
+			.vertical-card.disabled .vertical-status {
+				background: rgba(239, 68, 68, 0.15);
+				color: rgb(239, 68, 68);
+			}
+			.vertical-strategy {
+				font-family: var(--font-mono);
+				font-size: 11px;
+				color: var(--accent);
+				font-weight: 500;
+			}
+			.vertical-eli5 {
+				font-size: 12px;
+				color: var(--ink-muted);
+				line-height: 1.5;
+			}
+			.vertical-stats {
+				display: flex;
+				gap: 12px;
+				font-size: 11px;
+				color: var(--ink-muted);
+				border-top: 1px solid var(--card-border);
+				padding-top: 8px;
+			}
+			.vertical-stat {
+				display: flex;
+				flex-direction: column;
+				gap: 2px;
+			}
+			.vertical-stat-label {
+				font-size: 10px;
+				text-transform: uppercase;
+				letter-spacing: 0.5px;
+				color: var(--ink-faint);
+			}
+			.vertical-stat-val {
+				font-family: var(--font-mono);
+				font-size: 13px;
+				color: var(--ink);
+				font-variant-numeric: tabular-nums;
+			}
+			.vertical-stat-val.pos { color: rgb(34, 197, 94); }
+			.vertical-stat-val.neg { color: rgb(239, 68, 68); }
+			.vertical-toggle {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				margin-top: 4px;
+				padding-top: 8px;
+				border-top: 1px solid var(--card-border);
+			}
+			.vertical-toggle-label {
+				font-size: 11px;
+				color: var(--ink-muted);
+			}
+			.toggle-switch {
+				position: relative;
+				width: 36px;
+				height: 20px;
+				background: var(--bg-3);
+				border-radius: 10px;
+				cursor: pointer;
+				border: 1px solid var(--card-border);
+				transition: background 200ms ease;
+			}
+			.toggle-switch.on { background: rgba(34, 197, 94, 0.4); }
+			.toggle-switch::after {
+				content: "";
+				position: absolute;
+				top: 2px;
+				left: 2px;
+				width: 14px;
+				height: 14px;
+				background: var(--ink-faint);
+				border-radius: 50%;
+				transition: transform 200ms ease, background 200ms ease;
+			}
+			.toggle-switch.on::after {
+				transform: translateX(16px);
+				background: rgb(34, 197, 94);
+			}
+			.vertical-card .skel-bar {
+				height: 8px;
+			}
+			.vertical-card .vertical-name.skel-bar { height: 14px; }
+			.vertical-card .vertical-strategy.skel-bar { height: 10px; }
+			.vertical-card .vertical-eli5.skel-bar { height: 10px; }
+
 			/* ─── Mobile responsive (chunk 12) ─── */
 			@media (max-width: 768px) {
 				.shell { padding: 12px; }
@@ -1575,6 +1712,32 @@
 				</div>
 			</section>
 
+			<!-- Verticals (chunk 10.8c) -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Verticals — what's live, what strategy, how each is doing</div>
+						<div class="card-blurb">One card per vertical. The toggle pauses signals on every ticker in that vertical without touching the per-ticker blocklist. The strategy + ELI5 explain the rule the bot follows when a model fires for that vertical.</div>
+						<div class="verticals-grid" id="verticals-grid">
+							<div class="vertical-card skel-card">
+								<div class="vertical-card-head">
+									<span class="vertical-emoji">·</span>
+									<span class="vertical-name skel-bar m"></span>
+									<span class="vertical-status skel-bar s"></span>
+								</div>
+								<div class="vertical-strategy skel-bar l"></div>
+								<div class="vertical-eli5 skel-bar l"></div>
+								<div class="vertical-stats">
+									<span class="skel-bar s"></span>
+									<span class="skel-bar s"></span>
+									<span class="skel-bar s"></span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
 			<!-- Last 5 trades (chunk 9.6) -->
 			<section class="grid" style="margin-bottom: 24px;">
 				<div class="col-12">
@@ -2311,6 +2474,125 @@
 				`;
 			}
 
+			// Render the Verticals panel (chunk 10.8c). One
+			// card per vertical with active toggle, model
+			// version, strategy + ELI5, 24h + all-time stats,
+			// and per-vertical cap. Toggles PATCH
+			// /api/pm/bot/start with the new disabled_verticals.
+			function renderVerticalsPanel(verticals) {
+				const grid = $("verticals-grid");
+				if (!grid) return;
+				if (!verticals || verticals.length === 0) {
+					grid.innerHTML = '<div class="empty"><div class="empty-icon">🎯</div>no verticals configured<div class="empty-hint">add tickers via /start to enable verticals</div></div>';
+					return;
+				}
+				grid.innerHTML = verticals.map((v) => {
+					const pnl24 = v.pnl_cents_24h;
+					const pnlTot = v.pnl_cents_total;
+					const pnl24Cls = pnl24 > 0 ? "pos" : pnl24 < 0 ? "neg" : "";
+					const pnlTotCls = pnlTot > 0 ? "pos" : pnlTot < 0 ? "neg" : "";
+					const capTxt = v.cap_cents != null
+						? `$${(v.cap_cents / 100).toFixed(2)}`
+						: "global";
+					const tickersTxt = v.tickers.length === 0
+						? "no tickers yet"
+						: `${v.tickers.length} ticker${v.tickers.length === 1 ? "" : "s"}`;
+					return `
+						<div class="vertical-card ${v.active ? "" : "disabled"}" data-vertical="${esc(v.id)}">
+							<div class="vertical-card-head">
+								<span class="vertical-emoji">${esc(v.emoji)}</span>
+								<span class="vertical-name">${esc(v.label)}</span>
+								<span class="vertical-status">${v.active ? "live" : "off"}</span>
+							</div>
+							<div class="vertical-strategy">${esc(v.strategy_label)} · model ${esc(v.model_version)}</div>
+							<div class="vertical-eli5">${esc(v.strategy_eli5)}</div>
+							<div class="vertical-stats">
+								<div class="vertical-stat">
+									<span class="vertical-stat-label">24h trades</span>
+									<span class="vertical-stat-val">${fmtNum(v.n_trades_24h)}</span>
+								</div>
+								<div class="vertical-stat">
+									<span class="vertical-stat-label">24h PnL</span>
+									<span class="vertical-stat-val ${pnl24Cls}">${fmtCents(pnl24)}</span>
+								</div>
+								<div class="vertical-stat">
+									<span class="vertical-stat-label">all-time</span>
+									<span class="vertical-stat-val ${pnlTotCls}">${fmtNum(v.n_trades_total)} · ${fmtCents(pnlTot)}</span>
+								</div>
+								<div class="vertical-stat">
+									<span class="vertical-stat-label">cap/trade</span>
+									<span class="vertical-stat-val">${esc(capTxt)}</span>
+								</div>
+								<div class="vertical-stat">
+									<span class="vertical-stat-label">tickers</span>
+									<span class="vertical-stat-val">${esc(tickersTxt)}</span>
+								</div>
+							</div>
+							<div class="vertical-toggle">
+								<span class="vertical-toggle-label">${v.active ? "trading enabled" : "all signals blocked"}</span>
+								<div class="toggle-switch ${v.active ? "on" : ""}"
+								     data-vertical="${esc(v.id)}"
+								     role="switch"
+								     aria-checked="${v.active}"
+								     aria-label="Toggle ${esc(v.label)} vertical"
+								     tabindex="0"></div>
+							</div>
+						</div>
+					`;
+				}).join("");
+
+				// Wire toggle clicks.
+				for (const sw of grid.querySelectorAll(".toggle-switch")) {
+					sw.addEventListener("click", () => {
+						void toggleVertical(sw.dataset.vertical);
+					});
+					sw.addEventListener("keydown", (e) => {
+						if (e.key === " " || e.key === "Enter") {
+							e.preventDefault();
+							void toggleVertical(sw.dataset.vertical);
+						}
+					});
+				}
+			}
+
+			// Toggle a vertical on/off via /api/pm/bot/start.
+			async function toggleVertical(vertical) {
+				const cur = window._lastBotStatus?.config?.disabled_verticals ?? [];
+				let next;
+				if (cur.includes(vertical)) {
+					// Re-enable.
+					next = cur.filter((v) => v !== vertical);
+					toast(`enabling ${vertical}…`);
+				} else {
+					// Disable.
+					next = [...cur, vertical];
+					toast(`blocking ${vertical}…`);
+				}
+				const r = await fetch("/api/pm/bot/start", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ disabled_verticals: next }),
+				});
+				if (r.ok) {
+					setTimeout(() => { void refresh(); void refreshVerticals(); }, 600);
+				} else {
+					const data = await r.json().catch(() => ({}));
+					toast(`vertical toggle failed: ${data.message ?? r.statusText}`, false);
+				}
+			}
+
+			// Fetch + render the Verticals panel.
+			async function refreshVerticals() {
+				try {
+					const r = await fetch("/api/pm/verticals");
+					if (!r.ok) return;
+					const data = (await r.json()) as { verticals?: Array<unknown> };
+					renderVerticalsPanel(data.verticals ?? []);
+				} catch (e) {
+					console.warn("refreshVerticals failed", e);
+				}
+			}
+
 			function renderCronRuns(runs) {
 				const tbody = $("cron-tbody");
 				if (!runs || runs.length === 0) {
@@ -2419,7 +2701,9 @@
 				} catch (e) {
 					console.error("refresh failed", e);
 					_lastRefreshError = e instanceof Error ? e.message : String(e);
-					setStatusPill("unknown", "refresh failed");
+					// Chunk 10: setStatusPill was removed (the
+					// live indicator + stage badge are the single
+					// source of truth). Just update the live dot.
 					setLiveIndicator("err", `err · ${_lastRefreshError.slice(0, 40)}`);
 				}
 			}
@@ -3035,6 +3319,7 @@
 			autoStartOnLoad();
 			refresh();
 			refreshBalance();
+			refreshVerticals();
 			// CF analytics: 90s cadence. The CF GraphQL
 			// data is ~1m delayed; faster polling is
 			// wasteful + burns CF API quota.
@@ -3052,6 +3337,7 @@
 			let cfTimer = setInterval(refreshCfAnalytics, CF_REFRESH_MS);
 			let balanceTimer = setInterval(refreshBalance, BALANCE_REFRESH_MS);
 			let costTimer = setInterval(refreshCost, COST_REFRESH_MS);
+			let verticalsTimer = setInterval(refreshVerticals, 30000);
 			document.addEventListener("visibilitychange", () => {
 				if (document.hidden) {
 					clearInterval(fastTimer);
@@ -3059,9 +3345,11 @@
 					clearInterval(cfTimer);
 					clearInterval(balanceTimer);
 					clearInterval(costTimer);
+					clearInterval(verticalsTimer);
 				} else {
 					refresh();
 					refreshBalance();
+					refreshVerticals();
 					refreshCfAnalytics();
 					refreshCost();
 					fastTimer = setInterval(refresh, FAST_REFRESH_MS);
@@ -3069,6 +3357,10 @@
 					cfTimer = setInterval(refreshCfAnalytics, CF_REFRESH_MS);
 					balanceTimer = setInterval(refreshBalance, BALANCE_REFRESH_MS);
 					costTimer = setInterval(refreshCost, COST_REFRESH_MS);
+					// Verticals change infrequently — poll
+					// every 30s (same cadence as the verticals
+					// endpoint's Cache-Control).
+					verticalsTimer = setInterval(refreshVerticals, 30_000);
 				}
 			});
 		</script>

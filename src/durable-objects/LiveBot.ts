@@ -158,7 +158,10 @@ export interface LiveBotState {
 		 *  KXTICKER because the model isn't reliable for it"
 		 *  without flipping the global kill switch. */
 		disabled_tickers?: string[] | null;
-	};
+	/** Chunk 10.8c: per-vertical blocklist. The bot skips
+	 *  trades on any ticker whose vertical is in this list. */
+	disabled_verticals?: string[] | null;
+};
 	/** The most recent risk reject reason (per-ticker, for /status). */
 	last_reject: { ts_ms: number; ticker: string; code: string; message: string } | null;
 }
@@ -215,6 +218,18 @@ export interface LiveBotConfig {
 	 * on these tickers even when the global kill switch is
 	 * OFF. */
 	disabled_tickers?: string[] | null;
+	/** Chunk 10.8c: per-vertical blocklist. The bot skips
+	 * trades on any ticker whose vertical is in this list.
+	 * Useful for "I want to disable politics while keeping
+	 * weather + economic" without touching the per-ticker
+	 * blocklist. Vertical is the `ticker_verticals[t]` value
+	 * (lowercased). */
+	disabled_verticals?: string[] | null;
+	/** Chunk 10.8c: when true, /start re-pulls bankroll_cents
+	 * from Kalshi (only meaningful when trading_mode === "real").
+	 * Lets the operator add/withdraw money, hit /start, and
+	 * have position sizing adjust to the new balance. */
+	refresh_bankroll?: boolean;
 }
 
 // ─── Env (subset we need) ─────────────────────────────────────────────
@@ -294,7 +309,47 @@ export class LiveBot implements DurableObject {
 		// trading, but we want the DO to be queryable from the start).
 		s = this.buildDefaultState();
 		await this.saveState(s);
+		// Mirror the relevant config fields to D1 so the
+		// Worker's /api/pm/verticals endpoint can read them
+		// without an extra round-trip to the DO.
+		await this.mirrorConfigToD1(s);
 		return s;
+	}
+
+	/**
+	 * Chunk 10.8c: write a denormalized subset of the bot
+	 * config to D1 so the Worker's read-only endpoints
+	 * (currently /api/pm/verticals) can serve fresh data
+	 * without instantiating the DO. The DO is the source of
+	 * truth; this is a one-way cache.
+	 */
+	private async mirrorConfigToD1(state: LiveBotState): Promise<void> {
+		if (!this.env.DB) return;
+		const value = JSON.stringify({
+			disabled_verticals: state.config.disabled_verticals ?? null,
+			disabled_tickers: state.config.disabled_tickers ?? null,
+			per_vertical_max_notional_cents:
+				state.config.per_vertical_max_notional_cents ?? null,
+			ticker_verticals: state.config.ticker_verticals ?? null,
+			trading_mode: state.config.trading_mode,
+			bankroll_cents: state.config.bankroll_cents,
+		});
+		try {
+			await this.env.DB
+				.prepare(
+					`INSERT INTO bot_config (user_id, key, value, ts_ms)
+					 VALUES (?1, 'config', ?2, ?3)
+					 ON CONFLICT (user_id, key) DO UPDATE
+					   SET value = excluded.value, ts_ms = excluded.ts_ms`,
+				)
+				.bind(state.user_id, value, Date.now())
+				.run();
+		} catch (e) {
+			console.warn(
+				"[live-bot] mirrorConfigToD1 failed (non-fatal):",
+				e instanceof Error ? e.message : String(e),
+			);
+		}
 	}
 
 	private buildDefaultState(): LiveBotState {
@@ -356,6 +411,7 @@ export class LiveBot implements DurableObject {
 				// caps on risky verticals.
 				per_vertical_max_notional_cents: null,
 				disabled_tickers: null,
+				disabled_verticals: null,
 			},
 			last_reject: null,
 		};
@@ -623,11 +679,41 @@ export class LiveBot implements DurableObject {
 				const s = await this.ensureState();
 				const previous = s.config.trading_mode;
 				s.config.trading_mode = mode;
+				// Chunk 10.8c: when going to "real", re-pull
+				// bankroll from Kalshi so position sizing matches
+				// the operator's actual balance. Failure to pull
+				// is non-fatal — keep the previous bankroll.
+				let bankrollRefresh: {
+					ok: boolean;
+					bankrollCents?: number;
+					reasonCode?: string;
+					message?: string;
+				} | null = null;
+				if (mode === "real") {
+					const r = await this.refreshBankrollFromKalshi(s);
+					if (r.ok) {
+						s.config.bankroll_cents = r.bankrollCents;
+						bankrollRefresh = { ok: true, bankrollCents: r.bankrollCents };
+					} else {
+						console.warn(
+							"[live-bot] /trading-mode bankroll refresh failed:",
+							r.reasonCode,
+							r.message,
+						);
+						bankrollRefresh = {
+							ok: false,
+							reasonCode: r.reasonCode,
+							message: r.message,
+						};
+					}
+				}
 				await this.saveState(s);
+				await this.mirrorConfigToD1(s);
 				return Response.json({
 					ok: true,
 					trading_mode: mode,
 					previous_trading_mode: previous,
+					bankroll_refresh: bankrollRefresh,
 				});
 			}
 
@@ -700,17 +786,50 @@ export class LiveBot implements DurableObject {
 						{ status: 400 },
 					);
 				}
+				// Chunk 10.8c: per-ticker + per-vertical blocklist.
+				// Blocked tickers (or tickers in blocked verticals)
+				// can't be traded even via /place-test-order.
+				if (
+					s.config.disabled_tickers !== null &&
+					s.config.disabled_tickers !== undefined &&
+					s.config.disabled_tickers.includes(ticker)
+				) {
+					return Response.json(
+						{
+							ok: false,
+							error: "ticker_blocklisted",
+							message: `ticker ${ticker} is on the blocklist`,
+						},
+						{ status: 400 },
+					);
+				}
+				const tState = s.tickers[ticker];
+				const tv = tState?.vertical
+					? String(tState.vertical)
+					: (s.config.ticker_verticals?.[ticker] ?? "unknown");
+				if (
+					s.config.disabled_verticals !== null &&
+					s.config.disabled_verticals !== undefined &&
+					s.config.disabled_verticals.length > 0 &&
+					s.config.disabled_verticals.includes(tv)
+				) {
+					return Response.json(
+						{
+							ok: false,
+							error: "vertical_blocklisted",
+							message: `vertical ${tv} is on the blocklist`,
+						},
+						{ status: 400 },
+					);
+				}
 				// Enforce per-trade cap. Chunk 11b: prefer the
 				// per-vertical cap if the ticker's vertical is
 				// in the override map; else fall back to the
-				// global cap.
+				// global cap. (`tState` and `tv` were computed
+				// earlier for the per-vertical blocklist check.)
 				const notionalCents = side === "yes" ? priceCents * size : (100 - priceCents) * size;
-				const tState = s.tickers[ticker];
-				const tickerVertical = tState?.vertical
-					? String(tState.vertical)
-					: (s.config.ticker_verticals?.[ticker] ?? "unknown");
 				const verticalCap =
-					(s.config.per_vertical_max_notional_cents ?? {})[tickerVertical] ??
+					(s.config.per_vertical_max_notional_cents ?? {})[tv] ??
 					s.config.max_notional_cents_per_trade;
 				if (notionalCents > verticalCap) {
 					return Response.json(
@@ -969,11 +1088,38 @@ export class LiveBot implements DurableObject {
 				config.disabled_tickers !== undefined
 					? config.disabled_tickers
 					: state.config.disabled_tickers,
+			// Chunk 10.8c: per-vertical blocklist + bankroll
+			// refresh flag.
+			disabled_verticals:
+				config.disabled_verticals !== undefined
+					? config.disabled_verticals
+					: state.config.disabled_verticals,
 			started_ts_ms: Date.now(),
 		};
 		if (config.user_id) state.user_id = config.user_id;
 		await this.saveState(state);
+
+		// Chunk 10.8c: optional bankroll refresh from Kalshi.
+		// Lets the operator deposit/withdraw money, hit /start,
+		// and have position sizing match the new balance.
+		// Only fires when explicitly requested (or when
+		// transitioning to real — see /trading-mode). Failure
+		// is non-fatal: keep the prior bankroll.
+		if (config.refresh_bankroll) {
+			const r = await this.refreshBankrollFromKalshi(state);
+			if (r.ok) {
+				state.config.bankroll_cents = r.bankrollCents;
+				await this.saveState(state);
+			}
+		}
+
 		state = await this.ensureState(); // re-read in case anything else changed
+		// Mirror the config to D1 so the Worker's read-only
+		// endpoints (e.g. /api/pm/verticals) see the new values
+		// without instantiating the DO. Fire on every /start,
+		// not just when bankroll_refresh is set — config can
+		// change without a bankroll pull.
+		await this.mirrorConfigToD1(state);
 
 		// Open the Kalshi WS. The WS lifecycle is managed by the DO;
 		// we reconnect on close with exponential backoff.
@@ -1506,6 +1652,28 @@ export class LiveBot implements DurableObject {
 			return;
 		}
 
+		// Chunk 10.8c: per-vertical blocklist. Skip tickers
+		// whose vertical is on the blocklist, even when the
+		// ticker isn't. Useful for "I want to disable all
+		// politics while keeping weather + economic" without
+		// touching the per-ticker blocklist.
+		if (
+			state.config.disabled_verticals !== null &&
+			state.config.disabled_verticals !== undefined &&
+			state.config.disabled_verticals.length > 0
+		) {
+			const tv = t.vertical ? String(t.vertical) : "unknown";
+			if (state.config.disabled_verticals.includes(tv)) {
+				state.last_reject = {
+					ts_ms: Date.now(),
+					ticker,
+					code: "vertical_blocklisted",
+					message: `vertical ${tv} is on the blocklist`,
+				};
+				return;
+			}
+		}
+
 		// Chunk 9: kill switch — refuse all new trades. The
 		// open positions are NOT auto-closed here (that's a
 		// separate operator-driven path: /kill-switch with
@@ -1769,6 +1937,60 @@ export class LiveBot implements DurableObject {
 		}
 	}
 
+	// Chunk 10.8c: re-pull bankroll from Kalshi. Called by
+	// /trading-mode (when going to "real") and by /start when
+	// `refresh_bankroll: true`. Lets the operator add or
+	// withdraw money, hit /start, and have position sizing
+	// adjust to the new balance. Returns the new bankroll
+	// (cash + portfolio value) on success; on failure returns
+	// null + reason (caller keeps the existing config value).
+	private async refreshBankrollFromKalshi(
+		state: LiveBotState,
+	): Promise<
+		| { ok: true; bankrollCents: number; cash: number; portfolio: number; source: "kalshi" }
+		| { ok: false; reasonCode: string; message: string }
+	> {
+		const useDemo = state.config.url.includes("demo");
+		const keyId =
+			(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
+		const pem =
+			(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
+		if (!keyId || !pem) {
+			return {
+				ok: false,
+				reasonCode: "missing_credentials",
+				message: `Kalshi ${useDemo ? "demo" : "prod"} creds are not set on the Worker`,
+			};
+		}
+		try {
+			const { KalshiClient, DEFAULT_DEMO_BASE, DEFAULT_PRODUCTION_BASE } = await import(
+				"../kalshi/client.js"
+			);
+			const { KalshiCredentials } = await import("../kalshi/auth.js");
+			const credentials = await KalshiCredentials.fromPem(keyId, pem);
+			const client = new KalshiClient({
+				baseUrl: useDemo ? DEFAULT_DEMO_BASE : DEFAULT_PRODUCTION_BASE,
+				credentials,
+				requestsPerSecond: 0, // one-shot — no throttle
+			});
+			const balance = await client.getBalance();
+			const cash = Number(balance.balance ?? 0);
+			const portfolio = Number(balance.portfolio_value ?? 0);
+			const bankrollCents = cash + portfolio;
+			console.log(
+				`[live-bot] refreshBankroll cash=${cash}c portfolio=${portfolio}c → bankroll=${bankrollCents}c`,
+			);
+			return { ok: true, bankrollCents, cash, portfolio, source: "kalshi" };
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			return {
+				ok: false,
+				reasonCode: "kalshi_balance_failed",
+				message: msg.slice(0, 300),
+			};
+		}
+	}
+
 	// Chunk 9: place a real order on Kalshi. Returns the order id
 	// on success; on failure returns an error reason. NEVER throws
 	// — the caller needs to log + skip without breaking the loop.
@@ -1795,14 +2017,26 @@ export class LiveBot implements DurableObject {
 			};
 		}
 		try {
-			const { KalshiClient, DEFAULT_DEMO_BASE, DEFAULT_PRODUCTION_BASE } = await import(
-				"../kalshi/client.js"
-			);
+			// Chunk 10.8c: migrate to the kalshi-typescript
+			// SDK adapter. The SDK is the OpenAPI-generated
+			// client (axios + Node crypto) wrapped with our
+			// 2 req/s throttle + exponential-backoff retries
+			// on 5xx/429. The body shape is the same V2
+			// schema the hand-rolled client used; we just
+			// delegate the HTTP + auth to the SDK.
+			const { KalshiSdkClient } = await import("../kalshi/sdk-adapter.js");
+			const { loadPrivateKey } = await import("../kalshi/auth.js");
+			const pemContent = pem;
+			const pk = await loadPrivateKey(pemContent);
 			const { KalshiCredentials } = await import("../kalshi/auth.js");
-			const credentials = await KalshiCredentials.fromPem(keyId, pem);
-			const client = new KalshiClient({
-				baseUrl: useDemo ? DEFAULT_DEMO_BASE : DEFAULT_PRODUCTION_BASE,
-				credentials,
+			const creds = new KalshiCredentials(keyId, pk);
+			const client = new KalshiSdkClient({
+				creds,
+				privateKeyPem: pemContent,
+				env: useDemo ? "demo" : "prod",
+				requestsPerSecond: 0, // one-shot — no throttle
+				maxRetries: 3,
+				initialBackoffMs: 500,
 			});
 			// V2 schema (POST /portfolio/events/orders):
 			//   - side: "bid" (buy YES) or "ask" (sell YES).
@@ -1817,15 +2051,14 @@ export class LiveBot implements DurableObject {
 			const v2Side = signal.side === "yes" ? "bid" : "ask";
 			const priceDollars = (signal.price / 100).toFixed(4);
 			const countStr = size.toFixed(2);
-			const body: Record<string, unknown> = {
+			const resp = (await client.createOrderV2({
 				ticker,
 				side: v2Side,
 				count: countStr,
 				price: priceDollars,
 				time_in_force: "good_till_canceled",
 				self_trade_prevention_type: "taker_at_cross",
-			};
-			const resp = (await client.placeOrder(body)) as Record<string, unknown>;
+			})) as Record<string, unknown>;
 			// V2 response shape: { order_id, fill_count,
 			// remaining_count, ts_ms } at the top level (NOT
 			// nested under `order` — that was V1).

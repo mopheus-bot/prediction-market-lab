@@ -38,6 +38,7 @@ import { handleCost } from "./api/cost.js";
 import { handleCadence } from "./api/cadence.js";
 import { handleStage } from "./api/stage.js";
 import { handleKalshiSdkTest } from "./api/kalshi-sdk-test.js";
+import { handleVerticals } from "./api/verticals.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -253,6 +254,13 @@ export default {
 		// (axios + Node crypto) actually works in CF Workers.
 		if (path === "/api/pm/kalshi-sdk-test" && request.method === "GET") {
 			return handleKalshiSdkTest(env);
+		}
+		// ─── API: /api/pm/verticals (chunk 10.8c) ──
+		// Per-vertical state for the dashboard's Verticals
+		// panel: active, model version, strategy, 24h + all-time
+		// stats, per-vertical cap, tickers in the vertical.
+		if (path === "/api/pm/verticals" && request.method === "GET") {
+			return handleVerticals(env, url);
 		}
 
 		// ─── API: /api/pm/models/* (chunk 8) ───────────────────
