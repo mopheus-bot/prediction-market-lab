@@ -73,5 +73,17 @@
 	// (the Worker routes internally).
 	"routes": [
 		{ "pattern": "/*", "zone_name": "" }
-	]
+	],
+	// Cron Triggers (chunk 5). Each expression fires a scheduled
+	// event; the Worker's `scheduled` handler dispatches by the
+	// expression to one of the 4 jobs (scan / news / daily / train).
+	// The expressions must match CRON_TABLE in src/cron/dispatcher.ts.
+	"triggers": {
+		"crons": [
+			"*/15 * * * *",  // scan     — every 15 min
+			"0 */6 * * *",   // news     — every 6 hours
+			"0 6 * * *",     // daily    — 06:00 UTC daily
+			"0 0 * * 0"      // train    — 00:00 UTC Sunday
+		]
+	}
 }

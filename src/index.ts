@@ -1,7 +1,7 @@
 /**
  * pm-bot — Cloudflare Workers entry point.
  *
- * Routing (chunk 0 → 3):
+ * Routing (chunk 0 → 5):
  *   /health, /healthz                     — Worker health endpoint (200 JSON)
  *   /pm, /pm/, /pm/*                      — dashboard, served from public/ via env.ASSETS
  *   /api/pm/*                             — bot API (chunk 1+)
@@ -11,6 +11,11 @@
  *   /api/pm/bot/status                    — GET: live bot DO state
  *   /                                     — root landing (200 JSON)
  *
+ * Scheduled (chunk 5):
+ *   CF Cron Triggers fire the `scheduled` handler; we dispatch
+ *   to the 4 jobs (scan / news / daily / train) by inspecting
+ *   `event.cron`. See src/cron/dispatcher.ts for the table.
+ *
  * The static-asset binding `env.ASSETS` is auto-created from the
  * `assets.directory` config in wrangler.jsonc.
  *
@@ -18,9 +23,10 @@
  * `idFromName(`user:${userId}`)` so multi-tenancy is just a name change.
  */
 
+import { dispatchScheduledEvent, type CronEnv } from "./cron/dispatcher.js";
 import type { LiveBotConfig } from "./durable-objects/LiveBot.js";
 
-export interface Env {
+export interface Env extends CronEnv {
 	ENVIRONMENT: string;
 	SERVICE_NAME: string;
 	DB?: D1Database;
@@ -125,6 +131,20 @@ export default {
 		}
 
 		return jsonResponse({ ok: false, error: "not found", path }, 404);
+	},
+
+	// ─── Scheduled handler (chunk 5) ─────────────────────────────────
+	// CF Cron Triggers fire this method. The dispatcher maps
+	// `event.cron` to a job name. We schedule the dispatch in
+	// `ctx.waitUntil` so the response returns immediately and
+	// the job runs to completion (or hits its budget) without
+	// blocking the scheduler.
+	async scheduled(
+		event: ScheduledController,
+		env: Env,
+		ctx: ExecutionContext,
+	): Promise<void> {
+		ctx.waitUntil(dispatchScheduledEvent(event.cron, env));
 	},
 };
 

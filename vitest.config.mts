@@ -35,7 +35,7 @@ export default defineConfig({
 			{
 				// Unit tests — pure Node, no Worker bindings, no D1, no DO.
 				// Covers: fees, strategy, risk engine, forest inference,
-				// feature extraction, reversion signal, model loader.
+				// feature extraction, reversion signal, model loader, cron.
 				extends: true,
 				test: {
 					name: "unit",
@@ -47,6 +47,7 @@ export default defineConfig({
 						"test/reversion.test.ts",
 						"test/features.test.ts",
 						"test/model-loader.test.ts",
+						"test/cron.test.ts",
 					],
 					environment: "node",
 				},
