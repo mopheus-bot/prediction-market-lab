@@ -53,6 +53,7 @@ export default defineConfig({
 						"test/llm.test.ts",
 						"test/cost.test.ts",
 						"test/cost-monthly.test.ts",
+						"test/backtest.test.ts",
 						"test/stage.test.ts",
 					],
 					environment: "node",

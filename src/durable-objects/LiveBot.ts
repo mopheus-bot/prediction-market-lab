@@ -67,6 +67,7 @@ import {
 	recordNotionalCents,
 	type RiskState,
 } from "../risk/state.js";
+import { sendMessage as sendTelegramMessage } from "../telegram/index.js";
 import { RiskEngine } from "../risk/engine.js";
 import { defaultRiskConfig, type RiskConfig } from "../risk/config.js";
 import type { Side, Vertical } from "../lib/types.js";
@@ -209,6 +210,10 @@ interface LiveBotEnv {
 	// Optional JSON-serialized RiskConfig override. Allows per-deployment
 	// risk tuning without redeploying the Worker.
 	RISK_CONFIG_OVERRIDE?: string;
+	// Telegram (chunk 11a). The bot sends a Telegram message on every
+	// REAL fill (when trading_mode === "real"). Paper + off don't post.
+	TELEGRAM_BOT_TOKEN?: string;
+	TELEGRAM_CHAT_ID?: string;
 }
 
 // ─── The DO class ──────────────────────────────────────────────────────
@@ -1586,6 +1591,28 @@ export class LiveBot implements DurableObject {
 				vertical: String(t.vertical),
 				pnl_cents: flipPnlCents,
 			});
+		}
+
+		// Chunk 11a: Telegram alert on every real fill. The user
+		// wants to know the moment a real-money trade goes
+		// through. We post the trade details + (for closes)
+		// the PnL. Paper + off mode don't post (would be
+		// noisy). Best-effort: a Telegram failure is logged
+		// but never breaks the loop.
+		if (state.config.trading_mode === "real") {
+			const text = [
+				`🟢 real fill: ${ticker}`,
+				`side=${signal.side} size=${size} price=${signal.price}¢`,
+				`p(model)=${(signal.p * 100).toFixed(1)}%`,
+				`rationale=${signal.rationale.slice(0, 200)}`,
+				realOrderId ? `kalshi order: ${realOrderId}` : null,
+			]
+				.filter(Boolean)
+				.join("\n");
+			const tg = await sendTelegramMessage(this.env, text);
+			if (!tg.ok) {
+				console.warn("[live-bot] telegram post failed:", tg.error_message);
+			}
 		}
 	}
 
