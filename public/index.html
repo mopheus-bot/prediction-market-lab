@@ -577,7 +577,7 @@
 				position: fixed;
 				top: 24px;
 				right: 24px;
-				padding: 12px 16px;
+				padding: 12px 16px 12px 14px;
 				border-radius: 8px;
 				font-size: 13px;
 				font-weight: 500;
@@ -586,12 +586,48 @@
 				box-shadow: var(--shadow);
 				max-width: 360px;
 				transform: translateX(420px);
-				transition: transform 240ms ease;
+				transition: transform 240ms ease, opacity 240ms ease;
 				z-index: 200;
+				display: flex;
+				align-items: flex-start;
+				gap: 10px;
 			}
 			.toast.show { transform: translateX(0); }
-			.toast.ok { border-color: rgba(34, 197, 94, 0.4); }
-			.toast.err { border-color: rgba(239, 68, 68, 0.4); }
+			.toast.ok { border-color: rgba(34, 197, 94, 0.5); }
+			.toast.err { border-color: rgba(239, 68, 68, 0.5); }
+			.toast-icon {
+				flex-shrink: 0;
+				width: 18px;
+				height: 18px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 14px;
+				line-height: 1;
+				border-radius: 50%;
+				margin-top: 1px;
+			}
+			.toast.ok .toast-icon {
+				background: rgba(34, 197, 94, 0.18);
+				color: rgb(34, 197, 94);
+			}
+			.toast.err .toast-icon {
+				background: rgba(239, 68, 68, 0.18);
+				color: rgb(239, 68, 68);
+			}
+			.toast-body { flex: 1; }
+			.toast-dismiss {
+				flex-shrink: 0;
+				background: none;
+				border: none;
+				color: var(--ink-faint);
+				font-size: 16px;
+				line-height: 1;
+				padding: 0 2px;
+				cursor: pointer;
+				margin-left: 4px;
+			}
+			.toast-dismiss:hover { color: var(--ink); }
 
 			/* ─── Empty state ─── */
 			.empty {
@@ -599,6 +635,59 @@
 				text-align: center;
 				color: var(--ink-faint);
 				font-size: 13px;
+			}
+			.empty-icon {
+				font-size: 22px;
+				opacity: 0.55;
+				margin-bottom: 8px;
+				line-height: 1;
+			}
+			.empty-hint {
+				margin-top: 4px;
+				font-size: 11px;
+				opacity: 0.7;
+			}
+
+			/* ─── Skeleton row (chunk 12: replaces "loading…") ─── */
+			.skel-row td {
+				padding: 12px 8px;
+			}
+			.skel-bar {
+				display: inline-block;
+				height: 10px;
+				width: 60%;
+				border-radius: 3px;
+				background: linear-gradient(
+					90deg,
+					var(--card-bg) 0%,
+					rgba(255, 255, 255, 0.08) 50%,
+					var(--card-bg) 100%
+				);
+				background-size: 200% 100%;
+				animation: shimmer 1.4s ease-in-out infinite;
+			}
+			.skel-bar.s { width: 30%; }
+			.skel-bar.m { width: 55%; }
+			.skel-bar.l { width: 80%; }
+			@media (prefers-reduced-motion: reduce) {
+				.skel-bar { animation: none; background: var(--card-border); }
+			}
+
+			/* ─── Mobile responsive (chunk 12) ─── */
+			@media (max-width: 768px) {
+				.shell { padding: 12px; }
+				.brand-bar { flex-wrap: wrap; gap: 8px; }
+				.brand-bar .brand-title { font-size: 13px; }
+				.grid { grid-template-columns: 1fr; gap: 12px; }
+				.col-4, .col-6, .col-3, .col-8, .col-12 { grid-column: 1 / -1; }
+				.hero-grid { grid-template-columns: 1fr 1fr; }
+				.hero-card { padding: 14px; }
+				.hero-val { font-size: 22px; }
+				.card { padding: 14px; }
+				.card-title { font-size: 12px; }
+				.mode-row { flex-wrap: wrap; }
+				.tbl { font-size: 11px; }
+				.toast { left: 12px; right: 12px; max-width: none; }
 			}
 
 			/* ─── Trading mode + caps (chunk 9.6) ─── */
@@ -1505,7 +1594,9 @@
 								</tr>
 							</thead>
 							<tbody id="last-trades-tbody">
-								<tr><td colspan="7" class="empty">no trades yet</td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -1579,7 +1670,9 @@
 								</tr>
 							</thead>
 							<tbody id="vertical-tbody">
-								<tr><td colspan="4" class="empty">loading…</td></tr>
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -1626,7 +1719,9 @@
 								</tr>
 							</thead>
 							<tbody id="signals-tbody">
-								<tr><td colspan="6" class="empty">loading…</td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -1658,7 +1753,8 @@
 								</tr>
 							</thead>
 							<tbody id="cron-tbody">
-								<tr><td colspan="4" class="empty">loading…</td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -2124,7 +2220,7 @@
 			function renderVerticals(verticals) {
 				const tbody = $("vertical-tbody");
 				if (!verticals || Object.keys(verticals).length === 0) {
-					tbody.innerHTML = '<tr><td colspan="4" class="empty">no trades in the last 24h</td></tr>';
+					tbody.innerHTML = '<tr><td colspan="4" class="empty"><div class="empty-icon">📈</div>no trades in the last 24h<div class="empty-hint">one row per vertical (weather / politics / sports / economic)</div></td></tr>';
 					return;
 				}
 				tbody.innerHTML = Object.entries(verticals).map(([v, d]) => {
@@ -2168,7 +2264,7 @@
 			function renderSignals(signals) {
 				const tbody = $("signals-tbody");
 				if (!signals || signals.length === 0) {
-					tbody.innerHTML = '<tr><td colspan="6" class="empty">no signals yet</td></tr>';
+					tbody.innerHTML = '<tr><td colspan="6" class="empty"><div class="empty-icon">📡</div>no signals yet<div class="empty-hint">signals fire when the WS sees an orderbook move that crosses the model threshold</div></td></tr>';
 					return;
 				}
 				tbody.innerHTML = signals.slice(0, 20).map((s) => {
@@ -2218,7 +2314,7 @@
 			function renderCronRuns(runs) {
 				const tbody = $("cron-tbody");
 				if (!runs || runs.length === 0) {
-					tbody.innerHTML = '<tr><td colspan="4" class="empty">no cron runs yet</td></tr>';
+					tbody.innerHTML = '<tr><td colspan="4" class="empty"><div class="empty-icon">⏱</div>no cron runs yet<div class="empty-hint">the scan cron fires every 15 min, the others run on the schedule in the Cadence panel</div></td></tr>';
 					return;
 				}
 				tbody.innerHTML = runs.slice(0, 10).map((r) => {
@@ -2575,18 +2671,65 @@
 					</div>`;
 			}
 
-			// ─── Toast ───
+			// ─── Skeleton + empty state helpers (chunk 12) ───
+			// Replace "loading…" text with shimmer bars that
+			// give a sense of "data is coming" without the
+			// visual monotony of a static "loading…" string.
+			function skelRow(cols, widths) {
+				const cells = Array.from({ length: cols }, (_, i) => {
+					const w = widths?.[i] ?? "m";
+					return `<td><span class="skel-bar ${w}"></span></td>`;
+				}).join("");
+				return `<tr class="skel-row">${cells}</tr>`;
+			}
+			function skelTbody(tbodyId, cols, widths) {
+				const tbody = $(tbodyId);
+				if (!tbody) return;
+				tbody.innerHTML =
+					skelRow(cols, widths) + skelRow(cols, widths) + skelRow(cols, widths);
+			}
+			// Friendly empty state. The previous version just
+			// had "no trades yet" — chunk 12 adds a small icon
+			// + a hint explaining what the operator should do.
+			function emptyState(tbodyId, icon, message, hint) {
+				const tbody = $(tbodyId);
+				if (!tbody) return;
+				tbody.innerHTML = `<tr><td colspan="${tbody.closest("table")?.querySelectorAll("thead th").length ?? 4}" class="empty">
+					<div class="empty-icon">${esc(icon)}</div>
+					<div>${esc(message)}</div>
+					${hint ? `<div class="empty-hint">${esc(hint)}</div>` : ""}
+				</td></tr>`;
+			}
+
+			// ─── Toast (chunk 12: icon + dismiss) ───
 			let toastTimer = null;
 			function toast(msg, ok = true) {
 				const el = $("toast");
-				el.textContent = msg;
 				el.classList.remove("ok", "err", "show");
 				el.classList.add(ok ? "ok" : "err");
+				// Chunk 12: wrap the message in icon + body +
+				// dismiss button. The icon distinguishes ok vs
+				// err at a glance.
+				el.innerHTML = `
+					<span class="toast-icon" aria-hidden="true">${ok ? "✓" : "!"}</span>
+					<span class="toast-body">${esc(String(msg))}</span>
+					<button class="toast-dismiss" aria-label="Dismiss">×</button>
+				`;
+				const dismiss = el.querySelector(".toast-dismiss");
+				if (dismiss) {
+					dismiss.addEventListener("click", () => {
+						el.classList.remove("show");
+					});
+				}
 				// Force reflow for animation restart.
 				void el.offsetWidth;
 				el.classList.add("show");
 				if (toastTimer) clearTimeout(toastTimer);
-				toastTimer = setTimeout(() => el.classList.remove("show"), 3500);
+				// Errors stay 5s (longer — the operator might
+				// need to read the message); success auto-dismisses
+				// in 2.5s.
+				const ttl = ok ? 2500 : 5000;
+				toastTimer = setTimeout(() => el.classList.remove("show"), ttl);
 			}
 
 			// ─── Trading mode + caps + kill switch (chunk 9.6) ───
@@ -2740,7 +2883,7 @@
 				const last = (trades || []).slice(0, 5);
 				if (last.length === 0) {
 					for (const tb of tbodies) {
-						tb.innerHTML = '<tr><td colspan="7" class="empty">no trades yet</td></tr>';
+						tb.innerHTML = '<tr><td colspan="7" class="empty"><div class="empty-icon">📊</div>no trades yet<div class="empty-hint">trades appear after the first signal-driven or manual fill</div></td></tr>';
 					}
 					return;
 				}
