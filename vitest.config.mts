@@ -57,6 +57,7 @@ export default defineConfig({
 						"test/sharpe.test.ts",
 						"test/stage.test.ts",
 						"test/ws-relay.test.ts",
+					"test/kalshi-retry.test.ts",
 					],
 					environment: "node",
 				},

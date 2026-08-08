@@ -139,6 +139,34 @@ export async function handleSummary(
 			)
 			.bind(DEFAULT_USER_ID, since)
 			.first<{ n_trades: number; pnl_cents: number }>();
+		// Per-vertical breakdown (chunk 10.8). Drives the
+		// "Per-vertical breakdown (24h)" card in the dashboard.
+		const perVerticalRows = await env.DB
+			.prepare(
+				`SELECT
+				   vertical,
+				   COUNT(*) as n_trades,
+				   COALESCE(SUM(CASE WHEN pnl_cents IS NOT NULL
+				                     THEN pnl_cents ELSE 0 END), 0) as pnl_cents
+				 FROM trades
+				 WHERE user_id = ?1 AND ts >= ?2 AND vertical IS NOT NULL
+				 GROUP BY vertical
+				 ORDER BY pnl_cents DESC`,
+			)
+			.bind(DEFAULT_USER_ID, since)
+			.all<{ vertical: string; n_trades: number; pnl_cents: number }>();
+		const verticals: Record<
+			string,
+			{ n_trades: number; pnl_cents: number; pnl_dollars: number; n_open: number }
+		> = {};
+		for (const row of perVerticalRows.results ?? []) {
+			verticals[row.vertical] = {
+				n_trades: row.n_trades,
+				pnl_cents: row.pnl_cents,
+				pnl_dollars: row.pnl_cents / 100,
+				n_open: 0, // 24h window — paper positions don't really "open" here
+			};
+		}
 		return json({
 			ok: true,
 			source: "live",
@@ -146,6 +174,7 @@ export async function handleSummary(
 				n_trades: tradesAgg?.n_trades ?? 0,
 				pnl_cents: tradesAgg?.pnl_cents ?? 0,
 				lookback_hours: 24,
+				verticals: Object.keys(verticals).length > 0 ? verticals : null,
 			},
 		});
 	} catch (e) {

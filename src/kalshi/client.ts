@@ -45,6 +45,16 @@ export interface KalshiClientOptions {
 	timeoutMs?: number;
 	/** Override the fetcher (for testing). Defaults to global fetch. */
 	fetcher?: typeof fetch;
+	/**
+	 * Max retry attempts on 5xx / 429. Default 3. Retries use
+	 * exponential backoff (500ms × 2^attempt + jitter) and
+	 * respect the server's `Retry-After` header when present.
+	 * (chunk 10.8: the SDK adapter has retries; this brings the
+	 * hand-rolled client to parity without rewriting call sites.)
+	 */
+	maxRetries?: number;
+	/** Initial retry backoff in ms. Default 500. */
+	initialBackoffMs?: number;
 }
 
 export class KalshiAPIError extends Error {
@@ -65,6 +75,8 @@ export class KalshiClient {
 	private readonly minIntervalMs: number;
 	private readonly timeoutMs: number;
 	private readonly fetcher: typeof fetch;
+	private readonly maxRetries: number;
+	private readonly initialBackoffMs: number;
 	private lastRequestAt = 0;
 
 	constructor(opts: KalshiClientOptions = {}) {
@@ -80,6 +92,8 @@ export class KalshiClient {
 		this.minIntervalMs = rps > 0 ? 1000 / rps : 0;
 		this.timeoutMs = opts.timeoutMs ?? 10_000;
 		this.fetcher = opts.fetcher ?? fetch.bind(globalThis);
+		this.maxRetries = opts.maxRetries ?? 3;
+		this.initialBackoffMs = opts.initialBackoffMs ?? 500;
 	}
 
 	// --- request plumbing -------------------------------------------
@@ -103,6 +117,51 @@ export class KalshiClient {
 		method: string,
 		path: string,
 		opts: { params?: Record<string, unknown>; json?: unknown } = {},
+	): Promise<unknown> {
+		return this.withRetry(() => this.requestOnce(method, path, opts));
+	}
+
+	/**
+	 * Chunk 10.8: exponential-backoff retries on 5xx + 429.
+	 * Honors `Retry-After` from the server when present
+	 * (Kalshi's rate limiter sends it). 4xx errors other than
+	 * 429 are not retried — they're caller bugs, not transient
+	 * failures.
+	 */
+	private async withRetry<T>(fn: () => Promise<T>): Promise<T> {
+		let lastErr: unknown;
+		for (let attempt = 0; attempt <= this.maxRetries; attempt += 1) {
+			try {
+				return await fn();
+			} catch (e) {
+				lastErr = e;
+				if (!(e instanceof KalshiAPIError)) throw e;
+				const retriable = e.status === 429 || (e.status >= 500 && e.status < 600);
+				if (!retriable || attempt === this.maxRetries) throw e;
+				const backoff = await this.computeBackoff(e, attempt);
+				await sleep(backoff);
+			}
+		}
+		// Unreachable — the loop either returns or throws.
+		throw lastErr;
+	}
+
+	private async computeBackoff(err: KalshiAPIError, attempt: number): Promise<number> {
+		// Server hint wins when present. `Retry-After` is in
+		// seconds per HTTP spec; Kalshi sends it as an integer.
+		const m = err.body.match(/retry-after[:=]?\s*(\d+)/i);
+		if (m) {
+			return parseInt(m[1], 10) * 1000;
+		}
+		const base = this.initialBackoffMs * 2 ** attempt;
+		const jitter = Math.floor(Math.random() * 100);
+		return base + jitter;
+	}
+
+	private async requestOnce(
+		method: string,
+		path: string,
+		opts: { params?: Record<string, unknown>; json?: unknown },
 	): Promise<unknown> {
 		await this.throttle();
 		const url = new URL(this.baseUrl + path);

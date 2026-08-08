@@ -2288,9 +2288,13 @@
 					if (crons?.runs) renderCronRuns(crons.runs);
 
 					// Per-vertical: derive from summary.recap.verticals
-					// if present, else from trades.
+					// (chunk 10.8: live aggregate now includes
+					// per-vertical data so this section is no
+					// longer stuck on "loading…").
 					if (summary?.recap?.verticals) {
 						renderVerticals(summary.recap.verticals);
+					} else {
+						renderVerticals({});
 					}
 
 					// Bot status pill (chunk 10: setStatusPill

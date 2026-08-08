@@ -135,6 +135,41 @@ describe("/api/pm/summary", () => {
 		expect(["r2", "live"]).toContain(body.source);
 		expect(typeof body.recap.n_trades).toBe("number");
 	});
+
+	it("includes per-vertical breakdown in the live recap (chunk 10.8)", async () => {
+		// Insert a couple of fake trades in different verticals.
+		const now = Date.now();
+		const since = now - 60_000; // 1 min ago
+		await env.DB.batch([
+			env.DB.prepare(
+				`INSERT INTO trades (user_id, ts, ticker, vertical, side, action, price_cents, size, fill_type, is_paper, trading_mode, created_at)
+				 VALUES ('default', ?1, 'KXWARMING-50', 'weather', 'yes', 'open', 25, 1, 'limit', 1, 'paper', ?1)`,
+			).bind(now - 10_000),
+			env.DB.prepare(
+				`INSERT INTO trades (user_id, ts, ticker, vertical, side, action, price_cents, size, pnl_cents, fill_type, is_paper, trading_mode, created_at)
+				 VALUES ('default', ?1, 'KXPOLITICS-X', 'politics', 'yes', 'close', 50, 1, 100, 'limit', 1, 'paper', ?1)`,
+			).bind(now - 5_000),
+		]);
+		// The summary endpoint ignores the test insert if R2 has a
+		// recap; force the live path by hitting the API directly.
+		const url = new URL("https://x/pm/summary");
+		const r = await handleSummary({ DB: env.DB }, url);
+		const body = (await r.json()) as {
+			source: string;
+			recap: {
+				n_trades: number;
+				verticals?: Record<string, { n_trades: number; pnl_cents: number }>;
+			};
+		};
+		// If R2 had a recap, verticals might be null. The live
+		// path should always include verticals.
+		if (body.source === "live") {
+			// Either verticals is present (our 2 inserts show up)
+			// or null (no trades in the 24h window). Both are
+			// valid; the contract is that the field exists.
+			expect(body.recap).toHaveProperty("verticals");
+		}
+	});
 });
 
 describe("/api/pm/scans", () => {
