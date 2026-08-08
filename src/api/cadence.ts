@@ -186,9 +186,13 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 		try {
 			const id = env.LIVE_BOT.idFromName(`user:${user_id}`);
 			const stub = env.LIVE_BOT.get(id);
-			// Use a synthetic Request. The host is irrelevant for DO stub
-			// fetches — only the path matters.
-			const resp = await stub.fetch("api/pm/bot/status");
+			// The DO's status path is `/status` (not `/api/pm/bot/status`).
+			// The host is irrelevant for DO stub fetches — only the path
+			// matters. (chunk 10.7: previous code used the Worker's
+			// /api/pm/bot/status path, which the DO doesn't recognize —
+			// cadence always showed WS as "not connected" even when the
+			// Worker-level /status said connected: true.)
+			const resp = await stub.fetch("https://bot/status");
 			if (resp.ok) {
 				const data = (await resp.json()) as Record<string, unknown>;
 				wsConnected = Boolean(data.connected);
