@@ -24,7 +24,7 @@
  *       { id, name, description, category, status, last_ran_ms, last_ran_label,
  *         next_in_ms, next_label, interval_label, details, icon }
  *     ],
- *     summary: { n_services, n_ok, n_error, n_off, n_paused }
+ *     summary: { n_services, n_ok, n_error, n_off, n_paused, n_stale }
  *   }
  *
  * Cache-Control: 30s. The dashboard polls every 10s but the data
@@ -45,7 +45,7 @@ interface ServiceEntry {
 	name: string;
 	description: string;
 	category: "stream" | "cron" | "llm" | "data" | "model";
-	status: "ok" | "starting" | "error" | "off" | "paused" | "killed" | "running" | "skipped";
+	status: "ok" | "starting" | "error" | "off" | "paused" | "killed" | "running" | "skipped" | "stale";
 	last_ran_ms: number | null;
 	last_ran_label: string;
 	next_in_ms: number | null;
@@ -116,6 +116,16 @@ const SERVICE_CATALOGUE: Array<{
 		icon: "🧠",
 		details_from: "model",
 	},
+	{
+		id: "heartbeat",
+		name: "Daily heartbeat",
+		description: "Passive health check: LLM round-trip + Telegram config. Sends a Telegram alert if any check fails.",
+		category: "cron",
+		interval_ms: 24 * 60 * 60 * 1000,
+		interval_label: "daily at 07:00 UTC",
+		icon: "♥",
+		details_from: "cron",
+	},
 ];
 
 function relativeLabel(ms_ago: number): string {
@@ -155,7 +165,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 	const user_id = DEFAULT_USER_ID;
 
 	// Pull the per-cron last-runs in parallel.
-	const cronJobs = ["scan", "news", "daily", "train"] as const;
+	const cronJobs = ["scan", "news", "daily", "heartbeat", "train"] as const;
 	const cronRows = await Promise.all(
 		cronJobs.map((name) =>
 			env.DB ? cronRunsDb.lastRun(env.DB, name, user_id).catch(() => null) : Promise.resolve(null),
@@ -245,6 +255,19 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 		if (!row) status = "starting";
 		else if (row.status === "error") status = "error";
 
+		// Stuck-cron detection: if a cron hasn't run in
+		// 1.5x its expected interval, mark as "stale" so
+		// the operator notices. The next_in_ms field on the
+		// response will already show "in X" — when that
+		// number goes negative, the operator gets the same
+		// signal. The status field is the explicit one.
+		if (last_ran_ms !== null && meta.interval_ms > 0) {
+			const overdueBy = ts_ms - (last_ran_ms + meta.interval_ms);
+			if (overdueBy > meta.interval_ms * 0.5) {
+				status = "stale";
+			}
+		}
+
 		const next_in_ms =
 			last_ran_ms !== null && meta.interval_ms > 0
 				? Math.max(0, last_ran_ms + meta.interval_ms - ts_ms)
@@ -323,6 +346,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 		n_error: services.filter((s) => s.status === "error").length,
 		n_off: services.filter((s) => s.status === "off").length,
 		n_starting: services.filter((s) => s.status === "starting").length,
+		n_stale: services.filter((s) => s.status === "stale").length,
 	};
 
 	return Response.json(

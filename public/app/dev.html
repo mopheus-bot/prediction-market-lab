@@ -20,7 +20,10 @@
 			<section class="grid" style="margin-bottom: 24px;">
 				<div class="col-12">
 					<div class="card">
-						<div class="card-title"><span class="dot"></span>Manual actions</div>
+						<div class="card-title">
+							<span class="dot"></span>Manual actions
+							<button class="btn primary" data-action="/api/pm/bot/smoke-test" style="margin-left: auto;" title="LLM + Telegram + every cron + cadence panel, in one click">Run smoke test</button>
+						</div>
 						<div class="card-blurb">Side-effects that need a click. Each one fires a POST and shows the result in a toast. Use carefully — go-live places real orders, close-position exits at the current mark.</div>
 						<div class="dev-actions" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
 							<button class="btn primary" data-action="/api/pm/bot/start">Start bot</button>
@@ -30,6 +33,29 @@
 							<button class="btn" data-action="/api/pm/bot/auto-start">Auto-start</button>
 							<button class="btn" data-action="/api/pm/bot/telegram-test">Telegram test</button>
 							<button class="btn" data-action="/api/pm/bot/llm-test">LLM test</button>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Manual cron triggers — POST /api/pm/cron/{name}/run -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span aria-hidden="true">⏱</span>
+							<span>Manual cron triggers</span>
+							<span class="muted mono" style="margin-left: auto; font-size: 11px;">runs the cron on demand · records to cron_runs</span>
+						</div>
+						<div class="card-blurb">The crons run on a CF schedule (every 15min / 6h / daily / weekly). Hit a button to run one now without waiting. The news-cron can send a Telegram if it detects an at-risk position; daily-cron posts the recap to Telegram.</div>
+						<div class="dev-actions" id="dev-cron-actions" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+							<button class="btn" data-cron-trigger="scan">Scan (every 15min)</button>
+							<button class="btn" data-cron-trigger="news">News (every 6h)</button>
+							<button class="btn" data-cron-trigger="daily">Daily recap (06:00 UTC)</button>
+							<button class="btn" data-cron-trigger="heartbeat">Heartbeat (07:00 UTC)</button>
+							<button class="btn" data-cron-trigger="train">Train (Sun 00:00 UTC)</button>
+							<button class="btn" data-cron-trigger="auto_pilot">Auto-pilot (05:30 UTC)</button>
+							<button class="btn" data-cron-trigger="backtest">Backtest (Sun 01:00 UTC)</button>
 						</div>
 					</div>
 				</div>
@@ -176,6 +202,21 @@
 								<span class="dev-endpoint-method post">POST</span>
 								<span class="dev-endpoint-path">/api/pm/bot/llm-test</span>
 								<span class="dev-endpoint-desc">Test the configured LLM (MiniMax-M3) end-to-end</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/smoke-test</span>
+								<span class="dev-endpoint-desc">E2E smoke test: LLM + Telegram + every cron + cadence panel</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method get">GET</span>
+								<span class="dev-endpoint-path">/api/pm/cron</span>
+								<span class="dev-endpoint-desc">List triggerable crons (one entry per cron in the schedule)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/cron/{name}/run</span>
+								<span class="dev-endpoint-desc">Trigger a cron on demand (scan, news, daily, train, auto_pilot, backtest)</span>
 							</div>
 							<div class="dev-endpoint">
 								<span class="dev-endpoint-method post">POST</span>
@@ -559,6 +600,28 @@
 							toast(`${path} ${r.ok ? "✓" : "✗"}: ${text.slice(0, 200)}`, r.ok);
 						} catch (e) {
 							toast(`${path} failed: ${e.message}`, false);
+						} finally {
+							btn.disabled = false;
+							btn.textContent = orig;
+						}
+					});
+				});
+				// Manual cron trigger buttons (POST /api/pm/cron/{name}/run)
+				document.querySelectorAll("[data-cron-trigger]").forEach((btn) => {
+					btn.addEventListener("click", async () => {
+						const name = btn.dataset.cronTrigger;
+						const path = `/api/pm/cron/${name}/run`;
+						btn.disabled = true;
+						const orig = btn.textContent;
+						btn.textContent = "running...";
+						try {
+							const r = await fetch(path, { method: "POST", credentials: "same-origin" });
+							const data = await r.json();
+							const dur = data.duration_ms ? ` (${data.duration_ms}ms)` : "";
+							const detail = data.error_message || JSON.stringify(data.artifacts || {}).slice(0, 120);
+							toast(`cron:${name} ${data.ok ? "✓" : "✗"}${dur}: ${detail}`, data.ok);
+						} catch (e) {
+							toast(`cron:${name} failed: ${e.message}`, false);
 						} finally {
 							btn.disabled = false;
 							btn.textContent = orig;

@@ -42,6 +42,7 @@ import { runDailyCron } from "./daily-cron.js";
 import { runTrainCron } from "./train-cron.js";
 import { runBacktestCron } from "./backtest-cron.js";
 import { runAutoPilotCron } from "./auto-pilot-cron.js";
+import { runHeartbeatCron } from "./heartbeat-cron.js";
 import type { LLMEnv } from "../llm/index.js";
 import type { TelegramEnv } from "../telegram/index.js";
 
@@ -52,6 +53,7 @@ export const CRON_TABLE = {
 	news: "0 */6 * * *",      // every 6 hours
 	daily: "0 6 * * *",       // 06:00 UTC daily
 	auto_pilot: "30 5 * * *", // 05:30 UTC daily (before daily recap)
+	heartbeat: "0 7 * * *",   // 07:00 UTC daily (after daily recap; passive health check)
 	train: "0 0 * * SUN",     // 00:00 UTC Sunday (day-of-week as name, not 0)
 	backtest: "0 1 * * SUN",  // 01:00 UTC Sunday (after train)
 } as const;
@@ -150,6 +152,7 @@ export const JOBS: Record<CronName, JobFn> = {
 	news: runNewsCron,
 	daily: runDailyCron,
 	auto_pilot: runAutoPilotCron,
+	heartbeat: runHeartbeatCron,
 	train: runTrainCron,
 	backtest: runBacktestCron,
 };

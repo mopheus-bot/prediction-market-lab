@@ -42,6 +42,8 @@ import { handleVerticals } from "./api/verticals.js";
 import { handleBacktestRun } from "./api/backtest-run.js";
 import { handleTelegramTest } from "./api/telegram-test.js";
 import { handleLLMTest } from "./api/llm-test.js";
+import { handleCronTrigger, TRIGGERABLE_CRONS } from "./api/cron-trigger.js";
+import { handleSmokeTest } from "./api/smoke-test.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -251,6 +253,27 @@ export default {
 		// telegram-test endpoint.
 		if (path === "/api/pm/bot/llm-test" && request.method === "POST") {
 			return handleLLMTest(env);
+		}
+		// 2026-08-09: E2E smoke test. Runs the LLM test +
+		// telegram test + every cron + reads the cadence
+		// panel. Returns a pass/fail report. Used to catch
+		// the kind of regression that left the LLM broken
+		// for months undetected.
+		if (path === "/api/pm/bot/smoke-test" && request.method === "POST") {
+			return handleSmokeTest(env);
+		}
+		// 2026-08-09: Manual cron trigger. POST
+		// /api/pm/cron/{name}/run triggers the named cron
+		// on demand (records to cron_runs like the
+		// scheduled handler). Solves the "wait 6h" gap.
+		if (path.startsWith("/api/pm/cron/") && path.endsWith("/run") && request.method === "POST") {
+			const name = path.slice("/api/pm/cron/".length, -"/run".length);
+			return handleCronTrigger(env, name);
+		}
+		// GET /api/pm/cron — list triggerable crons. Used
+		// by the Dev page to render one button per cron.
+		if (path === "/api/pm/cron" && request.method === "GET") {
+			return Response.json({ ok: true, crons: TRIGGERABLE_CRONS });
 		}
 		// Auto-start (chunk 9.8): idempotent bot start. If
 		// already running, returns current state. Otherwise
