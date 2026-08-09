@@ -214,6 +214,16 @@ export async function handleSuggestLeads(
 			reasoning: parsed.reasoning,
 			excluded: rejected,
 			raw_text: result.text,
+			// Stripped text is what survived the think-block
+			// removal. The full pre-strip text is included
+			// for debug — the LLM's actual JSON lives in
+			// either field, and they let you see which side
+			// the parsing failed on if the count is 0.
+			full_text: result.text,
+			// The total tokens M3 generated (incl. the
+			// think block). If output_tokens == max_tokens
+			// and tickers is empty, the think block ate the
+			// budget and the JSON was never emitted.
 			model: "MiniMax-M3",
 			input_tokens: result.input_tokens,
 			output_tokens: result.output_tokens,
