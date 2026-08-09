@@ -1476,15 +1476,20 @@ const BRAND_MONO_SVG = `
 // it dynamically, so we hardcode.
 const CF_ACCESS_TEAM_HOST = "wandering-river-109b.cloudflareaccess.com";
 
-function signoutUrl(returnTo) {
+// Post-logout landing page. Always the production public
+// landing — NOT the current host, so local dev / previews /
+// preview deploys still log the user out into the real
+// marketing site instead of a dead localhost or staging URL.
+const POST_LOGOUT_URL = "";
+
+function signoutUrl() {
 	// The CF Access logout endpoint clears the CF_AppSession
 	// cookie and 302-redirects to `redirect_url`. Note: this
 	// only works when the user is actually auth'd (the endpoint
 	// 404s without a session cookie) — that's the desired
 	// behavior, the dashboard pages all sit behind CF Access.
-	const ret = returnTo || `${window.location.protocol}//${window.location.host}/`;
 	const u = new URL(`https://${CF_ACCESS_TEAM_HOST}/cdn-cgi/access/logout`);
-	u.searchParams.set("redirect_url", ret);
+	u.searchParams.set("redirect_url", POST_LOGOUT_URL);
 	return u.toString();
 }
 
