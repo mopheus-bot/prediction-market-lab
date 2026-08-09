@@ -47,7 +47,11 @@ export interface LLMResult {
 }
 
 export const DEFAULT_MODEL = "MiniMax-M3";
-export const DEFAULT_BASE_URL = "https://api.mmx.com/v1";
+// The MiniMax (M3) API host. Per platform.minimax.io/docs/token-plan/intro,
+// the Token Plan Subscription Key hits api.minimax.io (international).
+// api.minimax.chat returns 400 as of 2026-08-09. For China-based users,
+// set MMX_BASE_URL=https://api.minimaxi.com/v1 to override.
+export const DEFAULT_BASE_URL = "https://api.minimax.io/v1";
 
 /**
  * Call the LLM with a system + user prompt. Returns the
@@ -113,9 +117,18 @@ export async function chat(
 				stub: false,
 			};
 		}
+		// MiniMax-M3 is a reasoning model that wraps its output
+		// in <think>...</think>. Strip the block before
+		// returning so callers (news-cron verdict matching,
+		// daily-cron Telegram post) get clean text. If the
+		// model ever drops the think block, the regex just
+		// no-ops and the full text passes through.
+		const raw = json.choices[0].message.content;
+		const thinkMatch = raw.match(/<think>[\s\S]*?<\/think>([\s\S]*)/);
+		const text = (thinkMatch ? thinkMatch[1] : raw).trim();
 		return {
 			ok: true,
-			text: json.choices[0].message.content,
+			text,
 			input_tokens: json.usage?.prompt_tokens,
 			output_tokens: json.usage?.completion_tokens,
 			duration_ms: Date.now() - started,
