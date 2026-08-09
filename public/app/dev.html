@@ -54,9 +54,39 @@
 							<button class="btn" data-cron-trigger="news">News (every 6h)</button>
 							<button class="btn" data-cron-trigger="daily">Daily recap (06:00 UTC)</button>
 							<button class="btn" data-cron-trigger="heartbeat">Heartbeat (07:00 UTC)</button>
+							<button class="btn" data-cron-trigger="leads">Leads (02:00 UTC)</button>
 							<button class="btn" data-cron-trigger="train">Train (Sun 00:00 UTC)</button>
 							<button class="btn" data-cron-trigger="auto_pilot">Auto-pilot (05:30 UTC)</button>
 							<button class="btn" data-cron-trigger="backtest">Backtest (Sun 01:00 UTC)</button>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- LEAD SUGGESTIONS — LLM-driven add+drop      -->
+			<!-- pipeline. Operator approves / rejects each  -->
+			<!-- suggestion. The cron runs daily 02:00 UTC;  -->
+			<!-- undecided rows are quietly replaced the     -->
+			<!-- next run (24h TTL).                        -->
+			<!-- ============================================ -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card lead-card">
+						<div class="card-title lead-card-head">
+							<span aria-hidden="true">🎯</span>
+							<span>Lead suggestions</span>
+							<span class="muted mono" id="dev-leads-last-run" style="margin-left: auto; font-size: 11px;">never run</span>
+							<button class="btn small" id="dev-leads-suggest-now" style="margin-left: 8px;" title="Run the leads-cron now (uses M3, ~$0.001 per run)">Suggest now</button>
+							<button class="btn small" id="dev-leads-history-toggle" aria-expanded="false" aria-controls="dev-leads-history" style="margin-left: 8px;">History</button>
+						</div>
+						<div class="card-blurb">LLM-driven add + drop suggestions for the bot's ticker universe. The leads-cron runs daily 02:00 UTC. Each pending card is one LLM suggestion with reasoning. Approve to apply (bot restarts); reject so the LLM won't re-suggest this ticker for 30 days. Undecided cards are quietly replaced on the next run.</div>
+						<div class="lead-summary" id="dev-leads-summary">loading…</div>
+						<div class="lead-list" id="dev-leads-pending">
+							<div class="empty">no pending suggestions — runs daily 02:00 UTC, or click "Suggest now"</div>
+						</div>
+						<div class="lead-list" id="dev-leads-history" hidden>
+							<div class="empty">no history yet</div>
 						</div>
 					</div>
 				</div>
@@ -208,6 +238,21 @@
 								<span class="dev-endpoint-method post">POST</span>
 								<span class="dev-endpoint-path">/api/pm/bot/suggest-leads</span>
 								<span class="dev-endpoint-desc">LLM-powered lead generation: asks M3 for new Kalshi tickers to add (body: {count?, exclude?, current_tickers?, verticals?, bankroll_cents?})</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method get">GET</span>
+								<span class="dev-endpoint-path">/api/pm/leads</span>
+								<span class="dev-endpoint-desc">List pending + historical lead suggestions (the leads-cron pipeline)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/leads/{id}/approve</span>
+								<span class="dev-endpoint-desc">Approve a pending lead suggestion. Applies to bot's universe + restarts.</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/leads/{id}/reject</span>
+								<span class="dev-endpoint-desc">Reject a pending lead suggestion. Cron won't re-suggest this ticker for 30 days.</span>
 							</div>
 							<div class="dev-endpoint">
 								<span class="dev-endpoint-method post">POST</span>
@@ -814,6 +859,11 @@
 					// 6. Model config (read-only) — also from
 					// /api/pm/bot/status.
 					if (bot) renderDevModelsConfig(bot);
+
+					// 7. Lead suggestions — reads /api/pm/leads
+					// (pending + history + last run summary).
+					const leads = await fetchJson("/api/pm/leads");
+					if (leads) renderLeadsPanel(leads);
 				}
 
 				// Render: activity log (moved from Bot page).
@@ -868,7 +918,7 @@
 					if (summary) {
 						summary.textContent = poll.connected
 							? `connected · ${fmtNum(poll.n_polls ?? 0)} polls`
-							: (poll.last_error ? `error · ${poll.last_error.slice(0, 30)}` : "disconnected");
+							: (poll.last_error ? `error · ${(typeof poll.last_error === "string" ? poll.last_error : (poll.last_error.message || JSON.stringify(poll.last_error))).slice(0, 30)}` : "disconnected");
 					}
 					$("dev-health-poll-active").textContent = poll.active ? "active" : "off";
 					$("dev-health-poll-active").className = `health-tile-val ${poll.active ? "ok" : "bad"}`;
@@ -877,7 +927,9 @@
 					$("dev-health-poll-count").textContent = fmtNum(poll.n_polls ?? 0);
 					$("dev-health-poll-errors").textContent = fmtNum(poll.n_errors ?? 0);
 					$("dev-health-poll-last").textContent = poll.last_poll_ms != null ? `${poll.last_poll_ms}ms` : "—";
-					$("dev-health-poll-last-error").textContent = poll.last_error ? poll.last_error.slice(0, 60) : "—";
+					$("dev-health-poll-last-error").textContent = poll.last_error
+						? (typeof poll.last_error === "string" ? poll.last_error.slice(0, 60) : (poll.last_error.message || JSON.stringify(poll.last_error)).slice(0, 60))
+						: "—";
 				}
 
 				// Render: model configuration (moved from Models).
@@ -932,6 +984,176 @@
 					e.target.textContent = hidden ? "Hide details" : "Show details";
 					e.target.setAttribute("aria-expanded", hidden ? "true" : "false");
 				});
+
+				// ─── Lead suggestions panel: render + actions
+				// (approve / reject / suggest now / history toggle).
+				// The leads-cron writes to D1; this panel polls
+				// /api/pm/leads and lets the operator decide
+				// each suggestion. Approve = restart bot with
+				// new universe; reject = mark rejected so the
+				// cron skips the ticker for 30 days.
+				const leadsPendingEl = $("dev-leads-pending");
+				const leadsHistoryEl = $("dev-leads-history");
+				const leadsSummaryEl = $("dev-leads-summary");
+				const leadsLastRunEl = $("dev-leads-last-run");
+
+				function renderLeadsCard(s) {
+					const kindClass = s.kind === "add" ? "pos" : "neg";
+					const kindLabel = s.kind === "add" ? "➕ add" : "➖ drop";
+					const vertical = s.vertical ? `<span class="pill muted" style="font-size: 10px;">${esc(s.vertical)}</span>` : "";
+					const ageMs = Date.now() - s.created_at;
+					const age = ageMs < 60_000 ? "just now" :
+						ageMs < 60 * 60_000 ? `${Math.floor(ageMs / 60_000)}m ago` :
+						ageMs < 24 * 60 * 60_000 ? `${Math.floor(ageMs / (60 * 60_000))}h ago` :
+						`${Math.floor(ageMs / (24 * 60 * 60_000))}d ago`;
+					const ttlMs = s.expires_at - Date.now();
+					const ttl = ttlMs <= 0 ? "expired" :
+						ttlMs < 60 * 60_000 ? `expires in ${Math.floor(ttlMs / 60_000)}m` :
+						`expires in ${Math.floor(ttlMs / (60 * 60_000))}h`;
+					return `<div class="lead-card-item" data-id="${s.id}" data-kind="${s.kind}">
+						<div class="lead-card-row1">
+							<span class="lead-kind ${kindClass}">${kindLabel}</span>
+							<span class="lead-ticker mono">${esc(s.ticker)}</span>
+							${vertical}
+							<span class="muted mono" style="margin-left: auto; font-size: 11px;">${age} · ${ttl}</span>
+						</div>
+						<div class="lead-card-reasoning">${esc(s.reasoning || "(no reasoning)")}</div>
+						<div class="lead-card-actions">
+							<button class="btn small primary" data-lead-action="approve" data-id="${s.id}">Approve</button>
+							<button class="btn small" data-lead-action="reject" data-id="${s.id}">Reject</button>
+						</div>
+					</div>`;
+				}
+
+				function renderHistoryCard(s) {
+					const statusCls = s.status === "approved" ? "pos" : s.status === "rejected" ? "neg" : "muted";
+					const kindLabel = s.kind === "add" ? "add" : "drop";
+					const decided = s.decided_at ? new Date(s.decided_at).toLocaleString() : "—";
+					return `<div class="lead-card-item history" data-id="${s.id}">
+						<div class="lead-card-row1">
+							<span class="pill ${statusCls}" style="font-size: 10px;">${esc(s.status)}</span>
+							<span class="muted">${kindLabel}</span>
+							<span class="lead-ticker mono">${esc(s.ticker)}</span>
+							<span class="muted mono" style="margin-left: auto; font-size: 11px;">${esc(decided)}</span>
+						</div>
+						<div class="lead-card-reasoning">${esc(s.reasoning || "(no reasoning)")}</div>
+					</div>`;
+				}
+
+				function renderLeadsPanel(data) {
+					if (!leadsPendingEl || !leadsSummaryEl) return;
+					const pending = data.pending || [];
+					const history = data.history || [];
+					const lr = data.last_run;
+
+					// Last-run badge in the card header.
+					if (leadsLastRunEl) {
+						if (lr && lr.ts) {
+							const ago = Date.now() - lr.ts;
+							const label = ago < 60_000 ? "just now" :
+								ago < 60 * 60_000 ? `${Math.floor(ago / 60_000)}m ago` :
+								ago < 24 * 60 * 60_000 ? `${Math.floor(ago / (60 * 60_000))}h ago` :
+								`${Math.floor(ago / (24 * 60 * 60_000))}d ago`;
+							const status = lr.ok ? "ok" : "err";
+							leadsLastRunEl.innerHTML = `<span class="${status === "ok" ? "pos" : "neg"}">●</span> last run ${label} · +${lr.n_add ?? 0} / -${lr.n_drop ?? 0} · ${lr.duration_ms ?? 0}ms`;
+						} else {
+							leadsLastRunEl.textContent = "never run";
+						}
+					}
+
+					// Summary line (visible even with 0 pending).
+					if (pending.length === 0) {
+						leadsSummaryEl.innerHTML = `<span class="muted">No pending suggestions. The cron runs daily 02:00 UTC and writes here; undecided rows get replaced on the next run.</span>`;
+					} else {
+						const nAdd = pending.filter((s) => s.kind === "add").length;
+						const nDrop = pending.filter((s) => s.kind === "drop").length;
+						leadsSummaryEl.innerHTML = `<strong>${pending.length} pending</strong> · ${nAdd} add · ${nDrop} drop · review before next cron at 02:00 UTC`;
+					}
+
+					// Pending list.
+					if (pending.length === 0) {
+						leadsPendingEl.innerHTML = '<div class="empty">no pending suggestions — runs daily 02:00 UTC, or click "Suggest now"</div>';
+					} else {
+						leadsPendingEl.innerHTML = pending.map(renderLeadsCard).join("");
+					}
+
+					// History list.
+					if (history.length === 0) {
+						leadsHistoryEl.innerHTML = '<div class="empty">no history yet</div>';
+					} else {
+						leadsHistoryEl.innerHTML = history.slice(0, 25).map(renderHistoryCard).join("");
+					}
+				}
+
+				// Approve / Reject button handler (event delegation).
+				leadsPendingEl?.addEventListener("click", async (e) => {
+					const btn = e.target.closest("[data-lead-action]");
+					if (!btn) return;
+					const id = Number(btn.dataset.id);
+					const action = btn.dataset.leadAction;
+					if (!id || !action) return;
+					btn.disabled = true;
+					const orig = btn.textContent;
+					btn.textContent = "...";
+					try {
+						const r = await fetch(`/api/pm/leads/${id}/${action}`, { method: "POST", credentials: "same-origin" });
+						const data = await r.json();
+						if (r.ok && data.ok) {
+							const verb = action === "approve" ? "approved" : "rejected";
+							toast(`${verb}: ${data.ticker} (${data.kind})`, true);
+							// Refresh the leads panel + the universe
+							// (approve may have changed the bot's
+							// tickers; /start side-effect).
+							await refreshLeadsPanel();
+							document.getElementById("dev-refresh")?.click();
+						} else {
+							toast(`${action} failed: ${data.error || data.message || r.status}`, false);
+						}
+					} catch (e) {
+						toast(`${action} failed: ${e.message}`, false);
+					} finally {
+						btn.disabled = false;
+						btn.textContent = orig;
+					}
+				});
+
+				// "Suggest now" button — runs the leads-cron
+				// on demand via the manual cron trigger.
+				$("dev-leads-suggest-now")?.addEventListener("click", async () => {
+					const btn = $("dev-leads-suggest-now");
+					btn.disabled = true;
+					const orig = btn.textContent;
+					btn.textContent = "running...";
+					try {
+						const r = await fetch("/api/pm/cron/leads/run", { method: "POST", credentials: "same-origin" });
+						const data = await r.json();
+						const dur = data.duration_ms ? ` (${data.duration_ms}ms)` : "";
+						const a = data.artifacts || {};
+						const detail = data.ok
+							? `+${a.n_add ?? 0} / -${a.n_drop ?? 0} (${a.n_excluded ?? 0} excluded, ${a.n_superseded ?? 0} superseded)${dur}`
+							: (data.error_message || "failed");
+						toast(`leads: ${data.ok ? "✓" : "✗"} ${detail}`, data.ok);
+						await refreshLeadsPanel();
+					} catch (e) {
+						toast(`leads failed: ${e.message}`, false);
+					} finally {
+						btn.disabled = false;
+						btn.textContent = orig;
+					}
+				});
+
+				// History toggle.
+				$("dev-leads-history-toggle")?.addEventListener("click", (e) => {
+					const hidden = leadsHistoryEl.hidden;
+					leadsHistoryEl.hidden = !hidden;
+					e.target.textContent = hidden ? "Hide history" : "History";
+					e.target.setAttribute("aria-expanded", hidden ? "true" : "false");
+				});
+
+				async function refreshLeadsPanel() {
+					const data = await fetchJson("/api/pm/leads");
+					if (data) renderLeadsPanel(data);
+				}
 			};
 			window.appPageOnVisible = function () {
 				document.getElementById("dev-refresh")?.click();

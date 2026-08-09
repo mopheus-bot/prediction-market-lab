@@ -43,6 +43,7 @@ import { runTrainCron } from "./train-cron.js";
 import { runBacktestCron } from "./backtest-cron.js";
 import { runAutoPilotCron } from "./auto-pilot-cron.js";
 import { runHeartbeatCron } from "./heartbeat-cron.js";
+import { runLeadsCron } from "./leads-cron.js";
 import type { LLMEnv } from "../llm/index.js";
 import type { TelegramEnv } from "../telegram/index.js";
 
@@ -54,6 +55,7 @@ export const CRON_TABLE = {
 	daily: "0 6 * * *",       // 06:00 UTC daily
 	auto_pilot: "30 5 * * *", // 05:30 UTC daily (before daily recap)
 	heartbeat: "0 7 * * *",   // 07:00 UTC daily (after daily recap; passive health check)
+	leads: "0 2 * * *",      // 02:00 UTC daily (after Sunday backtest, before auto-pilot)
 	train: "0 0 * * SUN",     // 00:00 UTC Sunday (day-of-week as name, not 0)
 	backtest: "0 1 * * SUN",  // 01:00 UTC Sunday (after train)
 } as const;
@@ -153,6 +155,7 @@ export const JOBS: Record<CronName, JobFn> = {
 	daily: runDailyCron,
 	auto_pilot: runAutoPilotCron,
 	heartbeat: runHeartbeatCron,
+	leads: runLeadsCron,
 	train: runTrainCron,
 	backtest: runBacktestCron,
 };
@@ -181,17 +184,28 @@ export async function dispatchScheduledEvent(
 	}
 	const started = Date.now();
 	try {
-		const artifacts = await JOBS[name](env);
+		const inner = await JOBS[name](env);
 		const durationMs = Date.now() - started;
+		// Respect the inner cron's `ok` field. If the cron
+		// ran to completion but its own logic reported
+		// failure (e.g. leads-cron LLM parse error, or
+		// heartbeat with a failed check), we record
+		// status='error' with the cron's error_message so
+		// the cadence panel surfaces it correctly. The
+		// dispatcher's outer ok reflects "did the cron
+		// run to completion without throwing" — distinct
+		// from "did the cron's business logic succeed."
+		const innerOk = inner?.ok !== false;
 		const result: CronResult = {
-			ok: true,
+			ok: innerOk,
 			cron_name: name,
 			duration_ms: durationMs,
-			artifacts: artifacts as unknown as Record<string, unknown>,
+			error_message: innerOk ? undefined : inner?.error_message,
+			artifacts: inner?.artifacts,
 		};
 		await recordRun(env, result);
 		console.log(
-			`[cron] ${name} ok in ${durationMs}ms; ` +
+			`[cron] ${name} ${innerOk ? "ok" : "err"} in ${durationMs}ms; ` +
 				`artifacts=${JSON.stringify(result.artifacts ?? {})}`,
 		);
 		return result;

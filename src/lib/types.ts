@@ -41,6 +41,16 @@ export type CronStatus = "success" | "error" | "skipped";
 /** LLM call outcome. */
 export type LlmStatus = "success" | "error";
 
+/** Suggestion kind. The leads-cron (daily 02:00 UTC) asks
+ * the LLM for both kinds. `add` means "consider adding this
+ * ticker to the universe"; `drop` means "consider removing
+ * this ticker from the universe". */
+export type LeadKind = "add" | "drop";
+
+/** Lifecycle status. See migrations/0004_lead_suggestions.sql
+ * for the full state diagram. */
+export type LeadStatus = "pending" | "approved" | "rejected" | "superseded";
+
 // ─── Row types (snake_case to match SQL) ────────────────────────────────
 
 export interface TradeRow {
@@ -160,6 +170,27 @@ export interface LlmCallRow {
 	created_at: number;
 }
 
+/** A pending LLM-generated suggestion. One row per
+ * (ticker, kind, run) — the leads-cron inserts up to a
+ * handful of rows per invocation. The operator reviews
+ * on the Dev page and clicks Approve / Reject. */
+export interface LeadSuggestionRow {
+	id: number;
+	user_id: string;
+	cron_run_id: number | null;
+	kind: LeadKind;
+	ticker: string;
+	vertical: Vertical | null;
+	reasoning: string;
+	raw_text: string | null;
+	status: LeadStatus;
+	created_at: number;
+	decided_at: number | null;
+	expires_at: number;
+	applied_at: number | null;
+	applied_run_id: number | null;
+}
+
 // ─── Insert types (no `id`, no `created_at` — DB sets those) ──────────
 
 /** NewTrade: chunk 9 made `trading_mode` and `real_order_id`
@@ -177,6 +208,15 @@ export type NewModel = Omit<ModelRow, never>;
 export type NewScan = Omit<ScanRow, "id" | "created_at">;
 export type NewCronRun = Omit<CronRunRow, "id" | "created_at">;
 export type NewLlmCall = Omit<LlmCallRow, "id" | "created_at">;
+/** Insert shape for a new lead suggestion. The cron is the
+ * only producer; decided_at / applied_at / applied_run_id
+ * are set later by the API on approve/reject, so they're
+ * not part of the insert shape. user_id is set by the
+ * repo helper from a parameter, not from the row. */
+export type NewLeadSuggestion = Omit<
+	LeadSuggestionRow,
+	"id" | "user_id" | "decided_at" | "applied_at" | "applied_run_id"
+>;
 
 // ─── Default user ───────────────────────────────────────────────────────
 

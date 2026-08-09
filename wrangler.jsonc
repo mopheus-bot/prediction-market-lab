@@ -104,6 +104,7 @@
 			"0 6 * * *",     // daily      — 06:00 UTC daily
 			"30 5 * * *",    // auto_pilot — 05:30 UTC daily (chunk 11b; default off)
 			"0 7 * * *",     // heartbeat  — 07:00 UTC daily (passive health check; alerts on failure)
+			"0 2 * * *",     // leads      — 02:00 UTC daily (LLM-driven ticker universe add+drop)
 			"0 0 * * SUN",   // train      — 00:00 UTC Sunday
 			"0 1 * * SUN"    // backtest   — 01:00 UTC Sunday (chunk 11a)
 		]

@@ -126,6 +126,16 @@ const SERVICE_CATALOGUE: Array<{
 		icon: "♥",
 		details_from: "cron",
 	},
+	{
+		id: "leads",
+		name: "Lead suggestions",
+		description: "Asks the LLM which Kalshi tickers to add or drop from the bot's universe. Writes suggestions to the lead_suggestions table; operator approves or rejects on the Dev page.",
+		category: "cron",
+		interval_ms: 24 * 60 * 60 * 1000,
+		interval_label: "daily at 02:00 UTC",
+		icon: "🎯",
+		details_from: "cron",
+	},
 ];
 
 function relativeLabel(ms_ago: number): string {
@@ -165,7 +175,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 	const user_id = DEFAULT_USER_ID;
 
 	// Pull the per-cron last-runs in parallel.
-	const cronJobs = ["scan", "news", "daily", "heartbeat", "train"] as const;
+	const cronJobs = ["scan", "news", "daily", "heartbeat", "leads", "train"] as const;
 	const cronRows = await Promise.all(
 		cronJobs.map((name) =>
 			env.DB ? cronRunsDb.lastRun(env.DB, name, user_id).catch(() => null) : Promise.resolve(null),

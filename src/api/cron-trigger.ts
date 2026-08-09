@@ -57,12 +57,19 @@ export async function handleCronTrigger(
 	const started = Date.now();
 	let result: CronResult;
 	try {
-		const artifacts = await job(env);
+		const inner = await job(env);
+		// Respect the inner cron's `ok` field (the
+		// dispatcher's same fix). Manual triggers should
+		// record status='error' when the cron's own logic
+		// failed (LLM parse error, etc.), not bury the
+		// failure inside artifacts.
+		const innerOk = inner?.ok !== false;
 		result = {
-			ok: true,
+			ok: innerOk,
 			cron_name: jobName,
 			duration_ms: Date.now() - started,
-			artifacts: artifacts as unknown as Record<string, unknown>,
+			error_message: innerOk ? undefined : inner?.error_message,
+			artifacts: inner?.artifacts,
 		};
 	} catch (e) {
 		result = {

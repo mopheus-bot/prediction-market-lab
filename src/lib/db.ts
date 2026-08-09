@@ -16,12 +16,16 @@ import type {
 	CronRunRow,
 	CronStatus,
 	FillType,
+	LeadKind,
+	LeadStatus,
+	LeadSuggestionRow,
 	LlmCallRow,
 	LlmStatus,
 	MarketSnapshotRow,
 	ModelRow,
 	ModelStatus,
 	NewCronRun,
+	NewLeadSuggestion,
 	NewLlmCall,
 	NewMarketSnapshot,
 	NewModel,
@@ -497,5 +501,173 @@ export const llmCalls = {
 			.bind(user_id, since_ts)
 			.first<{ n_calls: number; input_tokens: number; output_tokens: number }>();
 		return res ?? { n_calls: 0, input_tokens: 0, output_tokens: 0 };
+	},
+};
+
+// ─── lead_suggestions ─────────────────────────────────────────────────
+
+export const leadSuggestions = {
+	/** Bulk-insert a batch of pending suggestions. The cron
+	 *  calls this once per run; the API never inserts (the
+	 *  cron is the only producer). */
+	async insertMany(
+		db: D1Database,
+		user_id: string,
+		rows: Array<Omit<NewLeadSuggestion, "user_id">>,
+	): Promise<number> {
+		if (rows.length === 0) return 0;
+		const stmt = db.prepare(
+			`INSERT INTO lead_suggestions
+			 (user_id, cron_run_id, kind, ticker, vertical, reasoning,
+			  raw_text, status, created_at, decided_at, expires_at,
+			  applied_at, applied_run_id)
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, ?10, NULL, NULL)`,
+		);
+		let n = 0;
+		for (const r of rows) {
+			await stmt
+				.bind(
+					user_id,
+					r.cron_run_id,
+					r.kind,
+					r.ticker,
+					r.vertical,
+					r.reasoning,
+					r.raw_text,
+					r.status,
+					r.created_at,
+					r.expires_at,
+				)
+				.run();
+			n += 1;
+		}
+		return n;
+	},
+
+	/** Mark every current `pending` row as `superseded`. The
+	 *  cron calls this on each run before inserting the new
+	 *  batch, so the Dev page always shows the latest
+	 *  suggestions and the operator doesn't have to delete
+	 *  stale rows manually. */
+	async supersedePending(
+		db: D1Database,
+		user_id: string,
+		ts: number,
+	): Promise<number> {
+		const res = await db
+			.prepare(
+				`UPDATE lead_suggestions
+				 SET status = 'superseded', decided_at = ?2
+				 WHERE user_id = ?1 AND status = 'pending'`,
+			)
+			.bind(user_id, ts)
+			.run();
+		return res.meta?.changes ?? 0;
+	},
+
+	/** List pending + recent decided. Used by the Dev page.
+	 *  `limit` defaults to 25 pending + 25 history (so the
+	 *  page is bounded). */
+	async listRecent(
+		db: D1Database,
+		user_id: string,
+		opts: { limit?: number } = {},
+	): Promise<{ pending: LeadSuggestionRow[]; history: LeadSuggestionRow[] }> {
+		const limit = opts.limit ?? 25;
+		const pendingRes = await db
+			.prepare(
+				`SELECT * FROM lead_suggestions
+				 WHERE user_id = ?1 AND status = 'pending'
+				 ORDER BY created_at DESC LIMIT ?`,
+			)
+			.bind(user_id, limit)
+			.all<LeadSuggestionRow>();
+		const historyRes = await db
+			.prepare(
+				`SELECT * FROM lead_suggestions
+				 WHERE user_id = ?1 AND status IN ('approved', 'rejected', 'superseded')
+				 ORDER BY COALESCE(decided_at, created_at) DESC LIMIT ?`,
+			)
+			.bind(user_id, limit)
+			.all<LeadSuggestionRow>();
+		return {
+			pending: pendingRes.results ?? [],
+			history: historyRes.results ?? [],
+		};
+	},
+
+	async getById(
+		db: D1Database,
+		id: number,
+		user_id: string,
+	): Promise<LeadSuggestionRow | null> {
+		return await db
+			.prepare(
+				`SELECT * FROM lead_suggestions
+				 WHERE id = ?1 AND user_id = ?2`,
+			)
+			.bind(id, user_id)
+			.first<LeadSuggestionRow>();
+	},
+
+	/** Mark a single row approved/rejected. Atomic check on
+	 *  `status = 'pending'` prevents double-decide. */
+	async setStatus(
+		db: D1Database,
+		id: number,
+		user_id: string,
+		status: LeadStatus,
+		ts: number,
+	): Promise<boolean> {
+		const res = await db
+			.prepare(
+				`UPDATE lead_suggestions
+				 SET status = ?3, decided_at = ?4
+				 WHERE id = ?1 AND user_id = ?2 AND status = 'pending'`,
+			)
+			.bind(id, user_id, status, ts)
+			.run();
+		return (res.meta?.changes ?? 0) > 0;
+	},
+
+	/** Record the apply-side effect (the cron_runs.id of the
+	 *  bot restart that resulted from this approval). The
+	 *  audit trail for "which suggestions actually changed
+	 *  the bot?". */
+	async markApplied(
+		db: D1Database,
+		id: number,
+		user_id: string,
+		ts: number,
+		applied_run_id: number | null,
+	): Promise<void> {
+		await db
+			.prepare(
+				`UPDATE lead_suggestions
+				 SET applied_at = ?3, applied_run_id = ?4
+				 WHERE id = ?1 AND user_id = ?2`,
+			)
+			.bind(id, user_id, ts, applied_run_id)
+			.run();
+	},
+
+	/** Has this ticker been rejected recently (last 30d)?
+	 *  The cron asks the LLM not to re-suggest tickers
+	 *  the operator has already said no to. */
+	async recentlyRejected(
+		db: D1Database,
+		user_id: string,
+		ticker: string,
+		since_ts: number,
+	): Promise<boolean> {
+		const row = await db
+			.prepare(
+				`SELECT 1 as one FROM lead_suggestions
+				 WHERE user_id = ?1 AND ticker = ?2 AND status = 'rejected'
+				   AND decided_at >= ?3 LIMIT 1`,
+			)
+			.bind(user_id, ticker, since_ts)
+			.first<{ one: number }>();
+		return row?.one === 1;
 	},
 };

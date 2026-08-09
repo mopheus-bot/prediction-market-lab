@@ -45,6 +45,7 @@ import { handleLLMTest } from "./api/llm-test.js";
 import { handleCronTrigger, TRIGGERABLE_CRONS } from "./api/cron-trigger.js";
 import { handleSmokeTest } from "./api/smoke-test.js";
 import { handleSuggestLeads } from "./api/suggest-leads.js";
+import { handleGetLeads, handleApproveLead, handleRejectLead } from "./api/leads.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -270,6 +271,39 @@ export default {
 		// applies via /api/pm/bot/start.
 		if (path === "/api/pm/bot/suggest-leads" && request.method === "POST") {
 			return handleSuggestLeads(env, request);
+		}
+		// 2026-08-09: leads pipeline (recurring feature,
+		// not one-off). The leads-cron writes suggestions
+		// to D1; the operator reviews and approves / rejects
+		// on the Dev page. Approve restarts the bot with
+		// the new universe; reject tells the cron to skip
+		// this ticker for the next 30 days.
+		if (path === "/api/pm/leads" && request.method === "GET") {
+			return handleGetLeads(env, url);
+		}
+		if (
+			path.startsWith("/api/pm/leads/") &&
+			path.endsWith("/approve") &&
+			request.method === "POST"
+		) {
+			const idStr = path.slice("/api/pm/leads/".length, -"/approve".length);
+			const id = Number(idStr);
+			if (!Number.isFinite(id) || !Number.isInteger(id) || id <= 0) {
+				return jsonResponse({ ok: false, error: "bad_id", message: `id must be a positive integer, got: ${idStr}` }, 400);
+			}
+			return handleApproveLead(env, id);
+		}
+		if (
+			path.startsWith("/api/pm/leads/") &&
+			path.endsWith("/reject") &&
+			request.method === "POST"
+		) {
+			const idStr = path.slice("/api/pm/leads/".length, -"/reject".length);
+			const id = Number(idStr);
+			if (!Number.isFinite(id) || !Number.isInteger(id) || id <= 0) {
+				return jsonResponse({ ok: false, error: "bad_id", message: `id must be a positive integer, got: ${idStr}` }, 400);
+			}
+			return handleRejectLead(env, id);
 		}
 		// 2026-08-09: Manual cron trigger. POST
 		// /api/pm/cron/{name}/run triggers the named cron
