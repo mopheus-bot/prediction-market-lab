@@ -2413,13 +2413,13 @@
 					body: JSON.stringify({ ticker, rationale: "ui_close" }),
 				});
 				if (r.ok) {
-					const data = (await r.json().catch(() => ({}))) as { pnl_cents?: number };
+					const data = await r.json().catch(() => ({}));
 					const pnl = data.pnl_cents ?? 0;
 					const sign = pnl > 0 ? "+" : pnl < 0 ? "−" : "";
 					toast(`closed ${ticker} · pnl ${sign}$${(Math.abs(pnl) / 100).toFixed(2)}`, true);
 					setTimeout(() => { void refresh(); void refreshVerticals(); }, 600);
 				} else {
-					const data = (await r.json().catch(() => ({}))) as { message?: string };
+					const data = await r.json().catch(() => ({}));
 					toast(`close failed: ${data.message ?? r.statusText}`, false);
 				}
 			}
@@ -2439,7 +2439,7 @@
 					toast(`cancelled ${orderId.slice(0, 8)}…`, true);
 					setTimeout(() => { void refresh(); }, 600);
 				} else {
-					const data = (await r.json().catch(() => ({}))) as { message?: string };
+					const data = await r.json().catch(() => ({}));
 					toast(`cancel failed: ${data.message ?? r.statusText}`, false);
 				}
 			}
@@ -2650,7 +2650,7 @@
 				try {
 					const r = await fetch("/api/pm/verticals");
 					if (!r.ok) return;
-					const data = (await r.json()) as { verticals?: Array<unknown> };
+					const data = await r.json();
 					renderVerticalsPanel(data.verticals ?? []);
 				} catch (e) {
 					console.warn("refreshVerticals failed", e);
@@ -3151,9 +3151,12 @@
 				const disabledTickers = status.config.disabled_tickers ?? [];
 				const perVertical = status.config.per_vertical_max_notional_cents ?? {};
 
-				// Active button highlight.
+				// Active button highlight. (Chunk 10.8b: chunk 10.8
+				// wrote "active primary" as a single space-separated
+				// token which throws InvalidCharacterError. Use
+				// classList.remove with each token separately.)
 				for (const btn of document.querySelectorAll(".mode-btn")) {
-					btn.classList.remove("active", "active primary");
+					btn.classList.remove("active", "primary");
 					if (btn.dataset.mode === mode) {
 						btn.classList.add("active");
 						if (mode === "real") btn.classList.add("primary");

@@ -51,8 +51,6 @@ query PmBotAnalytics(
         sum {
           requests
           errors
-          subrequests
-          cpuTime
         }
         dimensions {
           datetime
@@ -204,6 +202,11 @@ export async function handleCfAnalytics(
 		const buckets =
 			json.data?.viewer?.accounts?.[0]?.workersInvocationsAdaptive ?? [];
 		// Aggregate totals across all hourly buckets.
+		// (subrequests + cpuTime were dropped from the
+		// query in chunk 10.9 — the CF schema returned
+		// "unknown field cpuTime". The response will
+		// simply not include them; we keep the totals
+		// shape stable by defaulting to 0.)
 		let totalRequests = 0;
 		let totalErrors = 0;
 		let totalSubrequests = 0;
@@ -212,8 +215,8 @@ export async function handleCfAnalytics(
 		for (const b of buckets) {
 			const r = b.sum?.requests ?? 0;
 			const e = b.sum?.errors ?? 0;
-			const s = b.sum?.subrequests ?? 0;
-			const c = b.sum?.cpuTime ?? 0;
+			const s = (b.sum as { subrequests?: number })?.subrequests ?? 0;
+			const c = (b.sum as { cpuTime?: number })?.cpuTime ?? 0;
 			totalRequests += r;
 			totalErrors += e;
 			totalSubrequests += s;
