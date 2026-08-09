@@ -2176,3 +2176,133 @@ footer {
 /* Risk view — reuses health-grid, health-tile, health-tickers-tbl from Bot */
 .risk-card-head { flex-wrap: wrap; }
 .risk-verticals { margin-top: 4px; }
+
+/* ─── Trades page v2 ─── */
+
+/* Filter bar — horizontal row of dropdowns + search + sort + buttons */
+.trades-filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+}
+.trades-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.trades-filter-label {
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+}
+.trades-filter {
+  background: var(--bg-0);
+  border: 1px solid var(--card-border);
+  color: var(--ink);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  min-height: 32px;
+}
+.trades-filter:focus { outline: none; border-color: var(--accent); }
+.trades-filter-search { min-width: 200px; }
+.trades-filter-sort { min-width: 140px; }
+.trades-filter-bar .btn {
+  margin-bottom: 0;
+  font-size: 12px;
+  padding: 6px 12px;
+  align-self: flex-end;
+  height: 32px;
+}
+
+/* Trades table — clickable rows */
+.trades-tbl th, .trades-tbl td { font-size: 12px; }
+.trades-tbl th { white-space: nowrap; }
+.trades-tbl td.num { font-variant-numeric: tabular-nums; }
+.trades-tbl tr.trades-row:hover { background: var(--card-bg-hover); }
+.trades-tbl tr.trades-row { cursor: pointer; transition: background 0.1s; }
+
+/* Cancel button */
+.trades-cancel-btn {
+  background: var(--red);
+  color: white;
+  border: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+.trades-cancel-btn:hover { background: var(--red-soft, #fca5a5); color: var(--red); }
+
+/* Signals table */
+.signals-tbl th, .signals-tbl td { font-size: 12px; }
+
+/* PnL chart */
+.pnl-chart-wrap {
+  width: 100%;
+  height: 240px;
+  position: relative;
+  background: rgba(0, 0, 0, 0.10);
+  border-radius: 6px;
+  padding: 4px;
+}
+.pnl-chart {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Trade detail drawer (modal-wide) */
+.modal-wide {
+  max-width: 640px;
+  width: 90vw;
+}
+.trade-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 24px;
+  margin: 16px 0;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.20);
+  border-radius: 6px;
+}
+.trade-detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--card-border);
+}
+.trade-detail-key {
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+}
+.trade-detail-val {
+  font-size: 13px;
+  color: var(--ink);
+  word-break: break-all;
+}
+@media (max-width: 720px) {
+  .trades-filter-bar { flex-direction: column; align-items: stretch; }
+  .trades-filter-group, .trades-filter-bar .btn { width: 100%; }
+  .trade-detail-grid { grid-template-columns: 1fr; gap: 0; }
+}

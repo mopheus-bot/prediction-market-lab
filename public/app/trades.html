@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="color-scheme" content="dark" />
 		<title>Trader — Trades</title>
-		<meta name="description" content="Trade history · signals · rationale." />
+		<meta name="description" content="Trade history · PnL chart · signals · filters · export." />
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
@@ -13,79 +13,182 @@
 		<div class="app-shell">
 			<div class="app-section-header">
 				<h2>Trades</h2>
-				<p>Trade history · signals · rationale</p>
+				<p>Trade history · cumulative PnL · signals · filters · export</p>
 			</div>
 
-			<!-- Last 5 trades -->
-			<section class="grid" style="margin-bottom: 24px;">
-				<div class="col-12">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Last 5 trades</div>
-						<div class="card-blurb">The 5 most recent Kalshi fills. Realized PnL is set when the position closes; open positions show "—". Click cancel on a pending GTC order to abort it.</div>
-						<table class="tbl last-trades-tbl">
-							<thead>
-								<tr>
-									<th>When</th>
-									<th>Ticker</th>
-									<th>Side</th>
-									<th>Mode</th>
-									<th class="num">Price</th>
-									<th class="num">Size</th>
-									<th class="num">PnL</th>
-									<th></th>
-								</tr>
-							</thead>
-							<tbody id="last-trades-tbody">
-								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-							</tbody>
-						</table>
+			<!-- ============================================ -->
+			<!-- STATUS HERO                                -->
+			<!-- ============================================ -->
+			<section class="card pos-hero" id="trades-hero" data-color="ok" aria-labelledby="trades-hero-title" style="margin-bottom: 20px;">
+				<div class="pos-hero-head">
+					<div class="pos-hero-pnl">
+						<div class="pos-hero-label">Realized PnL (lifetime)</div>
+						<div class="pos-hero-num mono" id="trades-total-pnl">$0.00</div>
+						<div class="pos-hero-sub" id="trades-total-pnl-sub">0 closed trades</div>
+					</div>
+					<div class="pos-hero-kpis">
+						<div class="kpi-card">
+							<div class="kpi-label">Total trades</div>
+							<div class="kpi-num mono" id="trades-count">0</div>
+							<div class="kpi-sub" id="trades-count-sub">lifetime</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">Paper / Real</div>
+							<div class="kpi-num mono" id="trades-mode-split">0 / 0</div>
+							<div class="kpi-sub" id="trades-mode-sub">paper / real</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">24h PnL</div>
+							<div class="kpi-num mono" id="trades-pnl-24h">$0.00</div>
+							<div class="kpi-sub" id="trades-pnl-24h-sub">closed in last 24h</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">Signals</div>
+							<div class="kpi-num mono" id="trades-signals">0</div>
+							<div class="kpi-sub" id="trades-signals-sub">model fires</div>
+						</div>
 					</div>
 				</div>
 			</section>
 
-			<!-- Recent trades (20) + Recent signals -->
-			<section class="grid" style="margin-bottom: 24px;">
-				<div class="col-6">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Recent trades</div>
-						<div class="card-blurb">The 20 most recent fills. Realized PnL is set when the position closes; open positions show "—".</div>
-						<table class="tbl" id="trades-tbl">
-							<thead>
-								<tr>
-									<th>When</th>
-									<th>Ticker</th>
-									<th>Side</th>
-									<th class="num">Price</th>
-									<th class="num">PnL</th>
-								</tr>
-							</thead>
-							<tbody id="trades-tbody">
-								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-							</tbody>
-						</table>
-					</div>
+			<!-- ============================================ -->
+			<!-- CUMULATIVE PNL CHART (NEW)                  -->
+			<!-- ============================================ -->
+			<section class="card" id="pnl-chart-section" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">∿</span>
+					<span>Cumulative PnL</span>
+					<span class="muted mono" id="pnl-chart-summary" style="margin-left: auto; font-size: 11px;">—</span>
 				</div>
-				<div class="col-6">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Recent signals</div>
-						<div class="card-blurb">The model's "wants to trade" calls. Some signals don't become trades because the risk engine rejected them.</div>
-						<table class="tbl" id="signals-tbl">
-							<thead>
-								<tr>
-									<th>When</th>
-									<th>Ticker</th>
-									<th>Side</th>
-									<th class="num">p(model)</th>
-									<th>Rationale</th>
-								</tr>
-							</thead>
-							<tbody id="signals-tbody">
-								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar l"></span></td></tr>
-							</tbody>
-						</table>
-					</div>
+				<div class="card-blurb">Running total of realized PnL across all closed positions, oldest to newest. The chart auto-scales to fit the data range. Hover any point to see the underlying trade.</div>
+				<div class="pnl-chart-wrap" id="pnl-chart-wrap">
+					<svg id="pnl-chart" class="pnl-chart" viewBox="0 0 800 220" preserveAspectRatio="none" aria-label="Cumulative PnL over time"></svg>
 				</div>
 			</section>
+
+			<!-- ============================================ -->
+			<!-- FILTER BAR (NEW)                            -->
+			<!-- ============================================ -->
+			<section class="trades-filter-bar" style="margin-bottom: 12px;">
+				<div class="trades-filter-group">
+					<label class="trades-filter-label" for="trades-filter-vertical">Vertical</label>
+					<select id="trades-filter-vertical" class="trades-filter">
+						<option value="all">All</option>
+						<option value="weather">Weather</option>
+						<option value="economic">Economic</option>
+						<option value="politics">Politics</option>
+						<option value="sports">Sports</option>
+					</select>
+				</div>
+				<div class="trades-filter-group">
+					<label class="trades-filter-label" for="trades-filter-side">Side</label>
+					<select id="trades-filter-side" class="trades-filter">
+						<option value="all">All</option>
+						<option value="yes">Yes</option>
+						<option value="no">No</option>
+					</select>
+				</div>
+				<div class="trades-filter-group">
+					<label class="trades-filter-label" for="trades-filter-mode">Mode</label>
+					<select id="trades-filter-mode" class="trades-filter">
+						<option value="all">All</option>
+						<option value="paper">Paper</option>
+						<option value="real">Real</option>
+					</select>
+				</div>
+				<div class="trades-filter-group">
+					<label class="trades-filter-label" for="trades-filter-action">Action</label>
+					<select id="trades-filter-action" class="trades-filter">
+						<option value="all">All</option>
+						<option value="open">Open</option>
+						<option value="close">Close</option>
+					</select>
+				</div>
+				<div class="trades-filter-group trades-filter-search">
+					<label class="trades-filter-label" for="trades-filter-search">Search</label>
+					<input type="text" id="trades-filter-search" class="trades-filter" placeholder="ticker or rationale…" />
+				</div>
+				<div class="trades-filter-group trades-filter-sort">
+					<label class="trades-filter-label" for="trades-filter-sort">Sort</label>
+					<select id="trades-filter-sort" class="trades-filter">
+						<option value="newest">Newest first</option>
+						<option value="oldest">Oldest first</option>
+						<option value="pnl-desc">PnL high → low</option>
+						<option value="pnl-asc">PnL low → high</option>
+						<option value="size-desc">Size high → low</option>
+					</select>
+				</div>
+				<button class="btn small" id="trades-export-csv">Export CSV</button>
+				<button class="btn small" id="trades-reset-filters">Reset</button>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- TRADE HISTORY                                -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">⊞</span>
+					<span>Trade history</span>
+					<span class="muted mono" id="trades-table-count" style="margin-left: auto; font-size: 11px;">— trades</span>
+				</div>
+				<div class="card-blurb">Every trade the bot has placed, in order. Click a row to see the full trade record (signal probability, model version, rationale, real order ID). Cancel pending real orders with the × button on the right.</div>
+				<table class="tbl trades-tbl" id="trades-tbl">
+					<thead>
+						<tr>
+							<th>When</th>
+							<th>Ticker</th>
+							<th class="num">Side</th>
+							<th class="num">Price</th>
+							<th class="num">Size</th>
+							<th class="num">PnL</th>
+							<th>Rationale</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody id="trades-tbody">
+						<tr><td colspan="8" class="empty">no trades yet</td></tr>
+					</tbody>
+				</table>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- RECENT SIGNALS (NEW positioning)            -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">⏶</span>
+					<span>Recent signals</span>
+					<span class="muted mono" id="signals-count" style="margin-left: auto; font-size: 11px;">— signals</span>
+				</div>
+				<div class="card-blurb">The model's "wants to trade" calls. Each signal includes p(model) — the model's probability estimate — and a rationale explaining the decision. Signals that became trades are linked to the trade record above.</div>
+				<table class="tbl signals-tbl" id="signals-tbl">
+					<thead>
+						<tr>
+							<th>When</th>
+							<th>Ticker</th>
+							<th class="num">Side</th>
+							<th class="num">p(model)</th>
+							<th>Rationale</th>
+						</tr>
+					</thead>
+					<tbody id="signals-tbody">
+						<tr><td colspan="5" class="empty">no signals yet · the model emits a signal when p(model) crosses the per-vertical threshold</td></tr>
+					</tbody>
+				</table>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- TRADE DETAIL DRAWER (NEW, modal)            -->
+			<!-- ============================================ -->
+			<div class="modal-back" id="trade-detail-back" hidden>
+				<div class="modal modal-wide">
+					<div class="modal-title" id="trade-detail-title">Trade detail</div>
+					<div class="trade-detail-grid" id="trade-detail-body"></div>
+					<div class="modal-actions">
+						<button class="btn" id="trade-detail-close">Close</button>
+					</div>
+				</div>
+			</div>
 
 			<footer style="text-align: center; padding: 24px; color: var(--ink-faint); font-size: 11px; font-family: var(--font-mono);">
 				auto-refresh · last fetched <span id="last-fetched">—</span>
@@ -95,5 +198,442 @@
 		<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 		<script src="app.js"></script>
+		<script>
+			// Trades page: hero KPIs, cumulative PnL chart, filter bar,
+			// trade history (sortable + clickable for details), signals,
+			// CSV export. All inline, doesn't touch shared app.js.
+			let _tradesRaw = { data: null, ts: 0 };
+			let _signalsRaw = { data: null, ts: 0 };
+			const CACHE_TTL_MS = 5_000;
+			const TRADES_LIMIT = 100;
+			const SIGNALS_LIMIT = 50;
+
+			const _tradesFilters = {
+				vertical: "all",
+				side: "all",
+				mode: "all",
+				action: "all",
+				search: "",
+				sort: "newest",
+			};
+			let _tradesCache = []; // filtered + sorted
+
+			async function fetchTrades() {
+				const now = Date.now();
+				if (_tradesRaw.data && now - _tradesRaw.ts < CACHE_TTL_MS) {
+					return _tradesRaw.data;
+				}
+				try {
+					const r = await fetch(`/api/pm/trades?limit=${TRADES_LIMIT}`, { credentials: "same-origin" });
+					if (!r.ok) return _tradesRaw.data || [];
+					const d = await r.json();
+					_tradesRaw = { data: d.trades || [], ts: now };
+					return _tradesRaw.data;
+				} catch (_e) { return _tradesRaw.data || []; }
+			}
+			async function fetchSignals() {
+				const now = Date.now();
+				if (_signalsRaw.data && now - _signalsRaw.ts < CACHE_TTL_MS) {
+					return _signalsRaw.data;
+				}
+				try {
+					const r = await fetch(`/api/pm/signals?limit=${SIGNALS_LIMIT}`, { credentials: "same-origin" });
+					if (!r.ok) return _signalsRaw.data || [];
+					const d = await r.json();
+					_signalsRaw = { data: d.signals || [], ts: now };
+					return _signalsRaw.data;
+				} catch (_e) { return _signalsRaw.data || []; }
+			}
+
+			// ─── Helpers ───
+			// fmtCents is provided by app.js (handles null, sign, 2 decimals).
+			function fmtPrice(c) {
+				if (c == null) return "—";
+				return `${c}¢`;
+			}
+			function tsToLocal(ts) {
+				if (!ts) return "—";
+				const d = new Date(ts);
+				const now = new Date();
+				const sameDay = d.toDateString() === now.toDateString();
+				if (sameDay) return d.toLocaleTimeString();
+				return d.toLocaleString();
+			}
+			function escapeHtml(s) {
+				return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+			}
+
+			// ─── Filter + sort ───
+			function applyFilters(trades) {
+				let out = trades.filter((t) => {
+					if (_tradesFilters.vertical !== "all" && t.vertical !== _tradesFilters.vertical) return false;
+					if (_tradesFilters.side !== "all" && t.side !== _tradesFilters.side) return false;
+					if (_tradesFilters.mode !== "all") {
+						const isPaper = t.is_paper !== 0;
+						if (_tradesFilters.mode === "paper" && !isPaper) return false;
+						if (_tradesFilters.mode === "real" && isPaper) return false;
+					}
+					if (_tradesFilters.action !== "all" && t.action !== _tradesFilters.action) return false;
+					if (_tradesFilters.search) {
+						const q = _tradesFilters.search.toLowerCase();
+						const hay = `${t.ticker || ""} ${t.signal_rationale || ""} ${t.model_version || ""}`.toLowerCase();
+						if (!hay.includes(q)) return false;
+					}
+					return true;
+				});
+				const sortFns = {
+					"newest": (a, b) => (b.ts || 0) - (a.ts || 0),
+					"oldest": (a, b) => (a.ts || 0) - (b.ts || 0),
+					"pnl-desc": (a, b) => (b.pnl_cents ?? -Infinity) - (a.pnl_cents ?? -Infinity),
+					"pnl-asc": (a, b) => (a.pnl_cents ?? Infinity) - (b.pnl_cents ?? Infinity),
+					"size-desc": (a, b) => (b.size || 0) - (a.size || 0),
+				};
+				const sortFn = sortFns[_tradesFilters.sort] || sortFns["newest"];
+				out.sort(sortFn);
+				return out;
+			}
+
+			// ─── Render: hero ───
+			function renderTradesHero(trades) {
+				const heroEl = document.getElementById("trades-hero");
+				const totalPnlEl = document.getElementById("trades-total-pnl");
+				const totalPnlSub = document.getElementById("trades-total-pnl-sub");
+				const countEl = document.getElementById("trades-count");
+				const countSub = document.getElementById("trades-count-sub");
+				const modeSplitEl = document.getElementById("trades-mode-split");
+				const modeSubEl = document.getElementById("trades-mode-sub");
+				const pnl24hEl = document.getElementById("trades-pnl-24h");
+				const pnl24hSub = document.getElementById("trades-pnl-24h-sub");
+				const signalsEl = document.getElementById("trades-signals");
+
+				// Count paper vs real (is_paper: 0 = real, non-zero = paper)
+				const realTrades = trades.filter((t) => t.is_paper === 0);
+				const paperTrades = trades.filter((t) => t.is_paper !== 0);
+				// Total realized PnL — only count trades with pnl_cents (closed)
+				const closedTrades = trades.filter((t) => t.pnl_cents != null);
+				const totalPnlCents = closedTrades.reduce((a, t) => a + (t.pnl_cents || 0), 0);
+				// 24h PnL
+				const dayAgo = Date.now() - 86400_000;
+				const pnl24h = closedTrades
+					.filter((t) => (t.ts || 0) > dayAgo)
+					.reduce((a, t) => a + (t.pnl_cents || 0), 0);
+
+				const pnlCls = totalPnlCents > 0 ? "ok" : totalPnlCents < 0 ? "bad" : "muted";
+				heroEl.setAttribute("data-color", pnlCls === "muted" ? "ok" : pnlCls);
+				totalPnlEl.textContent = fmtCents(totalPnlCents);
+				totalPnlEl.className = `pos-hero-num mono ${pnlCls}`;
+				totalPnlSub.textContent = closedTrades.length === 0
+					? "0 closed trades"
+					: `${closedTrades.length} closed trade${closedTrades.length === 1 ? "" : "s"}`;
+
+				countEl.textContent = String(trades.length);
+				countSub.textContent = `${realTrades.length} real · ${paperTrades.length} paper`;
+
+				modeSplitEl.textContent = `${paperTrades.length} / ${realTrades.length}`;
+				modeSubEl.textContent = "paper / real";
+
+				pnl24hEl.textContent = fmtCents(pnl24h);
+				pnl24hEl.className = `kpi-num mono ${pnl24h > 0 ? "ok" : pnl24h < 0 ? "bad" : ""}`;
+				pnl24hSub.textContent = closedTrades.filter((t) => (t.ts || 0) > dayAgo).length > 0
+					? `closed in last 24h`
+					: "no closes in 24h";
+
+				// Signals count comes from signals fetch
+				if (_signalsRaw.data) {
+					signalsEl.textContent = String(_signalsRaw.data.length);
+					signalsEl.parentElement.querySelector(".kpi-sub").textContent = _signalsRaw.data.length === 0
+						? "model hasn't fired"
+						: `last ${fmtAgo(_signalsRaw.data[0].ts)}`;
+				}
+			}
+			function fmtAgo(ts) {
+				if (!ts) return "—";
+				const ms = Date.now() - ts;
+				if (ms < 60_000) return `${Math.floor(ms / 1000)}s ago`;
+				if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
+				if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h ago`;
+				return `${Math.floor(ms / 86_400_000)}d ago`;
+			}
+
+			// ─── Render: cumulative PnL chart (inline SVG) ───
+			function renderPnlChart(trades) {
+				const svg = document.getElementById("pnl-chart");
+				const summaryEl = document.getElementById("pnl-chart-summary");
+				if (!svg) return;
+				// Only count closed trades with pnl_cents
+				const closed = trades
+					.filter((t) => t.pnl_cents != null)
+					.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+				if (closed.length === 0) {
+					svg.innerHTML = `<text x="400" y="110" text-anchor="middle" fill="var(--ink-faint)" font-size="13" font-family="ui-monospace, monospace">no closed trades yet · the line appears after the first close</text>`;
+					summaryEl.textContent = "—";
+					return;
+				}
+				// Build cumulative PnL
+				const points = [];
+				let cum = 0;
+				for (const t of closed) {
+					cum += t.pnl_cents;
+					points.push({ ts: t.ts || 0, pnl: cum, trade: t });
+				}
+				const minPnl = Math.min(0, ...points.map((p) => p.pnl));
+				const maxPnl = Math.max(0, ...points.map((p) => p.pnl));
+				const range = Math.max(1, maxPnl - minPnl);
+				// SVG viewBox is 800x220
+				const W = 800, H = 220, PAD = 30;
+				const innerW = W - 2 * PAD, innerH = H - 2 * PAD;
+				const tMin = points[0].ts, tMax = points[points.length - 1].ts;
+				const tRange = Math.max(1, tMax - tMin);
+				const xOf = (ts) => PAD + ((ts - tMin) / tRange) * innerW;
+				const yOf = (pnl) => PAD + ((maxPnl - pnl) / range) * innerH;
+				const y0 = yOf(0);
+				// Build path
+				const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${xOf(p.ts).toFixed(1)},${yOf(p.pnl).toFixed(1)}`).join(" ");
+				const area = `${path} L${xOf(tMax).toFixed(1)},${y0.toFixed(1)} L${xOf(tMin).toFixed(1)},${y0.toFixed(1)} Z`;
+				const finalPnl = points[points.length - 1].pnl;
+				const lineColor = finalPnl > 0 ? "var(--green)" : finalPnl < 0 ? "var(--red)" : "var(--ink-faint)";
+				const areaColor = finalPnl > 0 ? "rgba(16, 185, 129, 0.10)" : "rgba(239, 68, 68, 0.10)";
+
+				svg.innerHTML = `
+					<defs>
+						<linearGradient id="pnl-area-gradient" x1="0" y1="0" x2="0" y2="1">
+							<stop offset="0%" stop-color="${lineColor}" stop-opacity="0.3"/>
+							<stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
+						</linearGradient>
+					</defs>
+					<!-- 0 line -->
+					<line x1="${PAD}" y1="${y0}" x2="${W - PAD}" y2="${y0}"
+						stroke="var(--ink-faint)" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>
+					<text x="${PAD - 6}" y="${y0 + 3}" text-anchor="end" fill="var(--ink-faint)" font-size="10" font-family="ui-monospace, monospace">$0</text>
+					<text x="${PAD - 6}" y="${yOf(maxPnl) + 3}" text-anchor="end" fill="var(--green-soft, #34d399)" font-size="10" font-family="ui-monospace, monospace">+$${(maxPnl / 100).toFixed(0)}</text>
+					<text x="${PAD - 6}" y="${yOf(minPnl) + 3}" text-anchor="end" fill="var(--red-soft, #fca5a5)" font-size="10" font-family="ui-monospace, monospace">−$${(Math.abs(minPnl) / 100).toFixed(0)}</text>
+					<!-- Area fill -->
+					<path d="${area}" fill="url(#pnl-area-gradient)" />
+					<!-- Line -->
+					<path d="${path}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+					<!-- Points -->
+					${points.map((p) => `<circle cx="${xOf(p.ts).toFixed(1)}" cy="${yOf(p.pnl).toFixed(1)}" r="3" fill="${lineColor}" stroke="var(--bg-1)" stroke-width="1.5"><title>${escapeHtml(p.trade.ticker)} · ${fmtCents(p.pnl)}</title></circle>`).join("")}
+				`;
+				summaryEl.textContent = `${closed.length} close${closed.length === 1 ? "" : "s"} · ${fmtCents(finalPnl)}`;
+			}
+
+			// ─── Render: trade history table ───
+			function renderTradesTable() {
+				const tbody = document.getElementById("trades-tbody");
+				const countEl = document.getElementById("trades-table-count");
+				if (_tradesCache.length === 0) {
+					tbody.innerHTML = `<tr><td colspan="8" class="empty">no trades match these filters</td></tr>`;
+					countEl.textContent = "0 trades";
+					return;
+				}
+				countEl.textContent = `${_tradesCache.length} trade${_tradesCache.length === 1 ? "" : "s"}`;
+				tbody.innerHTML = _tradesCache.map((t) => {
+					const pnlCls = t.pnl_cents == null ? "muted" : t.pnl_cents > 0 ? "ok" : t.pnl_cents < 0 ? "bad" : "";
+					const modePill = t.is_paper === 0
+						? `<span class="pill ok" style="font-size: 10px;">real</span>`
+						: `<span class="pill muted" style="font-size: 10px;">paper</span>`;
+					const rationale = (t.signal_rationale || "").slice(0, 50);
+					const canCancel = t.is_paper === 0 && t.action === "open" && t.real_order_id && (t.pnl_cents == null);
+					return `<tr data-trade-id="${t.id}" class="trades-row" style="cursor: pointer;">
+						<td class="mono" style="font-size: 12px;">${tsToLocal(t.ts)}</td>
+						<td class="mono"><strong>${escapeHtml(t.ticker)}</strong> ${modePill}</td>
+						<td class="num mono">${escapeHtml(t.side)}</td>
+						<td class="num mono">${fmtPrice(t.price_cents)}</td>
+						<td class="num mono">${t.size || "—"}</td>
+						<td class="num mono ${pnlCls}">${t.pnl_cents == null ? "—" : fmtCents(t.pnl_cents)}</td>
+						<td style="font-size: 12px; color: var(--ink-muted);">${escapeHtml(rationale || "—")}</td>
+						<td>${canCancel ? `<button class="trades-cancel-btn" data-trade-id="${t.id}" data-order-id="${escapeHtml(t.real_order_id)}" title="Cancel this open real order">×</button>` : ""}</td>
+					</tr>`;
+				}).join("");
+
+				// Wire up row click → open detail
+				for (const row of tbody.querySelectorAll(".trades-row")) {
+					row.addEventListener("click", (e) => {
+						if (e.target.closest(".trades-cancel-btn")) return;
+						openTradeDetail(parseInt(row.dataset.tradeId, 10));
+					});
+				}
+				// Wire up cancel buttons
+				for (const btn of tbody.querySelectorAll(".trades-cancel-btn")) {
+					btn.addEventListener("click", async (e) => {
+						e.stopPropagation();
+						const orderId = btn.dataset.orderId;
+						if (!confirm(`Cancel open real order ${orderId.slice(0, 8)}…?`)) return;
+						await cancelOrder(orderId);
+					});
+				}
+			}
+
+			async function cancelOrder(orderId) {
+				try {
+					const r = await fetch("/api/pm/bot/cancel-order", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						credentials: "same-origin",
+						body: JSON.stringify({ order_id: orderId }),
+					});
+					const text = await r.text();
+					toast(`cancel ${r.ok ? "✓" : "✗"}: ${text.slice(0, 200)}`, r.ok);
+				} catch (e) {
+					toast(`cancel error: ${e.message}`, false);
+				}
+			}
+
+			function openTradeDetail(tradeId) {
+				const trade = _tradesRaw.data?.find((t) => t.id === tradeId);
+				if (!trade) return;
+				const back = document.getElementById("trade-detail-back");
+				const title = document.getElementById("trade-detail-title");
+				const body = document.getElementById("trade-detail-body");
+				title.textContent = `Trade #${trade.id} · ${trade.ticker} ${trade.side}@${trade.price_cents}¢`;
+				const fields = [
+					["Ticker", trade.ticker],
+					["Side", trade.side],
+					["Action", trade.action],
+					["Price", `${trade.price_cents}¢`],
+					["Size", trade.size],
+					["Vertical", trade.vertical],
+					["Mode", trade.trading_mode],
+					["Paper", trade.is_paper === 0 ? "no (real money)" : "yes (simulated)"],
+					["Fill type", trade.fill_type],
+					["Model version", trade.model_version],
+					["Signal p(model)", trade.signal_p != null ? (trade.signal_p * 100).toFixed(1) + "%" : "—"],
+					["Signal rationale", trade.signal_rationale || "—"],
+					["PnL", trade.pnl_cents != null ? fmtCents(trade.pnl_cents) : "— (open)"],
+					["Real order ID", trade.real_order_id || "—"],
+					["Timestamp", tsToLocal(trade.ts)],
+					["Created at", tsToLocal(trade.created_at)],
+					["Trade ID", trade.id],
+				];
+				body.innerHTML = fields.map(([k, v]) => `
+					<div class="trade-detail-row">
+						<div class="trade-detail-key">${k}</div>
+						<div class="trade-detail-val mono">${escapeHtml(v)}</div>
+					</div>
+				`).join("");
+				back.classList.add("show");
+			}
+			document.getElementById("trade-detail-close")?.addEventListener("click", () => {
+				document.getElementById("trade-detail-back").classList.remove("show");
+			});
+			document.getElementById("trade-detail-back")?.addEventListener("click", (e) => {
+				if (e.target.id === "trade-detail-back") {
+					document.getElementById("trade-detail-back").classList.remove("show");
+				}
+			});
+
+			// ─── Render: signals table ───
+			function renderSignalsTable() {
+				const tbody = document.getElementById("signals-tbody");
+				const countEl = document.getElementById("signals-count");
+				const signals = _signalsRaw.data || [];
+				if (signals.length === 0) {
+					tbody.innerHTML = `<tr><td colspan="5" class="empty">no signals yet · the model emits a signal when p(model) crosses the per-vertical threshold</td></tr>`;
+					countEl.textContent = "0 signals";
+					return;
+				}
+				countEl.textContent = `${signals.length} signal${signals.length === 1 ? "" : "s"}`;
+				tbody.innerHTML = signals.map((s) => {
+					const p = s.p_model ?? s.signal_p ?? 0;
+					const pStr = (p * 100).toFixed(0) + "%";
+					const pCls = p >= 0.7 ? "ok" : p >= 0.55 ? "warn" : "muted";
+					return `<tr>
+						<td class="mono" style="font-size: 12px;">${tsToLocal(s.ts)}</td>
+						<td class="mono">${escapeHtml(s.ticker || "—")}</td>
+						<td class="num mono">${escapeHtml(s.side || "—")}</td>
+						<td class="num mono ${pCls}"><strong>${pStr}</strong></td>
+						<td style="font-size: 12px; color: var(--ink-muted);">${escapeHtml(s.rationale || "—")}</td>
+					</tr>`;
+				}).join("");
+			}
+
+			// ─── Filter bar wiring ───
+			function readFilters() {
+				_tradesFilters.vertical = document.getElementById("trades-filter-vertical").value;
+				_tradesFilters.side = document.getElementById("trades-filter-side").value;
+				_tradesFilters.mode = document.getElementById("trades-filter-mode").value;
+				_tradesFilters.action = document.getElementById("trades-filter-action").value;
+				_tradesFilters.search = document.getElementById("trades-filter-search").value;
+				_tradesFilters.sort = document.getElementById("trades-filter-sort").value;
+			}
+			for (const id of ["trades-filter-vertical", "trades-filter-side", "trades-filter-mode", "trades-filter-action", "trades-filter-sort"]) {
+				document.getElementById(id)?.addEventListener("change", () => {
+					readFilters();
+					_tradesCache = applyFilters(_tradesRaw.data || []);
+					renderTradesTable();
+				});
+			}
+			let _searchDebounce = null;
+			document.getElementById("trades-filter-search")?.addEventListener("input", () => {
+				clearTimeout(_searchDebounce);
+				_searchDebounce = setTimeout(() => {
+					readFilters();
+					_tradesCache = applyFilters(_tradesRaw.data || []);
+					renderTradesTable();
+				}, 200);
+			});
+			document.getElementById("trades-reset-filters")?.addEventListener("click", () => {
+				document.getElementById("trades-filter-vertical").value = "all";
+				document.getElementById("trades-filter-side").value = "all";
+				document.getElementById("trades-filter-mode").value = "all";
+				document.getElementById("trades-filter-action").value = "all";
+				document.getElementById("trades-filter-search").value = "";
+				document.getElementById("trades-filter-sort").value = "newest";
+				readFilters();
+				_tradesCache = applyFilters(_tradesRaw.data || []);
+				renderTradesTable();
+			});
+
+			// ─── CSV export ───
+			document.getElementById("trades-export-csv")?.addEventListener("click", () => {
+				if (_tradesCache.length === 0) {
+					toast("no trades to export", false);
+					return;
+				}
+				const headers = ["id", "ts", "ticker", "vertical", "side", "action", "price_cents", "size", "pnl_cents", "trading_mode", "is_paper", "model_version", "signal_p", "signal_rationale", "fill_type", "real_order_id"];
+				const rows = _tradesCache.map((t) => [
+					t.id, new Date(t.ts || 0).toISOString(), t.ticker, t.vertical, t.side, t.action,
+					t.price_cents, t.size, t.pnl_cents != null ? t.pnl_cents : "",
+					t.trading_mode, t.is_paper === 0 ? "real" : "paper",
+					t.model_version, t.signal_p, t.signal_rationale, t.fill_type, t.real_order_id || "",
+				]);
+				const csv = [headers, ...rows].map((r) => r.map((c) => {
+					const s = String(c ?? "");
+					return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+				}).join(",")).join("\n");
+				const blob = new Blob([csv], { type: "text/csv" });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = `trades-${new Date().toISOString().slice(0, 10)}.csv`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+				toast(`exported ${_tradesCache.length} trades`, true);
+			});
+
+			// ─── Main render loop ───
+			async function renderTradesPage() {
+				const [trades, signals] = await Promise.all([fetchTrades(), fetchSignals()]);
+				readFilters();
+				_tradesCache = applyFilters(trades);
+				renderTradesHero(trades);
+				renderPnlChart(trades);
+				renderTradesTable();
+				renderSignalsTable();
+			}
+
+			// ─── Wire into app.js ───
+			const _origInit = window.appPageInit;
+			window.appPageInit = function tradesPageInit() {
+				if (_origInit) _origInit();
+				startTimers([{ fn: renderTradesPage, ms: 5000 }]);
+				renderTradesPage();
+			};
+			window.appPageOnVisible = function () {
+				renderTradesPage();
+			};
+		</script>
 	</body>
 </html>
