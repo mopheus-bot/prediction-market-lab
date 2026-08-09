@@ -746,7 +746,8 @@ code, .mono { font-family: var(--font-mono); }
 }
 .vertical-stats {
 	display: flex;
-	gap: 12px;
+	flex-wrap: wrap;
+	gap: 12px 16px;
 	font-size: 11px;
 	color: var(--ink-muted);
 	border-top: 1px solid var(--card-border);
@@ -2305,4 +2306,50 @@ footer {
   .trades-filter-bar { flex-direction: column; align-items: stretch; }
   .trades-filter-group, .trades-filter-bar .btn { width: 100%; }
   .trade-detail-grid { grid-template-columns: 1fr; gap: 0; }
+}
+
+/* ─── Models page v2 ─── */
+
+/* Per-vertical PnL table */
+.models-tbl th, .models-tbl td { font-size: 12px; }
+.models-tbl th { white-space: nowrap; }
+.models-tbl td.num { font-variant-numeric: tabular-nums; }
+
+/* Model configuration — 2-col grid of key/value pairs */
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+  margin: 8px 0 0 0;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.20);
+  border-radius: 6px;
+}
+.config-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--card-border);
+  gap: 12px;
+}
+.config-row:last-child { border-bottom: none; }
+.config-key {
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+.config-val {
+  font-size: 13px;
+  color: var(--ink);
+  text-align: right;
+}
+.config-val[data-color="warn"] { color: #fbbf24; }
+.config-val[data-color="bad"] { color: var(--red); }
+.config-val[data-color="ok"] { color: var(--green); }
+@media (max-width: 720px) {
+  .config-grid { grid-template-columns: 1fr; gap: 0; }
 }

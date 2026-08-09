@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="color-scheme" content="dark" />
 		<title>Trader — Models</title>
-		<meta name="description" content="Per-vertical model info · verticals · strategy." />
+		<meta name="description" content="Per-vertical models · strategies · PnL · configuration." />
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
@@ -13,55 +13,148 @@
 		<div class="app-shell">
 			<div class="app-section-header">
 				<h2>Models</h2>
-				<p>Per-vertical model info · strategy · toggle</p>
+				<p>Per-vertical model cards · PnL · strategy · configuration</p>
 			</div>
 
-			<!-- Verticals — the heart of this page -->
-			<section class="grid" style="margin-bottom: 24px;">
-				<div class="col-12">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Verticals — what's live, what strategy, how each is doing</div>
-						<div class="card-blurb">One card per vertical. The toggle pauses signals on every ticker in that vertical without touching the per-ticker blocklist. The strategy + ELI5 explain the rule the bot follows when a model fires for that vertical.</div>
-						<div class="verticals-grid" id="verticals-grid">
-							<div class="vertical-card skel-card">
-								<div class="vertical-card-head">
-									<span class="vertical-emoji">·</span>
-									<span class="vertical-name skel-bar m"></span>
-									<span class="vertical-status skel-bar s"></span>
-								</div>
-								<div class="vertical-strategy skel-bar l"></div>
-								<div class="vertical-eli5 skel-bar l"></div>
-								<div class="vertical-stats">
-									<span class="skel-bar s"></span>
-									<span class="skel-bar s"></span>
-									<span class="skel-bar s"></span>
-								</div>
-							</div>
+			<!-- ============================================ -->
+			<!-- STATUS HERO                                -->
+			<!-- ============================================ -->
+			<section class="card pos-hero" id="models-hero" data-color="ok" style="margin-bottom: 20px;">
+				<div class="pos-hero-head">
+					<div class="pos-hero-pnl">
+						<div class="pos-hero-label">Active model</div>
+						<div class="pos-hero-num mono" id="models-active-name">—</div>
+						<div class="pos-hero-sub" id="models-active-sub">loading…</div>
+					</div>
+					<div class="pos-hero-kpis">
+						<div class="kpi-card">
+							<div class="kpi-label">Verticals</div>
+							<div class="kpi-num mono" id="models-verticals">0</div>
+							<div class="kpi-sub" id="models-verticals-sub">active / total</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">24h PnL</div>
+							<div class="kpi-num mono" id="models-pnl-24h">$0.00</div>
+							<div class="kpi-sub" id="models-pnl-24h-sub">across all verticals</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">Lifetime PnL</div>
+							<div class="kpi-num mono" id="models-pnl-lifetime">$0.00</div>
+							<div class="kpi-sub" id="models-pnl-lifetime-sub">realized only</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">Tickers</div>
+							<div class="kpi-num mono" id="models-tickers">0</div>
+							<div class="kpi-sub" id="models-tickers-sub">across all verticals</div>
 						</div>
 					</div>
 				</div>
 			</section>
 
-			<!-- Per-vertical PnL -->
-			<section class="grid" style="margin-bottom: 24px;">
-				<div class="col-12">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Per-vertical PnL</div>
-						<div class="card-blurb">24h + lifetime realized PnL per vertical. Weather + economic have the reversion model; politics + sports on the naive baseline.</div>
-						<table class="tbl" id="vertical-tbl">
-							<thead>
-								<tr>
-									<th>Vertical</th>
-									<th class="num">24h PnL</th>
-									<th class="num">Lifetime PnL</th>
-									<th class="num">Trades</th>
-									<th class="num">Open</th>
-								</tr>
-							</thead>
-							<tbody id="vertical-tbody">
-								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-							</tbody>
-						</table>
+			<!-- ============================================ -->
+			<!-- ACTIVE MODELS — one card per vertical      -->
+			<!-- (reuses .verticals-grid + .vertical-card    -->
+			<!-- from app.js renderVerticalsPanel)           -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">⚙</span>
+					<span>Active models</span>
+					<span class="muted mono" id="models-grid-count" style="margin-left: auto; font-size: 11px;">— verticals</span>
+				</div>
+				<div class="card-blurb">One card per vertical. The strategy tells you which model the bot runs for that vertical, the ELI5 explains the rule in plain English. Toggle pauses signals across every ticker in that vertical without touching the per-ticker blocklist.</div>
+				<div class="verticals-grid" id="verticals-grid">
+					<div class="empty">loading…</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- PER-VERTICAL PNL — detailed table          -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">∿</span>
+					<span>Per-vertical PnL</span>
+					<span class="muted mono" id="models-tbl-count" style="margin-left: auto; font-size: 11px;">— verticals</span>
+				</div>
+				<div class="card-blurb">All verticals side-by-side: 24h and lifetime realized PnL, total trades, currently open, the per-trade cap, and the tickers in scope. Cap is the maximum notional the bot will risk on a single trade in that vertical — set to "global" to use the default cap.</div>
+				<table class="tbl models-tbl" id="models-tbl">
+					<thead>
+						<tr>
+							<th>Vertical</th>
+							<th>Strategy</th>
+							<th class="num">24h PnL</th>
+							<th class="num">Lifetime PnL</th>
+							<th class="num">Trades</th>
+							<th class="num">Open</th>
+							<th class="num">Cap / trade</th>
+							<th>Tickers</th>
+						</tr>
+					</thead>
+					<tbody id="models-tbl-body">
+						<tr><td colspan="8" class="empty">loading…</td></tr>
+					</tbody>
+				</table>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- MODEL CONFIGURATION                        -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">⛭</span>
+					<span>Model configuration</span>
+					<span class="muted mono" id="models-config-mode" style="margin-left: auto; font-size: 11px;">—</span>
+				</div>
+				<div class="card-blurb">The bot's runtime config — bankroll, max notional per trade, daily notional cap, lookback window, kill switch. Editing happens on the Bot page; this card is the read-only view.</div>
+				<div class="config-grid" id="models-config-grid">
+					<div class="config-row">
+						<div class="config-key">Bankroll</div>
+						<div class="config-val mono" id="models-config-bankroll">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Trading mode</div>
+						<div class="config-val mono" id="models-config-trading-mode">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Model version</div>
+						<div class="config-val mono" id="models-config-model-version">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Max notional / trade</div>
+						<div class="config-val mono" id="models-config-max-notional">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Daily notional cap</div>
+						<div class="config-val mono" id="models-config-daily-cap">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Daily notional used</div>
+						<div class="config-val mono" id="models-config-daily-used">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Lookback (frames)</div>
+						<div class="config-val mono" id="models-config-lookback">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Exit mode</div>
+						<div class="config-val mono" id="models-config-exit-mode">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Min entry p</div>
+						<div class="config-val mono" id="models-config-min-entry-p">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Disable flips</div>
+						<div class="config-val mono" id="models-config-disable-flips">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Profit target</div>
+						<div class="config-val mono" id="models-config-profit-target">—</div>
+					</div>
+					<div class="config-row">
+						<div class="config-key">Stop loss</div>
+						<div class="config-val mono" id="models-config-stop-loss">—</div>
 					</div>
 				</div>
 			</section>
@@ -74,5 +167,199 @@
 		<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 		<script src="app.js"></script>
+		<script>
+			// Models page: hero KPIs, per-vertical PnL table (rebuilt),
+			// and a model configuration card. The active models grid
+			// (the toggles) is populated by the shared app.js
+			// renderVerticalsPanel() — we just keep the #verticals-grid
+			// div in place and let the default refresh cycle fill it.
+			let _modelsRaw = { data: null, ts: 0 };
+			let _botRaw = { data: null, ts: 0 };
+			const CACHE_TTL_MS = 5_000;
+
+			async function fetchVerticals() {
+				const now = Date.now();
+				if (_modelsRaw.data && now - _modelsRaw.ts < CACHE_TTL_MS) return _modelsRaw.data;
+				try {
+					const r = await fetch("/api/pm/verticals", { credentials: "same-origin" });
+					if (!r.ok) return _modelsRaw.data || [];
+					const d = await r.json();
+					_modelsRaw = { data: d.verticals || [], ts: now };
+					return _modelsRaw.data;
+				} catch (_e) { return _modelsRaw.data || []; }
+			}
+			async function fetchBot() {
+				const now = Date.now();
+				if (_botRaw.data && now - _botRaw.ts < CACHE_TTL_MS) return _botRaw.data;
+				try {
+					const r = await fetch("/api/pm/bot/status", { credentials: "same-origin" });
+					if (!r.ok) return _botRaw.data || null;
+					const d = await r.json();
+					_botRaw = { data: d, ts: now };
+					return _botRaw.data;
+				} catch (_e) { return _botRaw.data || null; }
+			}
+
+			// ─── Render: hero ───
+			function renderModelsHero(verticals, bot) {
+				const heroEl = $("models-hero");
+				const activeEl = $("models-active-name");
+				const activeSubEl = $("models-active-sub");
+				const verticalsEl = $("models-verticals");
+				const verticalsSubEl = $("models-verticals-sub");
+				const pnl24El = $("models-pnl-24h");
+				const pnl24SubEl = $("models-pnl-24h-sub");
+				const pnlLifeEl = $("models-pnl-lifetime");
+				const pnlLifeSubEl = $("models-pnl-lifetime-sub");
+				const tickersEl = $("models-tickers");
+				const tickersSubEl = $("models-tickers-sub");
+
+				const config = bot?.config ?? {};
+				const risk = bot?.risk ?? {};
+
+				// Active model name (from bot config.model_version — already includes the "v" prefix)
+				activeEl.textContent = config.model_version ?? "—";
+				activeSubEl.textContent = `${verticals.filter((v) => v.active).length} of ${verticals.length} verticals live · ${config.trading_mode ?? "—"}`;
+
+				// Active / total verticals
+				const active = verticals.filter((v) => v.active).length;
+				verticalsEl.textContent = `${active} / ${verticals.length}`;
+				verticalsSubEl.textContent = `${active} active · ${verticals.length - active} paused`;
+
+				// PnL across all verticals
+				const pnl24 = verticals.reduce((a, v) => a + (v.pnl_cents_24h ?? 0), 0);
+				const pnlLife = verticals.reduce((a, v) => a + (v.pnl_cents_total ?? 0), 0);
+				const pnl24Cls = pnl24 > 0 ? "ok" : pnl24 < 0 ? "bad" : "";
+				const pnlLifeCls = pnlLife > 0 ? "ok" : pnlLife < 0 ? "bad" : "";
+				pnl24El.textContent = fmtCents(pnl24);
+				pnl24El.className = `kpi-num mono ${pnl24Cls}`;
+				pnl24SubEl.textContent = `across ${verticals.length} verticals`;
+				pnlLifeEl.textContent = fmtCents(pnlLife);
+				pnlLifeEl.className = `kpi-num mono ${pnlLifeCls}`;
+				pnlLifeSubEl.textContent = `${verticals.reduce((a, v) => a + (v.n_trades_total ?? 0), 0)} trades total`;
+
+				// Tickers covered
+				const tickersSet = new Set();
+				for (const v of verticals) for (const t of (v.tickers || [])) tickersSet.add(t);
+				tickersEl.textContent = String(tickersSet.size);
+				tickersSubEl.textContent = tickersSet.size === 0
+					? "no tickers yet"
+					: `${Array.from(tickersSet).slice(0, 3).join(", ")}${tickersSet.size > 3 ? `, +${tickersSet.size - 3}` : ""}`;
+
+				// Hero border color
+				const heroCls = pnlLife > 0 ? "ok" : pnlLife < 0 ? "bad" : "ok";
+				heroEl.setAttribute("data-color", heroCls);
+			}
+
+			// ─── Render: per-vertical PnL table ───
+			function renderModelsTable(verticals) {
+				const tbody = $("models-tbl-body");
+				const countEl = $("models-tbl-count");
+				if (!verticals || verticals.length === 0) {
+					tbody.innerHTML = `<tr><td colspan="8" class="empty">no verticals configured</td></tr>`;
+					countEl.textContent = "0 verticals";
+					return;
+				}
+				countEl.textContent = `${verticals.length} vertical${verticals.length === 1 ? "" : "s"}`;
+				tbody.innerHTML = verticals.map((v) => {
+					const pnl24Cls = (v.pnl_cents_24h ?? 0) > 0 ? "ok" : (v.pnl_cents_24h ?? 0) < 0 ? "bad" : "muted";
+					const pnlLifeCls = (v.pnl_cents_total ?? 0) > 0 ? "ok" : (v.pnl_cents_total ?? 0) < 0 ? "bad" : "muted";
+					const capTxt = v.cap_cents != null
+						? `$${(v.cap_cents / 100).toFixed(2)}`
+						: `<span class="muted">global</span>`;
+					const tickersTxt = (v.tickers || []).length === 0
+						? `<span class="muted">—</span>`
+						: v.tickers.slice(0, 3).map((t) => `<span class="pill muted" style="font-size: 10px;">${esc(t)}</span>`).join(" ") + ((v.tickers || []).length > 3 ? ` <span class="muted" style="font-size: 10px;">+${v.tickers.length - 3}</span>` : "");
+					const strategyLabel = v.strategy_label || v.strategy || "—";
+					const strategyPill = v.strategy === "reversion"
+						? `<span class="pill ok" style="font-size: 10px;">reversion</span>`
+						: v.strategy === "naive"
+							? `<span class="pill warn" style="font-size: 10px;">naive</span>`
+							: `<span class="pill muted" style="font-size: 10px;">${esc(v.strategy || "—")}</span>`;
+					return `<tr>
+						<td><strong>${v.emoji || ""} ${esc(v.label || v.id)}</strong> ${v.active ? "" : `<span class="pill muted" style="font-size: 10px;">paused</span>`}</td>
+						<td>${strategyPill} <span class="muted" style="font-size: 11px;">${esc(strategyLabel)}</span></td>
+						<td class="num mono ${pnl24Cls}">${fmtCents(v.pnl_cents_24h ?? 0)}</td>
+						<td class="num mono ${pnlLifeCls}">${fmtCents(v.pnl_cents_total ?? 0)}</td>
+						<td class="num mono">${fmtNum(v.n_trades_total ?? 0)}</td>
+						<td class="num mono">${fmtNum(v.n_open ?? 0)}</td>
+						<td class="num mono">${capTxt}</td>
+						<td>${tickersTxt}</td>
+					</tr>`;
+				}).join("");
+			}
+
+			// ─── Render: model configuration card ───
+			function renderModelsConfig(bot) {
+				const config = bot?.config ?? {};
+				const risk = bot?.risk ?? {};
+				const modeEl = $("models-config-mode");
+				modeEl.textContent = config.trading_mode ?? "—";
+				modeEl.setAttribute("data-color", config.trading_mode === "real" ? "warn" : "muted");
+
+				// Use a "neutral" money formatter for non-PnL values (no "+" sign)
+				const fmtDollars = (c) => c == null ? "—" : `$${(c / 100).toFixed(2)}`;
+				$("models-config-bankroll").textContent = fmtDollars(config.bankroll_cents);
+				$("models-config-trading-mode").textContent = config.trading_mode ?? "—";
+				$("models-config-model-version").textContent = config.model_version ?? "—";
+				$("models-config-max-notional").textContent = config.max_notional_cents_per_trade != null
+					? fmtDollars(config.max_notional_cents_per_trade)
+					: "—";
+				$("models-config-daily-cap").textContent = config.daily_notional_cents_cap != null
+					? fmtDollars(config.daily_notional_cents_cap)
+					: "—";
+				// Daily used: prefer live risk.daily_notional_cents over config's static counter
+				const dailyUsed = risk.daily_notional_cents ?? config.daily_notional_cents ?? 0;
+				const dailyCap = config.daily_notional_cents_cap ?? 0;
+				const pct = dailyCap > 0 ? Math.round((dailyUsed / dailyCap) * 100) : 0;
+				const usedEl = $("models-config-daily-used");
+				usedEl.textContent = `${fmtDollars(dailyUsed)} · ${pct}% of cap`;
+				usedEl.setAttribute("data-color", pct >= 90 ? "bad" : pct >= 70 ? "warn" : "ok");
+				$("models-config-lookback").textContent = config.lookback != null
+					? `${config.lookback} frames`
+					: "—";
+				$("models-config-exit-mode").textContent = config.exit_mode ?? "—";
+				$("models-config-min-entry-p").textContent = config.min_entry_p != null
+					? `${(config.min_entry_p * 100).toFixed(0)}%`
+					: "—";
+				$("models-config-disable-flips").innerHTML = config.disable_flips
+					? "yes"
+					: `<span class="muted">no</span>`;
+				$("models-config-profit-target").innerHTML = config.profit_target_pct != null
+					? `${(config.profit_target_pct * 100).toFixed(0)}%`
+					: `<span class="muted">off</span>`;
+				$("models-config-stop-loss").innerHTML = config.stop_loss_pct != null
+					? `${(config.stop_loss_pct * 100).toFixed(0)}%`
+					: `<span class="muted">off</span>`;
+			}
+
+			// ─── Main render loop ───
+			async function renderModelsPage() {
+				const [verticals, bot] = await Promise.all([fetchVerticals(), fetchBot()]);
+				renderModelsHero(verticals || [], bot);
+				renderModelsTable(verticals || []);
+				renderModelsConfig(bot);
+				// Active models grid is rendered by the default app.js
+				// refresh cycle (calls renderVerticalsPanel(verticals)).
+				// We also call it here so the first paint is right
+				// without waiting 5s for the default cycle.
+				if (typeof renderVerticalsPanel === "function" && verticals) {
+					renderVerticalsPanel(verticals);
+				}
+				// Update the active models card count label.
+				$("models-grid-count").textContent = `${verticals.length} vertical${verticals.length === 1 ? "" : "s"}`;
+			}
+
+			// ─── Wire into app.js ───
+			const _origInit = window.appPageInit;
+			window.appPageInit = function modelsPageInit() {
+				if (_origInit) _origInit();
+				startTimers([{ fn: renderModelsPage, ms: 5_000 }]);
+				renderModelsPage();
+			};
+			window.appPageOnVisible = function () {
+				renderModelsPage();
+			};
+		</script>
 	</body>
 </html>
