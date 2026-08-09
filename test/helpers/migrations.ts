@@ -19,6 +19,7 @@
 import migration0001 from "../../migrations/0001_initial_schema.sql?raw";
 import migration0002 from "../../migrations/0002_real_trading_columns.sql?raw";
 import migration0003 from "../../migrations/0003_bot_config.sql?raw";
+import migration0004 from "../../migrations/0004_lead_suggestions.sql?raw";
 
 const splitMigration = (sql: string): string[] =>
 	sql
@@ -37,4 +38,5 @@ export const ALL_MIGRATIONS = [
 	{ name: "0001_initial_schema.sql", queries: splitMigration(migration0001) },
 	{ name: "0002_real_trading_columns.sql", queries: splitMigration(migration0002) },
 	{ name: "0003_bot_config.sql", queries: splitMigration(migration0003) },
+	{ name: "0004_lead_suggestions.sql", queries: splitMigration(migration0004) },
 ];

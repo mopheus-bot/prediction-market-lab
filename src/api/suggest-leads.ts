@@ -108,7 +108,7 @@ function buildUserPrompt(body: SuggestLeadsBody): string {
 	return lines.join("\n");
 }
 
-function parseTickerList(rawText: string, requestedCount: number): { tickers: string[]; reasoning: string } {
+export function parseTickerList(rawText: string, requestedCount: number): { tickers: string[]; reasoning: string } {
 	// M3 wraps output in <think>...</think> (we strip that in
 	// the chat() client). The remaining text should be JSON.
 	// Be defensive: find the first { and the matching }.
@@ -127,6 +127,42 @@ function parseTickerList(rawText: string, requestedCount: number): { tickers: st
 	} catch {
 		return { tickers: [], reasoning: "(llm returned malformed JSON)" };
 	}
+}
+
+/** Validate the LLM's ticker suggestions against format
+ *  + dedupe + exclusion rules. Exported so the validation
+ *  can be unit-tested independently of the LLM call path. */
+export function validateTickerSuggestions(
+	rawTickers: string[],
+	opts: { exclude: string[]; limit: number },
+): { accepted: string[]; rejected: Array<{ ticker: string; reason: string }> } {
+	const exclude = new Set(opts.exclude.map((t) => t.toUpperCase()));
+	const seen = new Set<string>();
+	const accepted: string[] = [];
+	const rejected: Array<{ ticker: string; reason: string }> = [];
+	for (const raw of rawTickers) {
+		const t = raw.trim().toUpperCase();
+		if (seen.has(t)) {
+			rejected.push({ ticker: t, reason: "duplicate" });
+			continue;
+		}
+		seen.add(t);
+		if (!KALSHI_TICKER_RE.test(t)) {
+			rejected.push({ ticker: t, reason: "not a valid KX ticker (format)" });
+			continue;
+		}
+		if (exclude.has(t)) {
+			rejected.push({ ticker: t, reason: "already in current universe or excluded" });
+			continue;
+		}
+		accepted.push(t);
+	}
+	// Cap at the requested limit (in case the LLM returned
+	// more suggestions than asked for).
+	return {
+		accepted: accepted.slice(0, opts.limit),
+		rejected,
+	};
 }
 
 export async function handleSuggestLeads(
@@ -185,27 +221,11 @@ export async function handleSuggestLeads(
 	const parsed = parseTickerList(result.text, count);
 
 	// 4. Validate format + dedupe + filter against excludes.
-	const exclude = new Set([...(body.exclude ?? []), ...(body.current_tickers ?? [])]);
-	const seen = new Set<string>();
-	const accepted: string[] = [];
-	const rejected: Array<{ ticker: string; reason: string }> = [];
-	for (const raw of parsed.tickers) {
-		const t = raw.trim().toUpperCase();
-		if (seen.has(t)) {
-			rejected.push({ ticker: t, reason: "duplicate" });
-			continue;
-		}
-		seen.add(t);
-		if (!KALSHI_TICKER_RE.test(t)) {
-			rejected.push({ ticker: t, reason: "not a valid KX ticker (format)" });
-			continue;
-		}
-		if (exclude.has(t)) {
-			rejected.push({ ticker: t, reason: "already in current universe or excluded" });
-			continue;
-		}
-		accepted.push(t);
-	}
+	const validation = validateTickerSuggestions(parsed.tickers, {
+		exclude: [...(body.exclude ?? []), ...(body.current_tickers ?? [])],
+		limit: count,
+	});
+	const { accepted, rejected } = validation;
 
 	return Response.json(
 		{

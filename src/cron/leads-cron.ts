@@ -75,7 +75,7 @@ export interface LeadsCronEnv extends LLMEnv {
 	LIVE_BOT?: DurableObjectNamespace;
 }
 
-interface BotState {
+export interface BotState {
 	tickers: string[];
 	ticker_verticals: Record<string, string>;
 	bankroll_cents: number;
@@ -228,7 +228,7 @@ interface ParsedLeads {
 	overall_reasoning: string;
 }
 
-function parseLlmResponse(rawText: string): ParsedLeads | null {
+export function parseLlmResponse(rawText: string): ParsedLeads | null {
 	// chat() already strips the <think> block. The remaining
 	// text should be JSON. Be defensive.
 	const jStart = rawText.indexOf("{");
@@ -266,7 +266,7 @@ function parseLlmResponse(rawText: string): ParsedLeads | null {
 	}
 }
 
-function validateAndDedupe(
+export function validateAndDedupe(
 	parsed: ParsedLeads,
 	state: BotState,
 	rejected: Set<string>,
@@ -445,15 +445,16 @@ export async function runLeadsCron(env: LeadsCronEnv): Promise<CronResult> {
 	}
 
 	// 7. Insert the new suggestions.
-	let inserted = 0;
+	let insertedIds: number[] = [];
 	if (env.DB && (add.length > 0 || drop.length > 0)) {
-		inserted = await leadSuggestionsDb
+		insertedIds = await leadSuggestionsDb
 			.insertMany(env.DB, userId, [...add, ...drop])
 			.catch((e) => {
 				console.error("[leads] failed to insert suggestions", e);
-				return 0;
+				return [];
 			});
 	}
+	const inserted = insertedIds.length;
 
 	return {
 		ok: true,

@@ -107,19 +107,30 @@ at any chunk and have something useful.
 | # | Chunk | Status | Notes |
 |---|-------|--------|-------|
 | 0 | **Bootstrap** — repo, D1, R2, hello world, custom domain, CF Access, GitHub | ✅ done | 2026-08-08. D1 ID `cd54a509-...`, R2 bucket `pm-bot`, CF Access app `bot`. |
-| 1 | **Data layer** — D1 schema, migrations, TS types, unit tests | pending | Foundation for everything else. ~2 days. |
-| 2 | **Kalshi client TS port** — RSA auth, REST, WS | pending | **RISKIEST** — Node crypto vs Python cryptography must be byte-exact. Verify against demo API. ~3 days. |
-| 3 | **Live bot Durable Object** — WS connect with hibernation, 90-min cycle, position management | pending | State in `ctx.storage`, never instance vars. ~5 days. |
-| 4 | **Strategy + models** — ONNX conversion of 4 .joblib models, feature engineering, strategy router | pending | `skl2onnx` one-shot helper. Parity tests against Python output. ~5 days, parallel with 3. |
-| 5 | **Cron jobs** — scan, news, daily, train (4 Workers + Cron Triggers) | pending | Each runs <2 min. ~2 days. |
-| 6 | **Status API + Telegram IM bridge** | pending | Telegram primary (works without the secondary channel), A secondary IM channel if a webhook URL is exposed. ~2 days. |
-| 7 | **Dashboard (CF Pages)** — PnL, positions, signals, per-vertical breakdown, historical views | pending | Static site, polls `/status` and `/api/pm/*`. ~3 days. |
-| 8 | **Model registry + shadow mode + hot-swap** | pending | Two DOs (live + shadow), model versioning in D1, R2 artifacts, promotion workflow. ~3 days. |
-| 9 | **Real trading toggle + kill switch** | pending | After 1 week of paper validation. `TRADING_MODE=paper|real|off`, daily notional cap, isolated real creds. ~3 days. |
+| 1 | **Data layer** — D1 schema, migrations, TS types, unit tests | ✅ done | chunk 1-7. |
+| 2 | **Kalshi client TS port** — RSA auth, REST, WS | ✅ done | kalshi-typescript SDK + polling (no WS after chunk 10.6). |
+| 3 | **Live bot Durable Object** — WS connect with hibernation, 90-min cycle, position management | ✅ done | chunk 3. State in `ctx.storage`. |
+| 4 | **Strategy + models** — ONNX conversion of 4 .joblib models, feature engineering, strategy router | ✅ done | chunk 4. JSON model format. |
+| 5 | **Cron jobs** — scan, news, daily, train (4 Workers + Cron Triggers) | ✅ done | chunk 5. Each runs <2 min. |
+| 6 | **Status API + Telegram IM bridge** | ✅ done | chunk 6. Telegram primary. |
+| 7 | **Dashboard (CF Pages)** — PnL, positions, signals, per-vertical breakdown, historical views | ✅ done | chunk 7 + 10 (restructure to 7 sub-pages). |
+| 8 | **Model registry + shadow mode + hot-swap** | ✅ done | chunk 8. D1 registry + R2 artifacts. |
+| 9 | **Real trading toggle + kill switch** | ✅ done | chunk 9. `TRADING_MODE=paper\|real\|off` + per-vertical caps. |
+
+### Post-MVP chunks (10+)
+
+| # | Chunk | Status | Notes |
+|---|-------|--------|-------|
+| 10 | **Dashboard restructure** — Stage panel, brand bar, 7 focused sub-pages (Dashboard / Bot / Positions / Trades / Models / Schedule / Dev), the app polish | ✅ done | chunk 10 + 10.5 + 10.6 + 10.7 + 10.8 + 10.8c + 12. |
+| 11a | **Backtest automation** — weekly Sunday 01:00 UTC backtest retrospective; Telegram on real fill | ✅ done | chunk 11a. |
+| 11b | **Auto-pilot** — daily 05:30 UTC paper→real flip on Sharpe > 0.5 + min days + min trades | ✅ done | chunk 11b. Default off. |
+| 12 | **Automation suite** — manual cron triggers, E2E smoke test, daily heartbeat cron, leads-cron, dispatcher bug fixes | ✅ done | chunk 12 + 13. |
+| 13 | **Leads pipeline** — LLM-driven add+drop suggestions, daily 02:00 UTC, operator approval on Dev page, 24h TTL via `superseded`, recently-rejected 30d cooldown, vertical retargeting deferred | ✅ done | chunk 13 (this chunk). |
 
 **Total MVP (chunks 0–6):** ~3 weeks
 **Total v1.1 (chunks 0–8):** ~5 weeks
 **Total including real trading (chunks 0–9):** ~6 weeks
+**Post-MVP to chunk 13:** ~1 additional week (operator UX + automation + LLM-driven features)
 
 ## Decisions to honor
 

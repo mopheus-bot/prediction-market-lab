@@ -509,23 +509,26 @@ export const llmCalls = {
 export const leadSuggestions = {
 	/** Bulk-insert a batch of pending suggestions. The cron
 	 *  calls this once per run; the API never inserts (the
-	 *  cron is the only producer). */
+	 *  cron is the only producer). Returns the array of
+	 *  inserted row IDs in the same order as `rows` — lets
+	 *  tests verify exact rows without a follow-up query. */
 	async insertMany(
 		db: D1Database,
 		user_id: string,
 		rows: Array<Omit<NewLeadSuggestion, "user_id">>,
-	): Promise<number> {
-		if (rows.length === 0) return 0;
+	): Promise<number[]> {
+		if (rows.length === 0) return [];
 		const stmt = db.prepare(
 			`INSERT INTO lead_suggestions
 			 (user_id, cron_run_id, kind, ticker, vertical, reasoning,
 			  raw_text, status, created_at, decided_at, expires_at,
 			  applied_at, applied_run_id)
-			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, ?10, NULL, NULL)`,
+			 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, ?10, NULL, NULL)
+			 RETURNING id`,
 		);
-		let n = 0;
+		const ids: number[] = [];
 		for (const r of rows) {
-			await stmt
+			const res = await stmt
 				.bind(
 					user_id,
 					r.cron_run_id,
@@ -538,10 +541,10 @@ export const leadSuggestions = {
 					r.created_at,
 					r.expires_at,
 				)
-				.run();
-			n += 1;
+				.first<{ id: number }>();
+			if (res?.id != null) ids.push(res.id);
 		}
-		return n;
+		return ids;
 	},
 
 	/** Mark every current `pending` row as `superseded`. The
