@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="color-scheme" content="dark" />
 		<title>Trader — Bot</title>
-		<meta name="description" content="Trading mode · kill switch · caps · per-vertical overrides." />
+		<meta name="description" content="Control center: lifecycle, trading mode, kill switch, risk caps, blocklist, activity log, health." />
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
@@ -13,134 +13,306 @@
 		<div class="app-shell">
 			<div class="app-section-header">
 				<h2>Bot</h2>
-				<p>Trading mode · kill switch · caps · per-vertical overrides</p>
+				<p>Lifecycle · trading mode · kill switch · risk caps · blocklist · activity log · health</p>
 			</div>
 
-			<!-- Stage panel (live status) -->
-			<section class="card stage-panel" id="stage-panel" data-color="warn" aria-labelledby="stage-panel-title" style="margin-bottom: 24px;">
-				<div class="stage-panel-head">
-					<div class="stage-panel-title-block">
-						<div class="card-title" id="stage-panel-title">
+			<!-- ============================================ -->
+			<!-- STATUS HERO                                -->
+			<!-- ============================================ -->
+			<section class="card bot-hero" id="bot-hero" data-color="warn" aria-labelledby="bot-hero-title" style="margin-bottom: 20px;">
+				<div class="bot-hero-head">
+					<div class="bot-hero-stage">
+						<div class="card-title bot-hero-title" id="bot-hero-title">
 							<span class="stage-panel-dot" id="stage-panel-dot"></span>
 							<span id="stage-panel-label">Connecting…</span>
 						</div>
-						<div class="stage-panel-desc" id="stage-panel-desc">Opening the WebSocket to Kalshi. This usually takes a few seconds.</div>
+						<div class="bot-hero-desc" id="stage-panel-desc">Opening the WebSocket to Kalshi.</div>
 					</div>
-					<div class="stage-panel-action" id="stage-panel-action"></div>
-				</div>
-			</section>
-
-			<!-- Bot controls (Start/Stop/Restart) -->
-			<div class="controls" id="controls" style="margin-bottom: 24px; justify-content: flex-start;">
-				<button class="btn primary" id="btn-start">Start</button>
-				<button class="btn" id="btn-restart">Restart</button>
-				<button class="btn danger" id="btn-stop">Stop</button>
-			</div>
-
-			<!-- Trading mode + Caps + Kill switch -->
-			<section class="grid" style="margin-bottom: 24px;">
-				<div class="col-8">
-					<div class="card">
-						<div class="card-title">
-							<span class="dot"></span>Trading mode
-							<span class="pill paper" id="mode-pill">paper</span>
+					<div class="bot-hero-meta">
+						<div class="bot-hero-meta-item">
+							<div class="bot-hero-meta-label">Uptime</div>
+							<div class="bot-hero-meta-val mono" id="bot-uptime">—</div>
 						</div>
-						<div class="card-blurb">On Kalshi, a "fill" means the bot bought (or sold) a YES/NO contract at a market price. paper = log only, no real money. real = place actual orders on Kalshi's exchange. off = no new trades; the WS keeps streaming so you can see state. Kill switch is the panic button — flips the bot into a state where every new trade is rejected with reason "kill_switch_active".</div>
-						<div class="mode-buttons">
-							<button class="btn mode-btn" id="btn-pause" data-mode="off">
-								<span class="mode-num">1 · pause</span>
-								<span class="mode-name">Pause</span>
-								<span class="mode-desc">WS keeps running, no new trades. Use this to stop losses or step away.</span>
-							</button>
-							<button class="btn mode-btn active" id="btn-paper" data-mode="paper">
-								<span class="mode-num">2 · paper</span>
-								<span class="mode-name">Paper</span>
-								<span class="mode-desc">Signals + paper fills. No real money. Default mode.</span>
-							</button>
-							<button class="btn mode-btn primary" id="btn-live" data-mode="real">
-								<span class="mode-num">3 · real money</span>
-								<span class="mode-name">Go live</span>
-								<span class="mode-desc">Place real orders on Kalshi. Confirmation modal required.</span>
-							</button>
+						<div class="bot-hero-meta-item">
+							<div class="bot-hero-meta-label">Frames</div>
+							<div class="bot-hero-meta-val mono" id="bot-frames">—</div>
 						</div>
-						<div class="kill-row">
-							<button class="btn danger" id="btn-killswitch">
-								Kill switch
-								<span class="kill-state" id="kill-state">off</span>
-							</button>
-							<span class="kill-help">panic-stop: refuses all new trades immediately. No auto-close of open positions.</span>
-						</div>
+						<div class="bot-hero-action" id="stage-panel-action"></div>
 					</div>
 				</div>
-				<div class="col-4">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Caps & today</div>
-						<div class="card-blurb">Hard limits on Kalshi exposure. per-trade cap = max cents the bot will deploy on a single fill. Daily cap = max cents in any 24h rolling window. Per-vertical overrides let you tune each vertical independently.</div>
-						<div class="caps-row">
-							<div class="caps-label">Account balance</div>
-							<div class="caps-val" id="caps-balance">$—</div>
-						</div>
-						<div class="caps-row">
-							<div class="caps-label">Per-trade cap</div>
-							<div class="caps-val" id="caps-per-trade">$0.25</div>
-						</div>
-						<div class="caps-row">
-							<div class="caps-label">Daily deployed</div>
-							<div class="caps-val" id="caps-daily">$0.00 / $1.50</div>
-						</div>
-						<div class="caps-bar-wrap">
-							<div class="caps-bar" id="caps-bar" style="width: 0%"></div>
-						</div>
-						<div class="caps-row" style="margin-top: 12px;">
-							<div class="caps-label">Per-vertical overrides</div>
-							<div class="caps-val" id="per-vertical-caps" style="font-size: 11px; line-height: 1.5;"></div>
-						</div>
-						<div class="per-vertical-input-row" style="margin-top: 6px;">
-							<input
-								type="text"
-								id="per-vertical-input-name"
-								class="per-vertical-input"
-								placeholder="vertical (e.g. weather)"
-								aria-label="Per-vertical cap name"
-								style="flex: 1; min-width: 0;"
-							/>
-							<input
-								type="number"
-								id="per-vertical-input-cents"
-								class="per-vertical-input"
-								placeholder="¢/trade"
-								min="1"
-								max="999"
-								step="1"
-								aria-label="Per-vertical cap in cents"
-								style="width: 64px;"
-							/>
-							<button class="btn small" id="per-vertical-add-btn">Add</button>
-						</div>
-						<div class="caps-row" style="margin-top: 12px;">
-							<div class="caps-label">
-								Blocklist
-								<span class="muted" style="font-size:10px; font-weight: 400;">— tickers the bot will skip</span>
-							</div>
-							<div class="blocklist-wrap">
-								<div class="blocklist-tags" id="blocklist"></div>
-								<div class="blocklist-input-row">
-									<input
-										type="text"
-										id="blocklist-input"
-										class="blocklist-input"
-										placeholder="add ticker (e.g. KXWARMING-50)"
-										aria-label="Add ticker to blocklist"
-									/>
-									<button class="btn small" id="blocklist-add-btn">Add</button>
-								</div>
-							</div>
-						</div>
+				<div class="bot-hero-kpis">
+					<div class="kpi-card kpi-large">
+						<div class="kpi-label">Account balance</div>
+						<div class="kpi-num mono" id="hero-balance">$—</div>
+						<div class="kpi-sub" id="hero-balance-sub">real money on Kalshi</div>
+					</div>
+					<div class="kpi-card">
+						<div class="kpi-label">Bankroll</div>
+						<div class="kpi-num mono" id="bot-bankroll">$—</div>
+						<div class="kpi-sub">paper trading capital</div>
+					</div>
+					<div class="kpi-card">
+						<div class="kpi-label">Deployed today</div>
+						<div class="kpi-num mono" id="bot-deployed">$—</div>
+						<div class="kpi-sub" id="bot-deployed-sub">vs cap</div>
+					</div>
+					<div class="kpi-card">
+						<div class="kpi-label">Signals</div>
+						<div class="kpi-num mono" id="bot-signals">—</div>
+						<div class="kpi-sub" id="bot-signals-sub">model fires</div>
 					</div>
 				</div>
 			</section>
 
-			<!-- Go-live confirmation modal (chunk 9.6) -->
+			<!-- ============================================ -->
+			<!-- QUICK ACTIONS                              -->
+			<!-- ============================================ -->
+			<section class="grid grid-2-col" style="margin-bottom: 20px;">
+				<!-- Bot lifecycle -->
+				<div class="card">
+					<div class="card-title">
+						<span aria-hidden="true">⚙</span>
+						<span>Lifecycle</span>
+					</div>
+					<div class="card-blurb">Start, stop, or restart the bot. Stop is a graceful close (no new trades, but open positions stay open until manually closed).</div>
+					<div class="lifecycle-row">
+						<button class="btn primary big" id="btn-start">
+							<span class="lifecycle-num">1</span>
+							<span class="lifecycle-name">Start</span>
+						</button>
+						<button class="btn big" id="btn-restart">
+							<span class="lifecycle-num">2</span>
+							<span class="lifecycle-name">Restart</span>
+						</button>
+						<button class="btn danger big" id="btn-stop">
+							<span class="lifecycle-num">3</span>
+							<span class="lifecycle-name">Stop</span>
+						</button>
+					</div>
+					<div class="lifecycle-status" id="lifecycle-status">
+						<span class="lifecycle-status-label">Status</span>
+						<span class="lifecycle-status-val" id="lifecycle-status-val">—</span>
+					</div>
+				</div>
+
+				<!-- Trading mode + kill switch -->
+				<div class="card">
+					<div class="card-title">
+						<span aria-hidden="true">🎚</span>
+						<span>Trading mode</span>
+						<span class="pill paper" id="mode-pill">paper</span>
+					</div>
+					<div class="card-blurb">Paper = signals + simulated fills, no real money. Real = place actual orders on Kalshi. Off = WS keeps streaming, but no new trades (pause mode).</div>
+					<div class="mode-buttons">
+						<button class="btn mode-btn" id="btn-pause" data-mode="off">
+							<span class="mode-num">1</span>
+							<span class="mode-name">Pause</span>
+							<span class="mode-desc">WS open, no new trades</span>
+						</button>
+						<button class="btn mode-btn active" id="btn-paper" data-mode="paper">
+							<span class="mode-num">2</span>
+							<span class="mode-name">Paper</span>
+							<span class="mode-desc">simulated fills, no money</span>
+						</button>
+						<button class="btn mode-btn primary" id="btn-live" data-mode="real">
+							<span class="mode-num">3</span>
+							<span class="mode-name">Go live</span>
+							<span class="mode-desc">real orders (confirm modal)</span>
+						</button>
+					</div>
+					<div class="kill-row">
+						<button class="btn danger big" id="btn-killswitch">
+							<span aria-hidden="true">⛔</span>
+							<span>Kill switch</span>
+							<span class="kill-state" id="kill-state">off</span>
+						</button>
+					</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- RISK                                       -->
+			<!-- ============================================ -->
+			<section class="grid grid-2-col" style="margin-bottom: 20px;">
+				<!-- Caps -->
+				<div class="card">
+					<div class="card-title">
+						<span aria-hidden="true">🛡</span>
+						<span>Risk caps</span>
+					</div>
+					<div class="card-blurb">Hard limits the bot refuses to violate. Per-trade = max cents on a single fill. Daily = max cents deployed in any 24h rolling window. Operators can override per-vertical below.</div>
+					<div class="caps-row">
+						<div class="caps-label">Per-trade cap</div>
+						<div class="caps-val" id="caps-per-trade">$0.25</div>
+					</div>
+					<div class="caps-row">
+						<div class="caps-label">Daily deployed</div>
+						<div class="caps-val" id="caps-daily">$0.00 / $1.50</div>
+					</div>
+					<div class="caps-bar-wrap">
+						<div class="caps-bar" id="caps-bar" style="width: 0%"></div>
+					</div>
+					<div class="caps-row" style="margin-top: 12px;">
+						<div class="caps-label">Peak bankroll</div>
+						<div class="caps-val" id="caps-peak">$—</div>
+					</div>
+					<div class="caps-row">
+						<div class="caps-label">Consecutive losses</div>
+						<div class="caps-val" id="caps-consec-loss">—</div>
+					</div>
+				</div>
+
+				<!-- Per-vertical overrides -->
+				<div class="card">
+					<div class="card-title">
+						<span aria-hidden="true">⊟</span>
+						<span>Per-vertical overrides</span>
+					</div>
+					<div class="card-blurb">Override the per-trade cap for specific verticals (in cents). Empty = use the global cap. Example: weather=50¢, politics=5¢.</div>
+					<div class="per-vertical-caps" id="per-vertical-caps" style="font-size: 11px; line-height: 1.5; margin: 6px 0 12px;">— none —</div>
+					<div class="per-vertical-input-row">
+						<input
+							type="text"
+							id="per-vertical-input-name"
+							class="per-vertical-input"
+							placeholder="vertical (e.g. weather)"
+							aria-label="Per-vertical cap name"
+							style="flex: 1; min-width: 0;"
+						/>
+						<input
+							type="number"
+							id="per-vertical-input-cents"
+							class="per-vertical-input"
+							placeholder="¢/trade"
+							min="1"
+							max="999"
+							step="1"
+							aria-label="Per-vertical cap in cents"
+							style="width: 64px;"
+						/>
+						<button class="btn small" id="per-vertical-add-btn">Add</button>
+					</div>
+				</div>
+			</section>
+
+			<!-- Blocklist -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">⊘</span>
+					<span>Blocklist</span>
+				</div>
+				<div class="card-blurb">Tickers the bot will never trade. Useful for skipping illiquid or high-spread markets. Distinct from per-vertical toggles (those pause the whole vertical).</div>
+				<div class="blocklist-wrap">
+					<div class="blocklist-tags" id="blocklist">
+						<span class="muted" style="font-size: 11px;">— empty —</span>
+					</div>
+					<div class="blocklist-input-row">
+						<input
+							type="text"
+							id="blocklist-input"
+							class="blocklist-input"
+							placeholder="add ticker (e.g. KXWARMING-50)"
+							aria-label="Add ticker to blocklist"
+						/>
+						<button class="btn small" id="blocklist-add-btn">Add</button>
+					</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- ACTIVITY LOG (NEW)                          -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">⌬</span>
+					<span>Activity log</span>
+					<div class="activity-filters" id="activity-filters" role="tablist" style="margin-left: auto; display: flex; gap: 4px;">
+						<button class="btn small activity-filter active" data-filter="all" role="tab" aria-selected="true">All</button>
+						<button class="btn small activity-filter" data-filter="cron" role="tab" aria-selected="false">Cron</button>
+						<button class="btn small activity-filter" data-filter="manual" role="tab" aria-selected="false">Manual</button>
+						<button class="btn small activity-filter" data-filter="fill" role="tab" aria-selected="false">Fills</button>
+					</div>
+				</div>
+				<div class="card-blurb">What just happened on the bot. Cron = scheduled jobs (scan, news, daily, train). Manual = your action (start, stop, mode change, kill switch). Fills = actual orders placed.</div>
+				<table class="tbl activity-log-tbl">
+					<thead>
+						<tr>
+							<th>When</th>
+							<th>Source</th>
+							<th>Action</th>
+							<th>Detail</th>
+							<th class="num">ms</th>
+							<th>Result</th>
+						</tr>
+					</thead>
+					<tbody id="activity-log-body">
+						<tr><td colspan="6" class="empty">no activity yet</td></tr>
+					</tbody>
+				</table>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- HEALTH (NEW, collapsible)                   -->
+			<!-- ============================================ -->
+			<section class="card health-card" style="margin-bottom: 20px;">
+				<div class="card-title health-card-head">
+					<span aria-hidden="true">♥</span>
+					<span>Health</span>
+					<span class="muted mono" style="font-size: 11px; margin-left: 8px;" id="health-summary">—</span>
+					<button class="btn small health-toggle" id="health-toggle" style="margin-left: auto;" aria-expanded="false" aria-controls="health-body">Show details</button>
+				</div>
+				<div class="card-blurb">Polling/feed diagnostics. Use this when the stage panel shows "error" or "connecting" for too long — it tells you whether the issue is the bot, the feed, or Kalshi.</div>
+				<div class="health-grid" id="health-body" hidden>
+					<div class="health-tile">
+						<div class="health-tile-label">Polling</div>
+						<div class="health-tile-val" id="health-poll-active">—</div>
+					</div>
+					<div class="health-tile">
+						<div class="health-tile-label">Connected</div>
+						<div class="health-tile-val" id="health-poll-connected">—</div>
+					</div>
+					<div class="health-tile">
+						<div class="health-tile-label">Polls</div>
+						<div class="health-tile-val mono" id="health-poll-count">—</div>
+					</div>
+					<div class="health-tile">
+						<div class="health-tile-label">Errors</div>
+						<div class="health-tile-val mono" id="health-poll-errors">—</div>
+					</div>
+					<div class="health-tile">
+						<div class="health-tile-label">Last poll</div>
+						<div class="health-tile-val mono" id="health-poll-latency">—</div>
+					</div>
+					<div class="health-tile">
+						<div class="health-tile-label">Ticks</div>
+						<div class="health-tile-val mono" id="health-poll-tickers">—</div>
+					</div>
+				</div>
+				<div class="health-error" id="health-error" hidden>
+					<div class="health-error-label">Last error</div>
+					<pre class="health-error-text mono" id="health-error-text"></pre>
+				</div>
+				<div class="health-tickers" id="health-tickers-wrap" hidden>
+					<div class="health-tickers-label">Per-ticker</div>
+					<table class="tbl health-tickers-tbl">
+						<thead>
+							<tr>
+								<th>Ticker</th>
+								<th>Vertical</th>
+								<th class="num">History</th>
+								<th class="num">Trades</th>
+								<th class="num">Last @</th>
+								<th>Position</th>
+							</tr>
+						</thead>
+						<tbody id="health-tickers-body">
+							<tr><td colspan="6" class="empty">no tickers</td></tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<!-- Go-live confirmation modal -->
 			<div class="modal-back" id="modal-live-back">
 				<div class="modal">
 					<div class="modal-title">Go live with real money</div>
@@ -190,5 +362,357 @@
 		<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 		<script src="app.js"></script>
+		<script>
+			// Bot page: focused refresh + activity log + health diagnostics.
+			// - 5s fast: status, mode, balances
+			// - 10s: cron-runs (activity log), trades (fills)
+			// - 30s: verticals
+			// - manual actions logged to localStorage for the activity feed
+			const ACT_LOG_KEY = "trader:activity-log";
+			const ACT_LOG_MAX = 200;
+			const HEALTH_DETAILS_OPEN_KEY = "trader:health-details-open";
+			const _activityFilter = { current: "all" };
+
+			function loadActivityLog() {
+				try { return JSON.parse(localStorage.getItem(ACT_LOG_KEY) || "[]"); }
+				catch (_e) { return []; }
+			}
+			function saveActivityLog(log) {
+				try { localStorage.setItem(ACT_LOG_KEY, JSON.stringify(log.slice(0, ACT_LOG_MAX))); }
+				catch (_e) { /* localStorage disabled — fail silently */ }
+			}
+			function logActivity(source, action, detail, result, durationMs) {
+				const entry = {
+					ts_ms: Date.now(),
+					source, action, detail, result, durationMs,
+				};
+				const log = loadActivityLog();
+				log.unshift(entry);
+				saveActivityLog(log);
+			}
+
+			function fmtMs(ms) {
+				if (ms == null) return "—";
+				if (ms < 1000) return `${ms}ms`;
+				return `${(ms / 1000).toFixed(1)}s`;
+			}
+			function fmtCount(n) {
+				if (n == null) return "—";
+				return n.toLocaleString();
+			}
+			function fmtPercent(pct) {
+				if (pct == null || !isFinite(pct)) return "—";
+				if (pct === 0) return "0%";
+				return `${pct.toFixed(1)}%`;
+			}
+
+			// ─── Uptime ───
+			function renderUptime(startedMs) {
+				const el = document.getElementById("bot-uptime");
+				if (!el) return;
+				if (!startedMs) { el.textContent = "—"; return; }
+				const sec = Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
+				if (sec < 60) el.textContent = `${sec}s`;
+				else if (sec < 3600) el.textContent = `${Math.floor(sec / 60)}m ${sec % 60}s`;
+				else if (sec < 86400) el.textContent = `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+				else el.textContent = `${Math.floor(sec / 86400)}d ${Math.floor((sec % 86400) / 3600)}h`;
+			}
+			// Tick uptime every 1s.
+			setInterval(() => {
+				const s = window._lastBotStatus?.config?.started_ts_ms;
+				if (s) renderUptime(s);
+			}, 1000);
+
+			// ─── Lifecycle status badge (in the Lifecycle card) ───
+			function renderLifecycleStatus() {
+				const el = document.getElementById("lifecycle-status-val");
+				if (!el) return;
+				const s = window._lastBotStatus;
+				if (!s) { el.textContent = "—"; el.className = "lifecycle-status-val muted"; return; }
+				const run = s.connected ? "running" : "stopped";
+				const err = s.last_reject || s.poll?.last_error;
+				if (err && !s.connected) {
+					el.textContent = `${run} · error`;
+					el.className = "lifecycle-status-val bad";
+				} else if (err) {
+					el.textContent = `${run} · warn`;
+					el.className = "lifecycle-status-val warn";
+				} else {
+					el.textContent = run;
+					el.className = "lifecycle-status-val " + (s.connected ? "ok" : "muted");
+				}
+			}
+
+			// ─── KPI helpers (extend app.js's renderHero) ───
+			// The bankroll / deployed / signals numbers are derived from
+			// the bot status. renderHero runs every refresh; we hook in
+			// by overriding it via a custom renderHook. Cleanest: just
+			// listen to a custom event the dashboard fires, OR poll the
+			// status every refresh.
+			// For simplicity, we patch the elements directly after each
+			// render by wrapping the existing refresh. We use a small
+			// interval + the global _lastBotStatus the app.js sets.
+			function renderBotHeroExtras() {
+				const s = window._lastBotStatus;
+				if (!s) return;
+				// Frames
+				const fEl = document.getElementById("bot-frames");
+				if (fEl) fEl.textContent = fmtCount(s.counts?.n_frames);
+				// Bankroll
+				const bEl = document.getElementById("bot-bankroll");
+				if (bEl) bEl.textContent = "$" + ((s.risk?.bankroll_cents || 0) / 100).toFixed(2);
+				// Deployed today
+				const dEl = document.getElementById("bot-deployed");
+				const capC = s.risk?.daily_notional_cap_cents || 0;
+				const dC = s.risk?.daily_notional_cents || 0;
+				if (dEl) dEl.textContent = "$" + (dC / 100).toFixed(2);
+				const ds = document.getElementById("bot-deployed-sub");
+				if (ds) ds.textContent = `of $${(capC / 100).toFixed(2)} cap`;
+				// Signals
+				const sigEl = document.getElementById("bot-signals");
+				if (sigEl) sigEl.textContent = fmtCount(s.counts?.n_signals);
+				const sigSub = document.getElementById("bot-signals-sub");
+				if (sigSub) sigSub.textContent = s.counts?.n_trades ? `${s.counts.n_trades} trades` : "no trades yet";
+				// Peak bankroll + consec losses
+				const peakEl = document.getElementById("caps-peak");
+				if (peakEl) peakEl.textContent = "$" + ((s.risk?.peak_bankroll_cents || 0) / 100).toFixed(2);
+				const lossEl = document.getElementById("caps-consec-loss");
+				if (lossEl) lossEl.textContent = String(s.risk?.consecutive_losses ?? "—");
+				// Uptime
+				if (s.config?.started_ts_ms) renderUptime(s.config.started_ts_ms);
+				// Lifecycle status
+				renderLifecycleStatus();
+			}
+
+			// ─── Activity log ───
+			async function fetchCronRuns() {
+				try {
+					const r = await fetch("/api/pm/cron-runs?limit=20", { credentials: "same-origin" });
+					if (!r.ok) return [];
+					const d = await r.json();
+					return (d.runs || []).map((run) => ({
+						ts_ms: run.ts,
+						source: "cron",
+						action: run.cron_name,
+						detail: run.error_message || (run.artifacts_json && safeJson(run.artifacts_json, "skipped") ? "skipped" : "ok"),
+						result: run.status === "success" ? "ok" : "error",
+						duration_ms: run.duration_ms,
+					}));
+				} catch (_e) { return []; }
+			}
+			async function fetchRecentTrades() {
+				try {
+					const r = await fetch("/api/pm/trades?limit=10", { credentials: "same-origin" });
+					if (!r.ok) return [];
+					const d = await r.json();
+					return (d.trades || []).map((t) => ({
+						ts_ms: t.ts || t.ts_ms || t.created_at,
+						source: "fill",
+						action: t.side ? `${t.side}@${t.price_cents}c` : "fill",
+						detail: `${t.ticker || "?"} · ${t.rationale || t.signal_rationale || ""}`.slice(0, 60),
+						result: t.is_paper === 0 ? "real" : "paper",
+						duration_ms: null,
+					}));
+				} catch (_e) { return []; }
+			}
+			function safeJson(s, hint) {
+				try { const j = JSON.parse(s); return hint ? !!j[hint] : true; }
+				catch (_e) { return false; }
+			}
+
+			let _activityCache = { cron: [], fills: [] };
+
+			async function refreshActivityLog() {
+				const [cron, fills] = await Promise.all([fetchCronRuns(), fetchRecentTrades()]);
+				_activityCache = { cron, fills };
+				const local = loadActivityLog();
+				const merged = [...local, ...cron, ...fills]
+					.sort((a, b) => b.ts_ms - a.ts_ms)
+					.slice(0, 50);
+				renderActivityLog(merged);
+			}
+			function renderActivityLog(entries) {
+				const tbody = document.getElementById("activity-log-body");
+				if (!tbody) return;
+				const filtered = entries.filter((e) => {
+					if (_activityFilter.current === "all") return true;
+					return e.source === _activityFilter.current;
+				}).slice(0, 15);
+				if (filtered.length === 0) {
+					tbody.innerHTML = `<tr><td colspan="6" class="empty">no activity</td></tr>`;
+					return;
+				}
+				tbody.innerHTML = filtered.map((e) => {
+					const when = e.ts_ms ? new Date(e.ts_ms).toLocaleString() : "—";
+					const resultCls = e.result === "ok" || e.result === "paper"
+						? "ok" : e.result === "real"
+							? "ok" : e.result === "error" ? "bad" : "muted";
+					return `<tr>
+						<td class="mono" style="font-size: 12px;">${when}</td>
+						<td><span class="pill ${e.source === "cron" ? "" : e.source === "fill" ? "ok" : "muted"}" style="font-size: 10px;">${e.source}</span></td>
+						<td class="mono">${e.action || "—"}</td>
+						<td style="font-size: 12px; color: var(--ink-muted);">${e.detail || "—"}</td>
+						<td class="mono num">${e.duration_ms != null ? fmtMs(e.duration_ms) : "—"}</td>
+						<td><span class="pill ${resultCls}" style="font-size: 10px;">${e.result || "—"}</span></td>
+					</tr>`;
+				}).join("");
+			}
+			// Filter buttons
+			document.getElementById("activity-filters")?.addEventListener("click", (e) => {
+				const btn = e.target.closest("[data-filter]");
+				if (!btn) return;
+				_activityFilter.current = btn.dataset.filter;
+				for (const t of document.querySelectorAll(".activity-filter")) {
+					t.classList.toggle("active", t.dataset.filter === _activityFilter.current);
+					t.setAttribute("aria-selected", t.dataset.filter === _activityFilter.current ? "true" : "false");
+				}
+				refreshActivityLog();
+			});
+
+			// ─── Health diagnostics ───
+			function renderHealth() {
+				const s = window._lastBotStatus;
+				const el = (id) => document.getElementById(id);
+				const summary = el("health-summary");
+				if (!s) {
+					el("health-poll-active")?.replaceChildren(document.createTextNode("—"));
+					if (summary) summary.textContent = "—";
+					return;
+				}
+				const poll = s.poll || {};
+				const set = (id, txt, cls) => {
+					const x = el(id);
+					if (!x) return;
+					x.textContent = txt;
+					if (cls) x.className = `health-tile-val mono ${cls}`;
+				};
+				set("health-poll-active", poll.active ? "active" : "inactive", poll.active ? "ok" : "muted");
+				set("health-poll-connected", poll.connected ? "yes" : "no", poll.connected ? "ok" : "bad");
+				set("health-poll-count", fmtCount(poll.n_polls));
+				set("health-poll-errors", fmtCount(poll.n_errors), poll.n_errors > 0 ? "bad" : "");
+				set("health-poll-latency", poll.last_poll_ms != null ? `${poll.last_poll_ms}ms` : "—");
+				const tickers = poll.tickers || [];
+				set("health-poll-tickers", tickers.length ? `${tickers.length} active` : "0");
+				// Summary line
+				if (summary) {
+					if (!s.connected) summary.textContent = "disconnected";
+					else if (poll.n_errors > 0) summary.textContent = `${poll.n_polls} polls · ${poll.n_errors} errors`;
+					else summary.textContent = `${poll.n_polls} polls · ${poll.last_poll_ms || 0}ms last`;
+				}
+				// Error panel
+				const errWrap = el("health-error");
+				const errText = el("health-error-text");
+				const lastErr = poll.last_error || s.last_reject;
+				if (lastErr && errWrap && errText) {
+					errText.textContent = typeof lastErr === "string" ? lastErr : JSON.stringify(lastErr, null, 2);
+					errWrap.hidden = false;
+				} else if (errWrap) {
+					errWrap.hidden = true;
+				}
+				// Per-ticker table
+				const tw = el("health-tickers-wrap");
+				const tb = el("health-tickers-body");
+				if (tw && tb) {
+					const tickerInfo = s.tickers || {};
+					const entries = Object.entries(tickerInfo);
+					if (entries.length === 0) {
+						tb.innerHTML = `<tr><td colspan="6" class="empty">no tickers</td></tr>`;
+					} else {
+						tb.innerHTML = entries.map(([t, info]) => {
+							const pos = info.position;
+							const posStr = pos ? `${pos.side}@${pos.entry_cents}c · ${pos.size}` : "flat";
+							return `<tr>
+								<td class="mono">${t}</td>
+								<td>${info.vertical || "—"}</td>
+								<td class="mono num">${info.price_history_len ?? "—"}</td>
+								<td class="mono num">${(info.trade_count ?? 0).toLocaleString()}</td>
+								<td class="mono num">${info.last_trade_price_cents != null ? info.last_trade_price_cents + "c" : "—"}</td>
+								<td><span class="pill ${pos ? "warn" : "muted"}" style="font-size: 10px;">${posStr}</span></td>
+							</tr>`;
+						}).join("");
+					}
+				}
+			}
+			// Health details toggle
+			const healthToggle = document.getElementById("health-toggle");
+			const healthBody = document.getElementById("health-body");
+			const healthError = document.getElementById("health-error");
+			const healthTickers = document.getElementById("health-tickers-wrap");
+			function setHealthOpen(open) {
+				if (!healthToggle || !healthBody) return;
+				// Only the tile grid (6 KPI tiles) is toggle-controlled.
+				// The error panel + per-ticker table are gated by data
+				// availability — they only show when there's actually
+				// an error or tickers to show. renderHealth() handles
+				// their visibility each refresh.
+				healthBody.hidden = !open;
+				healthToggle.textContent = open ? "Hide details" : "Show details";
+				healthToggle.setAttribute("aria-expanded", open ? "true" : "false");
+				try { localStorage.setItem(HEALTH_DETAILS_OPEN_KEY, open ? "1" : "0"); } catch (_e) {}
+			}
+			healthToggle?.addEventListener("click", () => {
+				setHealthOpen(healthBody.hidden);
+			});
+			// Restore previous state
+			try {
+				const open = localStorage.getItem(HEALTH_DETAILS_OPEN_KEY) === "1";
+				setHealthOpen(open);
+			} catch (_e) {}
+
+			// ─── Wire up: extend existing app.js refresh with our extras ───
+			// The app.js's default appPageInit starts timers that fire
+			// refresh() and refreshVerticals() every 5s. We hook into
+			// those by overriding appPageInit AFTER app.js runs.
+			const _origInit = window.appPageInit;
+			window.appPageInit = function botPageInit() {
+				if (_origInit) _origInit();
+				// Now add our own timers
+				startTimers([
+					{ fn: renderBotHeroExtras, ms: 5000 },
+					{ fn: refreshActivityLog, ms: 10000 },
+					{ fn: renderHealth, ms: 5000 },
+				]);
+				// Immediate renders
+				renderBotHeroExtras();
+				refreshActivityLog();
+				renderHealth();
+			};
+			window.appPageOnVisible = function () {
+				renderBotHeroExtras();
+				refreshActivityLog();
+				renderHealth();
+			};
+
+			// ─── Manual action logging (the app.js button handlers don't) ───
+			// Wrap btn-start / btn-stop / btn-restart / btn-pause / btn-paper / btn-live / btn-killswitch
+			// The app.js attaches click handlers to these — we can't re-attach
+			// without overriding. Instead, we listen on the document for
+			// clicks and check the target. Cleaner: monkey-patch the
+			// underlying functions. But setTradingMode / setKillSwitch /
+			// botCall are in app.js's IIFE — not exposed. So we do
+			// document-level click capture: if a button with one of
+			// those IDs is clicked, log it.
+			document.addEventListener("click", (e) => {
+				const btn = e.target.closest("[id^='btn-']");
+				if (!btn) return;
+				const id = btn.id;
+				const map = {
+					"btn-start": "start",
+					"btn-stop": "stop",
+					"btn-restart": "restart",
+					"btn-pause": "set mode=off",
+					"btn-paper": "set mode=paper",
+					"btn-live": "set mode=real",
+					"btn-killswitch": "toggle kill switch",
+					"per-vertical-add-btn": "add per-vertical cap",
+					"blocklist-add-btn": "add blocklist ticker",
+				};
+				if (map[id]) {
+					logActivity("manual", map[id], btn.dataset.mode || "", "requested", null);
+					// Optimistically re-render so the action shows up immediately
+					setTimeout(refreshActivityLog, 200);
+				}
+			}, true);
+		</script>
 	</body>
 </html>
