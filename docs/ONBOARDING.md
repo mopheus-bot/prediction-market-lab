@@ -58,37 +58,124 @@ npm install
 ## 3. Telegram bot (~2 min)
 
 Telegram's @BotFather is the **only** way to create a bot —
-no API for that. Copy-paste this script in Telegram:
+no API for that. Below is the literal conversation you'll
+have. Replace `<your-pm>` with your initials or handle (e.g.
+`mo`, `acme`, `morgan`); the username must be **globally unique**
+and end in `bot`.
+
+### 3a. Suggested bot names
+
+| Name (display) | Username (handle) | Vibe |
+|---|---|---|
+| `pm-bot-alerts` | `mo_pm_alerts_bot` | short, project-tied (this is what we used) |
+| `trader-bot-alerts` | `mo_trader_alerts_bot` | generic — fits any trading bot |
+| `kalshi-pm-bot` | `mo_kalshi_pm_bot` | ties to the platform |
+| `paper-money-bot` | `mo_paper_money_bot` | funny, what it actually does |
+| `<your-pm>-alerts` | `<your-pm>_alerts_bot` | blank-slate — pick your own |
+
+Pick one and walk through the chat below.
+
+### 3b. The full chat (what you'll see, copy-paste this)
 
 ```
-YOU:    /newbot
+═══════════════════════════════════════════════════════════════
+INBOX: BotFather                              [today, 22:46]
+═══════════════════════════════════════════════════════════════
 
-FATHER: Alright, a new bot. How are we going to call it?
+YOU  →  /newbot
+                                              22:46:01 ↓
+
+BF   ←  Alright, a new bot. How are we going to call it?
         Please choose a name for your bot.
+                                              22:46:05 ↓
 
-YOU:    pm-bot-alerts            ← (or your own: "acme-pm-alerts")
+YOU  →  trader-bot-alerts
+                                              22:46:08 ↓
 
-FATHER: Good. Now let's choose a username for your bot. It
-        must end in `bot`. Like this, for example: TetrisBot
-        or tetris_bot.
+BF   ←  Good. Now let's choose a username for your bot.
+        It must end in `bot`. Like this, for example:
+        TetrisBot or tetris_bot.
+                                              22:46:12 ↓
 
-YOU:    acme_pm_alerts_bot       ← (must be globally unique)
+YOU  →  @mo_trader_alerts_bot
+                                              22:46:15 ↓
 
-FATHER: Done! Congratulations on your new bot. You will find
-        it at t.me/acme_pm_alerts_bot. You can now add a
-        description [...]
+BF   ←  Done! Congratulations on your new bot. You will
+        find it at t.me/mo_trader_alerts_bot. You can now
+        add a description, about section and profile picture
+        for your bot, see /help for a list of commands. By
+        the way, when you've finished creating your cool bot,
+        ping our Bot Support if you want a better username
+        for it. Just make sure the bot is fully operational
+        before you do this.
 
         Use this token to access the HTTP API:
         1234567890:REPLACE_WITH_THE_TOKEN_BOTFATHER_GIVES_YOU
-        Keep your token secure and store it safely, it can be
-        used by anyone to control your bot.
+        Keep your token secure and store it safely, it can
+        be used by anyone to control your bot.
+
+        For a description of the Bot API, see this page:
+        https://core.telegram.org/bots/api
+                                              22:46:20 ↓
+
+═══════════════════════════════════════════════════════════════
 ```
 
-**Save that token — you'll paste it into `wrangler secret put`
-in step 5.**
+**Save that token** (the long `1234567890:AAFOE...` string)
+— you'll paste it into `wrangler secret put` in step 5.
 
-Then open **t.me/your_bot_username** in Telegram and tap
-**Start** so the bot has a chat to send to.
+The token format is always: `<bot_id>:<base64-yaml-secret>`. Don't
+commit it. Don't share it. Anyone with the token can fully
+control your bot.
+
+### 3c. Start the conversation (required for messages to deliver)
+
+Open **t.me/your_username_bot** in Telegram and tap
+**Start** (or send `/start`). Until you do this, your bot
+has no chat to send to — every `sendMessage` call will return
+`Bad Request: chat not found`.
+
+```
+═══════════════════════════════════════════════════════════════
+INBOX: your_username_bot                      [today, 22:47]
+═══════════════════════════════════════════════════════════════
+
+YOU  →  /start
+                                              22:47:01 ↓
+═══════════════════════════════════════════════════════════════
+```
+
+(No auto-reply — your bot only speaks when pm-bot pings it.
+The `/start` is just opening the chat for delivery.)
+
+### 3d. Get your chat ID (the number pm-bot sends messages to)
+
+The chat ID is the **first thing you'll need in step 5**.
+Run this once you've sent `/start` to the new bot:
+
+```bash
+TELEGRAM_BOT_TOKEN="<paste your token from step 3b>"
+curl -sS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates" \
+  | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+for u in d.get('result', []):
+    chat = u.get('message', {}).get('chat', {})
+    print(f'chat_id = {chat.get(\"id\")}  (name: {chat.get(\"first_name\")})')
+"
+```
+
+You'll see:
+
+```
+chat_id = 8032433619  (name: Morgan)
+```
+
+**Save that number** — it goes into `TELEGRAM_CHAT_ID` in
+step 5.
+
+> If `result` is `[]`, you forgot to send `/start` in 3c.
+> Re-open the bot in Telegram and send `/start`, then retry.
 
 ---
 
