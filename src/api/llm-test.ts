@@ -28,11 +28,14 @@
  */
 
 import { chat, DEFAULT_BASE_URL, DEFAULT_MODEL } from "../llm/index.js";
+import { llmCalls as llmCallsDb } from "../lib/db.js";
+import { DEFAULT_USER_ID } from "../lib/types.js";
 import type { LLMEnv } from "../llm/index.js";
 
 export interface LLMTestEnv extends LLMEnv {
 	ENVIRONMENT?: string;
 	SERVICE_NAME?: string;
+	DB?: D1Database;
 }
 
 const TEST_SYSTEM = "You are a concise assistant. Answer in one sentence.";
@@ -42,6 +45,31 @@ export async function handleLLMTest(env: LLMTestEnv): Promise<Response> {
 	const model = env.MMX_MODEL ?? DEFAULT_MODEL;
 	const baseUrl = env.MMX_BASE_URL ?? DEFAULT_BASE_URL;
 	const result = await chat(env, TEST_SYSTEM, TEST_USER, { max_tokens: 50 });
+
+	// Record the call to the llm_calls D1 table so the
+	// cadence panel + cost estimate update immediately.
+	// The test calls show up in `costSince` (last 24h
+	// aggregate) just like real cron-driven calls. The
+	// purpose = 'llm_test' distinguishes them in the
+	// raw llm_calls table.
+	if (env.DB) {
+		try {
+			await llmCallsDb.insert(env.DB, {
+				user_id: DEFAULT_USER_ID,
+				ts: Date.now(),
+				purpose: "llm_test",
+				model,
+				ticker: null,
+				input_tokens_est: result.input_tokens ?? 0,
+				output_tokens_est: result.output_tokens ?? 0,
+				duration_ms: result.duration_ms,
+				status: result.ok ? "success" : "error",
+				error_message: result.error_message ?? null,
+			});
+		} catch (e) {
+			console.error(`[llm-test] failed to log llm_call`, e);
+		}
+	}
 
 	return Response.json(
 		{
@@ -55,6 +83,7 @@ export async function handleLLMTest(env: LLMTestEnv): Promise<Response> {
 			stub: result.stub,
 			error_message: result.error_message,
 			test_prompt: { system: TEST_SYSTEM, user: TEST_USER },
+			logged_to_d1: !!env.DB,
 		},
 		{ headers: { "Cache-Control": "no-store" } },
 	);
