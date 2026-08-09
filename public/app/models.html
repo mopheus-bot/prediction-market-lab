@@ -100,63 +100,15 @@
 			<!-- ============================================ -->
 			<!-- MODEL CONFIGURATION                        -->
 			<!-- ============================================ -->
+			<!-- DEEP CONFIG LINK (moved to Dev)              -->
+			<!-- ============================================ -->
 			<section class="card" style="margin-bottom: 20px;">
 				<div class="card-title">
 					<span aria-hidden="true">⛭</span>
-					<span>Model configuration</span>
-					<span class="muted mono" id="models-config-mode" style="margin-left: auto; font-size: 11px;">—</span>
+					<span>Runtime config</span>
+					<a href="/app/dev#dev-models-config-grid" class="muted" style="margin-left: auto; font-size: 11px; text-decoration: none;">full config in Dev →</a>
 				</div>
-				<div class="card-blurb">The bot's runtime config — bankroll, max notional per trade, daily notional cap, lookback window, kill switch. Editing happens on the Bot page; this card is the read-only view.</div>
-				<div class="config-grid" id="models-config-grid">
-					<div class="config-row">
-						<div class="config-key">Bankroll</div>
-						<div class="config-val mono" id="models-config-bankroll">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Trading mode</div>
-						<div class="config-val mono" id="models-config-trading-mode">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Model version</div>
-						<div class="config-val mono" id="models-config-model-version">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Max notional / trade</div>
-						<div class="config-val mono" id="models-config-max-notional">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Daily notional cap</div>
-						<div class="config-val mono" id="models-config-daily-cap">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Daily notional used</div>
-						<div class="config-val mono" id="models-config-daily-used">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Lookback (frames)</div>
-						<div class="config-val mono" id="models-config-lookback">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Exit mode</div>
-						<div class="config-val mono" id="models-config-exit-mode">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Min entry p</div>
-						<div class="config-val mono" id="models-config-min-entry-p">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Disable flips</div>
-						<div class="config-val mono" id="models-config-disable-flips">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Profit target</div>
-						<div class="config-val mono" id="models-config-profit-target">—</div>
-					</div>
-					<div class="config-row">
-						<div class="config-key">Stop loss</div>
-						<div class="config-val mono" id="models-config-stop-loss">—</div>
-					</div>
-				</div>
+				<div class="card-blurb">The full 12-row read-only runtime config (bankroll, mode, model version, caps, lookback, exit mode, min entry p, flips, profit target, stop loss) lives on the Dev page. Editing happens on the Bot page.</div>
 			</section>
 
 			<footer style="text-align: center; padding: 24px; color: var(--ink-faint); font-size: 11px; font-family: var(--font-mono);">
@@ -332,13 +284,15 @@
 					? `${(config.stop_loss_pct * 100).toFixed(0)}%`
 					: `<span class="muted">off</span>`;
 			}
+			// (renderModelsConfig is now defined but not called —
+			// the full config moved to Dev, see /app/dev#dev-models-config-grid.
+			// Kept here in case we want a single-row summary later.)
 
 			// ─── Main render loop ───
 			async function renderModelsPage() {
 				const [verticals, bot] = await Promise.all([fetchVerticals(), fetchBot()]);
 				renderModelsHero(verticals || [], bot);
 				renderModelsTable(verticals || []);
-				renderModelsConfig(bot);
 				// Active models grid is rendered by the default app.js
 				// refresh cycle (calls renderVerticalsPanel(verticals)).
 				// We also call it here so the first paint is right

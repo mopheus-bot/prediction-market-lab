@@ -22,6 +22,7 @@
 							<span id="stage-panel-label">Connecting…</span>
 						</div>
 						<div class="stage-panel-desc" id="stage-panel-desc">Opening the WebSocket to Kalshi. This usually takes a few seconds.</div>
+						<div class="stage-panel-next muted mono" id="stage-panel-next">next: —</div>
 					</div>
 					<div class="stage-panel-action" id="stage-panel-action"></div>
 				</div>
@@ -238,6 +239,40 @@
 			// ─── Helpers ───
 			// fmtCents, fmtNum, esc are provided by app.js.
 
+			// ─── Render: stage panel "next step" line ───
+			// Reads /api/pm/cadence and finds the next-up service
+			// (the one with the smallest non-null next_in_ms).
+			// Shows e.g. "next: 🔭 Universe scan in 14m".
+			let _nextScheduled = { data: null, ts: 0 };
+			async function fetchNextScheduled() {
+				const now = Date.now();
+				if (_nextScheduled.data && now - _nextScheduled.ts < CACHE_TTL_MS) return _nextScheduled.data;
+				try {
+					const r = await fetch("/api/pm/cadence", { credentials: "same-origin" });
+					if (!r.ok) return _nextScheduled.data || null;
+					const d = await r.json();
+					_nextScheduled = { data: d, ts: now };
+					return _nextScheduled.data;
+				} catch (_e) { return _nextScheduled.data || null; }
+			}
+			function renderNextScheduled(d) {
+				const el = $("stage-panel-next");
+				if (!el) return;
+				if (!d || !d.services) {
+					el.textContent = "next: —";
+					return;
+				}
+				const upcoming = d.services
+					.filter((s) => s.next_in_ms != null)
+					.sort((a, b) => a.next_in_ms - b.next_in_ms);
+				const next = upcoming[0];
+				if (!next) {
+					el.textContent = "next: nothing scheduled";
+					return;
+				}
+				el.textContent = `next: ${next.icon || ""} ${next.name || next.id} ${next.next_label || ""}`.replace(/\s+/g, " ");
+			}
+
 			// ─── Render: financial hero ───
 			function renderDashHero(d) {
 				const heroEl = $("dash-hero");
@@ -371,6 +406,12 @@
 				renderDashTrades(d.trades);
 				renderDashSignals(d.signals);
 				renderDashVerticals(d.verticals);
+				// Stage-panel "next" line — separate fetch (the
+				// cadence endpoint is cheap and cached on the
+				// server, no need to bundle with the dashboard
+				// data fetch).
+				const sched = await fetchNextScheduled();
+				renderNextScheduled(sched);
 			}
 
 			// ─── Wire into app.js ───

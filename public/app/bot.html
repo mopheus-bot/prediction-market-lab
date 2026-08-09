@@ -220,96 +220,15 @@
 			</section>
 
 			<!-- ============================================ -->
-			<!-- ACTIVITY LOG (NEW)                          -->
+			<!-- DEEP DIAGNOSTICS LINK (moved to Dev)         -->
 			<!-- ============================================ -->
 			<section class="card" style="margin-bottom: 20px;">
 				<div class="card-title">
 					<span aria-hidden="true">⌬</span>
-					<span>Activity log</span>
-					<div class="activity-filters" id="activity-filters" role="tablist" style="margin-left: auto; display: flex; gap: 4px;">
-						<button class="btn small activity-filter active" data-filter="all" role="tab" aria-selected="true">All</button>
-						<button class="btn small activity-filter" data-filter="cron" role="tab" aria-selected="false">Cron</button>
-						<button class="btn small activity-filter" data-filter="manual" role="tab" aria-selected="false">Manual</button>
-						<button class="btn small activity-filter" data-filter="fill" role="tab" aria-selected="false">Fills</button>
-					</div>
+					<span>Activity log + Health diagnostics</span>
+					<a href="/app/dev#dev-schedule-runs" class="muted" style="margin-left: auto; font-size: 11px; text-decoration: none;">open in Dev →</a>
 				</div>
-				<div class="card-blurb">What just happened on the bot. Cron = scheduled jobs (scan, news, daily, train). Manual = your action (start, stop, mode change, kill switch). Fills = actual orders placed.</div>
-				<table class="tbl activity-log-tbl">
-					<thead>
-						<tr>
-							<th>When</th>
-							<th>Source</th>
-							<th>Action</th>
-							<th>Detail</th>
-							<th class="num">ms</th>
-							<th>Result</th>
-						</tr>
-					</thead>
-					<tbody id="activity-log-body">
-						<tr><td colspan="6" class="empty">no activity yet</td></tr>
-					</tbody>
-				</table>
-			</section>
-
-			<!-- ============================================ -->
-			<!-- HEALTH (NEW, collapsible)                   -->
-			<!-- ============================================ -->
-			<section class="card health-card" style="margin-bottom: 20px;">
-				<div class="card-title health-card-head">
-					<span aria-hidden="true">♥</span>
-					<span>Health</span>
-					<span class="muted mono" style="font-size: 11px; margin-left: 8px;" id="health-summary">—</span>
-					<button class="btn small health-toggle" id="health-toggle" style="margin-left: auto;" aria-expanded="false" aria-controls="health-body">Show details</button>
-				</div>
-				<div class="card-blurb">Polling/feed diagnostics. Use this when the stage panel shows "error" or "connecting" for too long — it tells you whether the issue is the bot, the feed, or Kalshi.</div>
-				<div class="health-grid" id="health-body" hidden>
-					<div class="health-tile">
-						<div class="health-tile-label">Polling</div>
-						<div class="health-tile-val" id="health-poll-active">—</div>
-					</div>
-					<div class="health-tile">
-						<div class="health-tile-label">Connected</div>
-						<div class="health-tile-val" id="health-poll-connected">—</div>
-					</div>
-					<div class="health-tile">
-						<div class="health-tile-label">Polls</div>
-						<div class="health-tile-val mono" id="health-poll-count">—</div>
-					</div>
-					<div class="health-tile">
-						<div class="health-tile-label">Errors</div>
-						<div class="health-tile-val mono" id="health-poll-errors">—</div>
-					</div>
-					<div class="health-tile">
-						<div class="health-tile-label">Last poll</div>
-						<div class="health-tile-val mono" id="health-poll-latency">—</div>
-					</div>
-					<div class="health-tile">
-						<div class="health-tile-label">Ticks</div>
-						<div class="health-tile-val mono" id="health-poll-tickers">—</div>
-					</div>
-				</div>
-				<div class="health-error" id="health-error" hidden>
-					<div class="health-error-label">Last error</div>
-					<pre class="health-error-text mono" id="health-error-text"></pre>
-				</div>
-				<div class="health-tickers" id="health-tickers-wrap" hidden>
-					<div class="health-tickers-label">Per-ticker</div>
-					<table class="tbl health-tickers-tbl">
-						<thead>
-							<tr>
-								<th>Ticker</th>
-								<th>Vertical</th>
-								<th class="num">History</th>
-								<th class="num">Trades</th>
-								<th class="num">Last @</th>
-								<th>Position</th>
-							</tr>
-						</thead>
-						<tbody id="health-tickers-body">
-							<tr><td colspan="6" class="empty">no tickers</td></tr>
-						</tbody>
-					</table>
-				</div>
+				<div class="card-blurb">Detailed activity log (cron / manual / fills) and polling health moved to the Dev page. The Dev page has the full event stream + diagnostics; this card is the link to it.</div>
 			</section>
 
 			<!-- Go-live confirmation modal -->

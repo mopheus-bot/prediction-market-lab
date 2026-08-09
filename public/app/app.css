@@ -314,6 +314,14 @@ code, .mono { font-family: var(--font-mono); }
 	line-height: 1.5;
 	margin-top: 6px;
 }
+.stage-panel-next {
+	font-size: 11px;
+	color: var(--ink-faint);
+	font-family: var(--font-mono);
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--card-border);
+}
 .stage-panel-action { flex-shrink: 0; }
 .stage-panel-action .btn { white-space: nowrap; }
 
@@ -2360,3 +2368,85 @@ footer {
 .cron-tbl th, .cron-tbl td { font-size: 12px; }
 .cron-tbl th { white-space: nowrap; }
 .cron-tbl td.num { font-variant-numeric: tabular-nums; }
+
+/* ─── Schedule v3 — vertical playbook ─── */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.schedule-item-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.schedule-item-when {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+}
+.schedule-when-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+.schedule-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.schedule-item-time {
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+.schedule-item-time strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Schedule health — 1-line summary at the top of the Schedule page */
+.schedule-health {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.schedule-health-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  flex-shrink: 0;
+}
+.schedule-health[data-color="ok"] .schedule-health-dot {
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+.schedule-health[data-color="bad"] .schedule-health-dot {
+  background: var(--red);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+.schedule-health-text {
+  font-weight: 500;
+}
+@media (max-width: 720px) {
+  .schedule-item-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .schedule-item-when {
+    padding-top: 0;
+  }
+}

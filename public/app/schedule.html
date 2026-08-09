@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="color-scheme" content="dark" />
 		<title>Trader — Schedule</title>
-		<meta name="description" content="Cron schedule · crons · cost · monthly limits · CF analytics." />
+		<meta name="description" content="When the bot does what, automatically." />
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
@@ -13,159 +13,20 @@
 		<div class="app-shell">
 			<div class="app-section-header">
 				<h2>Schedule</h2>
-				<p>Cron jobs · cost · monthly limits · CF analytics</p>
+				<p>When the bot does what, automatically. The dashboard shows where we are in this schedule right now.</p>
 			</div>
 
-			<!-- ============================================ -->
-			<!-- STATUS HERO                                -->
-			<!-- ============================================ -->
-			<section class="card pos-hero" id="schedule-hero" data-color="ok" style="margin-bottom: 20px;">
-				<div class="pos-hero-head">
-					<div class="pos-hero-pnl">
-						<div class="pos-hero-label">Schedule status</div>
-						<div class="pos-hero-num mono" id="schedule-status-name">—</div>
-						<div class="pos-hero-sub" id="schedule-status-sub">loading…</div>
-					</div>
-					<div class="pos-hero-kpis">
-						<div class="kpi-card">
-							<div class="kpi-label">Services</div>
-							<div class="kpi-num mono" id="schedule-services">0</div>
-							<div class="kpi-sub" id="schedule-services-sub">tracked</div>
-						</div>
-						<div class="kpi-card">
-							<div class="kpi-label">Healthy</div>
-							<div class="kpi-num mono" id="schedule-ok">0</div>
-							<div class="kpi-sub" id="schedule-ok-sub">ok status</div>
-						</div>
-						<div class="kpi-card">
-							<div class="kpi-label">Errors</div>
-							<div class="kpi-num mono" id="schedule-errors">0</div>
-							<div class="kpi-sub" id="schedule-errors-sub">need attention</div>
-						</div>
-						<div class="kpi-card">
-							<div class="kpi-label">Next cron</div>
-							<div class="kpi-num mono" id="schedule-next">—</div>
-							<div class="kpi-sub" id="schedule-next-sub">upcoming</div>
-						</div>
-					</div>
-				</div>
-			</section>
+			<!-- Schedule health (1-line, no chrome) -->
+			<div class="schedule-health" id="schedule-health" data-color="ok" style="margin-bottom: 16px;">
+				<span class="schedule-health-dot"></span>
+				<span class="schedule-health-text" id="schedule-health-text">loading…</span>
+				<a href="/app/dev#dev-schedule-runs" class="muted" style="margin-left: auto; font-size: 11px; text-decoration: none;">cron runs →</a>
+			</div>
 
-			<!-- ============================================ -->
-			<!-- SCHEDULE PANEL — every auto-running service -->
-			<!-- ============================================ -->
-			<section class="card" style="margin-bottom: 20px;">
-				<div class="card-title">
-					<span aria-hidden="true">⏱</span>
-					<span>Schedule</span>
-					<span class="muted mono" id="schedule-summary" style="margin-left: auto; font-size: 11px;">…</span>
-				</div>
-				<div class="card-blurb">The full automation pipeline. The WS is a single persistent connection to Kalshi that pushes orderbook + trade + ticker frames in real time. The 4 cron jobs fire on a schedule (scan every 15 min, news every 6h, daily 06:00 UTC, train + backtest weekly). LLM calls power the news + daily summaries. The model registry tracks which ML model is active per vertical. None of these need operator action — they all just run.</div>
-				<div class="cadence-grid" id="schedule-grid" role="list">
-					<div class="cadence-skeleton">Loading schedule…</div>
-				</div>
-			</section>
-
-			<!-- ============================================ -->
-			<!-- CRON RUNS (latest 10)                     -->
-			<!-- ============================================ -->
-			<section class="card" style="margin-bottom: 20px;">
-				<div class="card-title">
-					<span aria-hidden="true">⊞</span>
-					<span>Cron runs (latest 10)</span>
-					<span class="muted mono" id="cron-count" style="margin-left: auto; font-size: 11px;">— runs</span>
-				</div>
-				<div class="card-blurb">4 scheduled jobs: scan (every 15min), news (every 6h), daily (06:00 UTC), train (Sunday 00:00 UTC). Status = success or error. A 200ms run is the scan cron being rate-limited by Kalshi (429) — it skipped work and will retry on the next tick.</div>
-				<table class="tbl cron-tbl" id="cron-tbl">
-					<thead>
-						<tr>
-							<th>Cron</th>
-							<th>Status</th>
-							<th>When</th>
-							<th class="num">Duration</th>
-						</tr>
-					</thead>
-					<tbody id="cron-tbody">
-						<tr><td colspan="4" class="empty">loading…</td></tr>
-					</tbody>
-				</table>
-			</section>
-
-			<!-- ============================================ -->
-			<!-- CF WORKERS USAGE                          -->
-			<!-- ============================================ -->
-			<section class="card" style="margin-bottom: 20px;">
-				<div class="card-title">
-					<span aria-hidden="true">∿</span>
-					<span>Cloudflare Workers usage (last 24h)</span>
-					<a id="cf-dashboard-link" href="#" target="_blank" rel="noopener" style="margin-left:auto; font-size:11px; color: var(--accent); text-decoration:none;">open CF dashboard ↗</a>
-				</div>
-				<div class="card-blurb">How busy the bot is on Cloudflare's edge. Free up to 100K requests/day; we're nowhere near that.</div>
-				<div class="cf-stats" id="cf-stats">
-					<div class="cf-stat">
-						<div class="cf-stat-num" id="cf-requests">—</div>
-						<div class="cf-stat-label">Requests</div>
-					</div>
-					<div class="cf-stat">
-						<div class="cf-stat-num" id="cf-errors">—</div>
-						<div class="cf-stat-label">Errors</div>
-					</div>
-					<div class="cf-stat">
-						<div class="cf-stat-num" id="cf-success">—</div>
-						<div class="cf-stat-label">Success rate</div>
-					</div>
-					<div class="cf-stat">
-						<div class="cf-stat-num" id="cf-subrequests">—</div>
-						<div class="cf-stat-label">Subrequests</div>
-					</div>
-				</div>
-				<div class="cf-chart" id="cf-chart">
-					<div class="empty">loading CF analytics…</div>
-				</div>
-				<div class="cf-foot" id="cf-foot"></div>
-			</section>
-
-			<!-- ============================================ -->
-			<!-- COST ESTIMATE                             -->
-			<!-- ============================================ -->
-			<section class="card" style="margin-bottom: 20px;">
-				<div class="card-title">
-					<span aria-hidden="true">$</span>
-					<span>Cost (last 24h, estimated)</span>
-					<a id="cost-cf-dashboard" href="#" target="_blank" rel="noopener" style="margin-left:auto; font-size:11px; color: var(--accent); text-decoration:none;">open CF billing ↗</a>
-				</div>
-				<div class="card-blurb">Estimates, not invoiced. Cloudflare covers free tier; MiniMax (LLM) is the only real cost. Confirm at the CF billing dashboard.</div>
-				<div class="cost-grid">
-					<div class="cost-card">
-						<div class="cost-num" id="cost-total">$—</div>
-						<div class="cost-label">Total today</div>
-						<div class="cost-sub" id="cost-monthly">≈ $—/mo</div>
-					</div>
-					<div class="cost-card">
-						<div class="cost-num" id="cost-cf">$—</div>
-						<div class="cost-label">Cloudflare</div>
-						<div class="cost-sub" id="cost-cf-detail">— requests · — errors</div>
-					</div>
-					<div class="cost-card">
-						<div class="cost-num" id="cost-mmx">$—</div>
-						<div class="cost-label">MMX (LLM)</div>
-						<div class="cost-sub" id="cost-mmx-detail">— calls · — in / — out tokens</div>
-					</div>
-				</div>
-				<div class="cost-foot" id="cost-foot">loading cost estimate…</div>
-			</section>
-
-			<!-- ============================================ -->
-			<!-- MONTHLY LIMITS                            -->
-			<!-- ============================================ -->
-			<section class="card" style="margin-bottom: 20px;">
-				<div class="card-title">
-					<span aria-hidden="true">📊</span>
-					<span>Monthly limits</span>
-				</div>
-				<div class="card-blurb">Progress bars for the CF Workers Paid plan's monthly included amounts (10M requests, 30M CPU-ms, 100K D1 writes/day, 10GB R2). Resets on the CF billing cycle start date you signed up for Workers Paid. The 7d usage is extrapolated to a 30d window — not a perfect estimate but a useful one.</div>
-				<div class="monthly-limits" id="monthly-limits">loading…</div>
-			</section>
+			<!-- Schedule list — every recurring action in user terms -->
+			<div class="schedule-list" id="schedule-list" role="list">
+				<div class="cadence-skeleton">Loading schedule…</div>
+			</div>
 
 			<footer style="text-align: center; padding: 24px; color: var(--ink-faint); font-size: 11px; font-family: var(--font-mono);">
 				auto-refresh · last fetched <span id="last-fetched">—</span>
@@ -176,12 +37,16 @@
 
 		<script src="app.js"></script>
 		<script>
-			// Schedule page: hero KPIs (services / ok / errors / next cron),
-			// schedule panel (rendered by app.js renderSchedule into
-			// #schedule-grid), cron runs, CF analytics, cost, monthly
-			// limits. All driven by the default app.js refresh cycle
-			// (5s) plus a per-page override that paints the hero
-			// from the schedule data on every tick.
+			// Schedule v3: a one-screen playbook of "when the bot
+			// does what". Each item is a recurring action in
+			// user terms (Live WebSocket, Universe scan, News
+			// check, Daily recap, Model retrain, LLM calls,
+			// Model registry). The status, last-ran, and
+			// next-in info rides along on the right.
+			//
+			// The dashboard's stage panel shows which step is
+			// active RIGHT NOW; this page is the full schedule
+			// reference.
 			let _scheduleRaw = { data: null, ts: 0 };
 			const CACHE_TTL_MS = 5_000;
 
@@ -197,123 +62,93 @@
 				} catch (_e) { return _scheduleRaw.data || null; }
 			}
 
-			// Pick the next-up cron from the services list — first
-			// service with a non-null next_in_ms, sorted by next_in_ms.
-			function nextCron(services) {
-				const upcoming = (services || [])
-					.filter((s) => s.next_in_ms != null)
-					.sort((a, b) => a.next_in_ms - b.next_in_ms);
-				return upcoming[0] || null;
+			// The interval label as it appears in the API can be a
+			// little technical ("weekly on Sunday 00:00 UTC"). For
+			// the schedule list we want a tight, user-friendly
+			// "when" — like "every 15 min" or "daily at 06:00 UTC".
+			// The full description is the .details string from the
+			// API which is already operator-friendly.
+			function shortInterval(s) {
+				const lbl = s.interval_label || "";
+				if (lbl === "continuous") return "always on";
+				if (lbl === "on demand + cron") return "on demand";
+				if (lbl === "managed by train cron") return "managed by train";
+				return lbl;
 			}
 
-			// ─── Render: hero ───
-			function renderScheduleHero(data) {
-				const heroEl = $("schedule-hero");
-				const statusNameEl = $("schedule-status-name");
-				const statusSubEl = $("schedule-status-sub");
-				const servicesEl = $("schedule-services");
-				const servicesSubEl = $("schedule-services-sub");
-				const okEl = $("schedule-ok");
-				const okSubEl = $("schedule-ok-sub");
-				const errEl = $("schedule-errors");
-				const errSubEl = $("schedule-errors-sub");
-				const nextEl = $("schedule-next");
-				const nextSubEl = $("schedule-next-sub");
-
-				if (!data || !data.services) {
-					statusNameEl.textContent = "—";
-					statusSubEl.textContent = "no data yet";
-					heroEl.setAttribute("data-color", "ok");
+			function renderScheduleList(data) {
+				const list = $("schedule-list");
+				if (!list) return;
+				if (!data || !data.services || data.services.length === 0) {
+					list.innerHTML = `<div class="cadence-skeleton">no schedule items yet</div>`;
 					return;
 				}
+				// Stable order: live stream first, then crons in
+				// cadence-of-action, then on-demand + managed.
+				const order = ["ws", "scan", "news", "daily", "train", "llm", "model_registry"];
+				const sorted = order
+					.map((id) => data.services.find((s) => s.id === id))
+					.filter(Boolean)
+					.concat(data.services.filter((s) => !order.includes(s.id)));
 
-				const summary = data.summary || {};
-				const services = data.services || [];
-				const n = services.length;
-				const ok = summary.n_ok ?? 0;
-				const err = summary.n_error ?? 0;
+				list.innerHTML = sorted.map((s) => `
+					<div class="cadence-item" role="listitem" data-status="${esc(s.status)}" aria-label="${esc(s.name)}: ${esc(s.status)}">
+						<div class="schedule-item-row">
+							<div class="schedule-item-when">
+								<span class="cadence-item-icon" aria-hidden="true">${esc(s.icon || "•")}</span>
+								<span class="schedule-when-label">${esc(shortInterval(s))}</span>
+							</div>
+							<div class="schedule-item-body">
+								<div class="cadence-item-head">
+									<div class="cadence-item-name"><span>${esc(s.name)}</span></div>
+									<span class="cadence-item-status" data-status="${esc(s.status)}">${esc(s.status)}</span>
+								</div>
+								<div class="cadence-item-details">${esc(s.description || "")}</div>
+								<div class="schedule-item-time">${esc(s.details || "")}${s.next_in_ms !== null ? ` <span aria-hidden="true">·</span> next: <strong>${esc(s.next_label || "")}</strong>` : ""}</div>
+							</div>
+						</div>
+					</div>
+				`).join("");
+			}
 
-				// Status name (the headline value)
-				const statusName = n === 0
-					? "—"
-					: err === 0
-						? "all green"
-						: err === 1
-							? "1 needs attention"
-							: `${err} need attention`;
-				statusNameEl.textContent = statusName;
-				statusNameEl.className = `pos-hero-num mono ${n === 0 ? "muted" : err === 0 ? "ok" : "bad"}`;
-				statusSubEl.textContent = n === 0
-					? "no services yet"
-					: err === 0
-						? `${ok} of ${n} services running cleanly`
-						: err === 1
-							? "one service is in error state — see Schedule panel below"
-							: `${err} services in error state — see Schedule panel below`;
-
-				servicesEl.textContent = String(n);
-				servicesSubEl.textContent = "1 stream + 4 crons + 2 on-demand";
-
-				okEl.textContent = String(ok);
-				okEl.className = `kpi-num mono ${ok === n ? "ok" : "warn"}`;
-				okSubEl.textContent = ok === n ? "all running cleanly" : `${n - ok} not ok`;
-
-				errEl.textContent = String(err);
-				errEl.className = `kpi-num mono ${err === 0 ? "ok" : "bad"}`;
-				errSubEl.textContent = err === 0 ? "no errors" : err === 1 ? "1 needs attention" : `${err} need attention`;
-
-				// Next cron
-				const next = nextCron(services);
-				if (next) {
-					nextEl.textContent = next.next_label || "—";
-					nextEl.className = "kpi-num mono";
-					nextSubEl.textContent = `${next.icon || ""} ${next.name || next.id}`;
+			function renderScheduleHealth(data) {
+				const el = $("schedule-health");
+				const text = $("schedule-health-text");
+				if (!el || !text) return;
+				if (!data || !data.summary) {
+					el.setAttribute("data-color", "ok");
+					text.textContent = "—";
+					return;
+				}
+				const s = data.summary;
+				const n = s.n_services ?? 0;
+				const ok = s.n_ok ?? 0;
+				const err = s.n_error ?? 0;
+				if (n === 0) {
+					el.setAttribute("data-color", "ok");
+					text.textContent = "—";
+				} else if (err === 0) {
+					el.setAttribute("data-color", "ok");
+					text.textContent = `all green — ${ok} of ${n} steps running cleanly`;
+				} else if (err === 1) {
+					el.setAttribute("data-color", "bad");
+					text.textContent = `1 step needs attention — ${ok} of ${n} running cleanly`;
 				} else {
-					nextEl.textContent = "—";
-					nextEl.className = "kpi-num mono muted";
-					nextSubEl.textContent = "no upcoming runs";
+					el.setAttribute("data-color", "bad");
+					text.textContent = `${err} steps need attention — ${ok} of ${n} running cleanly`;
 				}
-
-				// Hero border color
-				heroEl.setAttribute("data-color", err === 0 ? "ok" : "bad");
 			}
 
-			// ─── Cron runs table count ───
-			function renderCronCount(rows) {
-				const el = $("cron-count");
-				if (!el) return;
-				if (!rows || rows.length === 0) {
-					el.textContent = "0 runs";
-					return;
-				}
-				el.textContent = `${rows.length} run${rows.length === 1 ? "" : "s"}`;
-			}
-
-			// ─── Main render loop ───
 			async function renderSchedulePage() {
 				const data = await fetchSchedulePage();
-				renderScheduleHero(data);
-				// The schedule panel itself is rendered by app.js
-				// renderSchedule(data). We also call it here so the
-				// first paint is right without waiting 5s for the
-				// default cycle.
-				if (typeof renderSchedule === "function" && data) {
-					renderSchedule(data);
-				}
+				renderScheduleList(data);
+				renderScheduleHealth(data);
 			}
 
-			// ─── Wire into app.js ───
 			const _origInit = window.appPageInit;
 			window.appPageInit = function schedulePageInit() {
 				if (_origInit) _origInit();
 				startTimers([{ fn: renderSchedulePage, ms: 5_000 }]);
-				// Patch renderCronRuns to also update the count label
-				// (so it stays in sync with the 5s refresh).
-				const _origRenderCron = window.renderCronRuns;
-				window.renderCronRuns = function (rows) {
-					if (_origRenderCron) _origRenderCron(rows);
-					renderCronCount(rows);
-				};
 				renderSchedulePage();
 			};
 			window.appPageOnVisible = function () {

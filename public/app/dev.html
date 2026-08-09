@@ -196,6 +196,269 @@
 				</div>
 			</section>
 
+			<!-- ============================================ -->
+			<!-- SCHEDULE — cron runs + schedule health      -->
+			<!-- ============================================ -->
+			<section id="dev-schedule-runs" class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span aria-hidden="true">⏱</span>
+							<span>Cron runs (latest 25)</span>
+							<span class="muted mono" id="dev-cron-count" style="margin-left: auto; font-size: 11px;">— runs</span>
+						</div>
+						<div class="card-blurb">Detailed view of every scheduled job. 200ms runs are the scan cron hitting a Kalshi 429 (skipped). Error rows show the message — most are rate-limits, not real failures.</div>
+						<table class="tbl cron-tbl" id="dev-cron-tbl">
+							<thead>
+								<tr>
+									<th>Cron</th>
+									<th>Status</th>
+									<th>When</th>
+									<th class="num">Duration</th>
+									<th>Detail</th>
+								</tr>
+							</thead>
+							<tbody id="dev-cron-tbody">
+								<tr><td colspan="5" class="empty">loading…</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- CF WORKERS USAGE                          -->
+			<!-- ============================================ -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span aria-hidden="true">∿</span>
+							<span>Cloudflare Workers usage (last 24h)</span>
+							<a id="dev-cf-dashboard-link" href="#" target="_blank" rel="noopener" style="margin-left:auto; font-size:11px; color: var(--accent); text-decoration:none;">open CF dashboard ↗</a>
+						</div>
+						<div class="card-blurb">How busy the bot is on Cloudflare's edge. Free up to 100K requests/day; we're nowhere near that.</div>
+						<div class="cf-stats" id="dev-cf-stats">
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="dev-cf-requests">—</div>
+								<div class="cf-stat-label">Requests</div>
+							</div>
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="dev-cf-errors">—</div>
+								<div class="cf-stat-label">Errors</div>
+							</div>
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="dev-cf-success">—</div>
+								<div class="cf-stat-label">Success rate</div>
+							</div>
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="dev-cf-subrequests">—</div>
+								<div class="cf-stat-label">Subrequests</div>
+							</div>
+						</div>
+						<div class="cf-chart" id="dev-cf-chart">
+							<div class="empty">loading CF analytics…</div>
+						</div>
+						<div class="cf-foot" id="dev-cf-foot"></div>
+					</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- COST ESTIMATE                             -->
+			<!-- ============================================ -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span aria-hidden="true">$</span>
+							<span>Cost (last 24h, estimated)</span>
+							<a id="dev-cost-cf-dashboard" href="#" target="_blank" rel="noopener" style="margin-left:auto; font-size:11px; color: var(--accent); text-decoration:none;">open CF billing ↗</a>
+						</div>
+						<div class="card-blurb">Estimates, not invoiced. Cloudflare covers free tier; MiniMax (LLM) is the only real cost.</div>
+						<div class="cost-grid">
+							<div class="cost-card">
+								<div class="cost-num" id="dev-cost-total">$—</div>
+								<div class="cost-label">Total today</div>
+								<div class="cost-sub" id="dev-cost-monthly">≈ $—/mo</div>
+							</div>
+							<div class="cost-card">
+								<div class="cost-num" id="dev-cost-cf">$—</div>
+								<div class="cost-label">Cloudflare</div>
+								<div class="cost-sub" id="dev-cost-cf-detail">— requests · — errors</div>
+							</div>
+							<div class="cost-card">
+								<div class="cost-num" id="dev-cost-mmx">$—</div>
+								<div class="cost-label">MMX (LLM)</div>
+								<div class="cost-sub" id="dev-cost-mmx-detail">— calls · — in / — out tokens</div>
+							</div>
+						</div>
+						<div class="cost-foot" id="dev-cost-foot">loading cost estimate…</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- MONTHLY LIMITS                            -->
+			<!-- ============================================ -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span aria-hidden="true">📊</span>
+							<span>Monthly limits</span>
+						</div>
+						<div class="card-blurb">Progress bars for the CF Workers Paid plan's monthly included amounts (10M requests, 30M CPU-ms, 100K D1 writes/day, 10GB R2). Resets on the CF billing cycle start date.</div>
+						<div class="monthly-limits" id="dev-monthly-limits">loading…</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- ACTIVITY LOG (moved from Bot)              -->
+			<!-- ============================================ -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span aria-hidden="true">⌬</span>
+							<span>Activity log</span>
+							<div class="activity-filters" id="dev-activity-filters" role="tablist" style="margin-left: auto; display: flex; gap: 4px;">
+								<button class="btn small activity-filter active" data-filter="all" role="tab" aria-selected="true">All</button>
+								<button class="btn small activity-filter" data-filter="cron" role="tab" aria-selected="false">Cron</button>
+								<button class="btn small activity-filter" data-filter="manual" role="tab" aria-selected="false">Manual</button>
+								<button class="btn small activity-filter" data-filter="fill" role="tab" aria-selected="false">Fills</button>
+							</div>
+						</div>
+						<div class="card-blurb">What just happened on the bot. Cron = scheduled jobs. Manual = your action. Fills = actual orders placed.</div>
+						<table class="tbl activity-log-tbl">
+							<thead>
+								<tr>
+									<th>When</th>
+									<th>Source</th>
+									<th>Action</th>
+									<th>Detail</th>
+									<th class="num">ms</th>
+									<th>Result</th>
+								</tr>
+							</thead>
+							<tbody id="dev-activity-log-body">
+								<tr><td colspan="6" class="empty">no activity yet</td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- HEALTH DIAGNOSTICS (moved from Bot)         -->
+			<!-- ============================================ -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card health-card">
+						<div class="card-title health-card-head">
+							<span aria-hidden="true">♥</span>
+							<span>Health diagnostics</span>
+							<span class="muted mono" style="font-size: 11px; margin-left: 8px;" id="dev-health-summary">—</span>
+							<button class="btn small health-toggle" id="dev-health-toggle" style="margin-left: auto;" aria-expanded="true" aria-controls="dev-health-body">Hide details</button>
+						</div>
+						<div class="card-blurb">Polling/feed diagnostics. Use when the dashboard stage panel shows "error" or "connecting" for too long.</div>
+						<div class="health-grid" id="dev-health-body">
+							<div class="health-tile">
+								<div class="health-tile-label">Polling</div>
+								<div class="health-tile-val" id="dev-health-poll-active">—</div>
+							</div>
+							<div class="health-tile">
+								<div class="health-tile-label">Connected</div>
+								<div class="health-tile-val" id="dev-health-poll-connected">—</div>
+							</div>
+							<div class="health-tile">
+								<div class="health-tile-label">Polls</div>
+								<div class="health-tile-val mono" id="dev-health-poll-count">—</div>
+							</div>
+							<div class="health-tile">
+								<div class="health-tile-label">Errors</div>
+								<div class="health-tile-val mono" id="dev-health-poll-errors">—</div>
+							</div>
+							<div class="health-tile">
+								<div class="health-tile-label">Last poll</div>
+								<div class="health-tile-val mono" id="dev-health-poll-last">—</div>
+							</div>
+							<div class="health-tile">
+								<div class="health-tile-label">Last error</div>
+								<div class="health-tile-val mono" id="dev-health-poll-last-error">—</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- MODEL CONFIGURATION (moved from Models)     -->
+			<!-- ============================================ -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span aria-hidden="true">⛭</span>
+							<span>Model configuration</span>
+							<span class="muted mono" id="dev-models-config-mode" style="margin-left: auto; font-size: 11px;">—</span>
+						</div>
+						<div class="card-blurb">The bot's runtime config — read-only dump. Editing lives on the Bot page.</div>
+						<div class="config-grid" id="dev-models-config-grid">
+							<div class="config-row">
+								<div class="config-key">Bankroll</div>
+								<div class="config-val mono" id="dev-models-config-bankroll">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Trading mode</div>
+								<div class="config-val mono" id="dev-models-config-trading-mode">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Model version</div>
+								<div class="config-val mono" id="dev-models-config-model-version">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Max notional / trade</div>
+								<div class="config-val mono" id="dev-models-config-max-notional">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Daily notional cap</div>
+								<div class="config-val mono" id="dev-models-config-daily-cap">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Daily notional used</div>
+								<div class="config-val mono" id="dev-models-config-daily-used">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Lookback (frames)</div>
+								<div class="config-val mono" id="dev-models-config-lookback">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Exit mode</div>
+								<div class="config-val mono" id="dev-models-config-exit-mode">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Min entry p</div>
+								<div class="config-val mono" id="dev-models-config-min-entry-p">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Disable flips</div>
+								<div class="config-val mono" id="dev-models-config-disable-flips">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Profit target</div>
+								<div class="config-val mono" id="dev-models-config-profit-target">—</div>
+							</div>
+							<div class="config-row">
+								<div class="config-key">Stop loss</div>
+								<div class="config-val mono" id="dev-models-config-stop-loss">—</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
 			<!-- Raw state inspector -->
 			<section class="grid" style="margin-bottom: 24px;">
 				<div class="col-12">
@@ -307,9 +570,293 @@
 				});
 				// Initial + 10s refresh
 				refreshAll();
-				const t = setInterval(refreshAll, 10_000);
+				refreshDevPanels();
+				const t = setInterval(() => { refreshAll(); refreshDevPanels(); }, 10_000);
 				// Store timer for visibility-aware cleanup
 				window.__devTimer = t;
+
+				// ─── Dev panels: CF analytics, cost, monthly
+				// limits, cron runs, activity log, health,
+				// model config. These piggy-back on the raw-state
+				// fetches so we don't double-fire the network. ───
+				async function fetchJson(path) {
+					try {
+						const r = await fetch(path, { credentials: "same-origin" });
+						if (!r.ok) return null;
+						return await r.json();
+					} catch (_e) { return null; }
+				}
+				async function refreshDevPanels() {
+					// 1. Cron runs (latest 25) — populated into the
+					// #dev-cron-tbody table with error message column.
+					const cronRuns = await fetchJson("/api/pm/cron-runs?limit=25");
+					if (cronRuns && cronRuns.runs) {
+						const runs = cronRuns.runs;
+						const tbody = $("dev-cron-tbody");
+						if (tbody) {
+							if (runs.length === 0) {
+								tbody.innerHTML = `<tr><td colspan="5" class="empty">no runs yet</td></tr>`;
+							} else {
+								tbody.innerHTML = runs.map((r) => {
+									const statusCls = r.status === "success" ? "pos" : r.status === "error" ? "neg" : "muted";
+									const detail = r.error_message
+										? esc(r.error_message.slice(0, 80))
+										: (() => {
+											try {
+												const a = JSON.parse(r.artifacts_json || "{}");
+												return esc((a.skip_reason || a.message || a.cron_name || "—").slice(0, 80));
+											} catch { return "—"; }
+										})();
+									return `<tr>
+										<td class="mono">${esc(r.cron_name)}</td>
+										<td><span class="${statusCls}">${esc(r.status)}</span></td>
+										<td class="mono" style="font-size: 11px;">${esc(fmtTime(r.ts))}</td>
+										<td class="num mono">${fmtNum(r.duration_ms)}</td>
+										<td style="font-size: 11px; color: var(--ink-muted);">${detail}</td>
+									</tr>`;
+								}).join("");
+							}
+						}
+						const cc = $("dev-cron-count");
+						if (cc) cc.textContent = `${runs.length} run${runs.length === 1 ? "" : "s"}`;
+					}
+
+					// 2. CF analytics — use the same data shape as
+					// app.js renderCfAnalytics() (totals + hourly)
+					// but write to the dev-prefixed IDs.
+					const cf = await fetchJson("/api/pm/cf-analytics?hours=24");
+					if (cf && cf.totals) {
+						$("dev-cf-requests").textContent = fmtNum(cf.totals.requests);
+						$("dev-cf-errors").textContent = fmtNum(cf.totals.errors);
+						const successEl = $("dev-cf-success");
+						const successPct = cf.totals.success_rate_pct ?? (cf.totals.requests > 0 ? (1 - cf.totals.errors / cf.totals.requests) * 100 : 0);
+						successEl.textContent = `${successPct.toFixed(2)}%`;
+						$("dev-cf-subrequests").textContent = fmtNum(cf.totals.subrequests);
+						$("dev-cf-dashboard-link").href = cf.dashboard_url || "#";
+						// Bar chart — reuses .cf-chart + .cf-bar CSS.
+						const chart = $("dev-cf-chart");
+						if (chart) {
+							chart.innerHTML = "";
+							if (!cf.hourly || cf.hourly.length === 0) {
+								chart.innerHTML = '<div class="empty">no requests in the last 24h</div>';
+							} else {
+								const max = Math.max(1, ...cf.hourly.map((b) => b.requests));
+								for (const b of cf.hourly) {
+									const bar = document.createElement("div");
+									bar.className = "cf-bar" + (b.errors > 0 ? " err" : "");
+									const h = Math.max(1, Math.round((b.requests / max) * 72));
+									bar.style.height = `${h}px`;
+									const ts = (b.datetime || "").replace("T", " ").replace("Z", "Z").slice(0, 16);
+									bar.title = `${ts}Z · ${fmtNum(b.requests)} req, ${fmtNum(b.errors)} err`;
+									chart.appendChild(bar);
+								}
+							}
+						}
+						const foot = $("dev-cf-foot");
+						if (foot) {
+							const since = (cf.since || "").slice(0, 16).replace("T", " ");
+							foot.innerHTML = `<span>since ${esc(since)}Z</span><span>window: last 24h</span><span>updated ${new Date().toISOString().slice(11, 19)}Z</span>`;
+						}
+					}
+
+					// 3. Cost + monthly limits (both from /api/pm/cost).
+					// Reuses the existing app.js renderCost /
+					// renderMonthlyLimits logic but writes to the
+					// dev-prefixed IDs.
+					const cost = await fetchJson("/api/pm/cost");
+					if (cost && cost.cf) {
+						const fmtUsd = (n) => {
+							if (n === 0) return "$0.00";
+							if (n < 0.01) return "<$0.01";
+							return `$${n.toFixed(2)}`;
+						};
+						$("dev-cost-total").textContent = fmtUsd(cost.total_estimated_cost_24h);
+						$("dev-cost-monthly").textContent = cost.total_estimated_cost_24h === 0
+							? `≈ ${fmtUsd(cost.monthly_estimate)}/mo · free tier`
+							: `≈ ${fmtUsd(cost.monthly_estimate)}/mo`;
+						$("dev-cost-cf").textContent = fmtUsd(cost.cf.estimated_cost_24h);
+						$("dev-cost-cf-detail").textContent = `${fmtNum(cost.cf.requests_24h)} requests · ${fmtNum(cost.cf.errors_24h)} errors`;
+						$("dev-cost-mmx").textContent = fmtUsd(cost.mmx.estimated_cost_24h);
+						$("dev-cost-mmx-detail").textContent = cost.mmx.calls_24h === 0
+							? "no LLM calls yet"
+							: `${fmtNum(cost.mmx.calls_24h)} calls · ${fmtNum(cost.mmx.input_tokens_24h)} in / ${fmtNum(cost.mmx.output_tokens_24h)} out tokens`;
+						$("dev-cost-cf-dashboard").href = cost.dashboard_url || "#";
+						$("dev-cf-dashboard-link").href = cost.dashboard_url || "#";
+						const cfFoot = $("dev-cost-foot");
+						if (cfFoot) {
+							const notesHtml = (cost.notes || []).map((n) => `<li>${esc(n)}</li>`).join("");
+							cfFoot.innerHTML = `<strong>assumptions:</strong>` +
+								(notesHtml ? `<ul>${notesHtml}</ul>` : " no notes") +
+								`<div style="margin-top:6px; opacity:0.7;">estimates, not invoiced.</div>`;
+						}
+						// Monthly limits — reuse the existing
+						// .monthly-limits structure (.monthly-section
+						// etc., already in app.css).
+						const ml = $("dev-monthly-limits");
+						if (ml && cost.cf_monthly) {
+							const cm = cost.cf_monthly;
+							const cfPctClass = (pct) => pct >= 90 ? "pct-err" : pct >= 70 ? "pct-warn" : "pct-ok";
+							const barCls = (pct) => pct >= 90 ? "bar-err" : pct >= 70 ? "bar-warn" : "bar-ok";
+							const bar = (label, current, limit, pct, suffix = "") => `
+								<div class="monthly-bar">
+									<div class="monthly-bar-head">
+										<span class="monthly-bar-label">${esc(label)}</span>
+										<span class="monthly-bar-pct ${cfPctClass(pct)}">${pct.toFixed(1)}%</span>
+									</div>
+									<div class="monthly-bar-track"><div class="monthly-bar-fill ${barCls(pct)}" style="width: ${Math.min(100, pct)}%;"></div></div>
+									<div class="monthly-bar-detail mono">${fmtNum(current)} / ${fmtNum(limit)}${suffix}</div>
+								</div>`;
+							ml.innerHTML = `
+								<div class="monthly-section">
+									<div class="monthly-section-head">
+										<span class="monthly-section-title">Cloudflare (Workers Paid)</span>
+										<span class="monthly-reset">resets in <strong>${cm.days_until_reset ?? "—"}</strong> day${cm.days_until_reset === 1 ? "" : "s"} · on <strong>${esc(cm.resets_on ?? "—")}</strong></span>
+									</div>
+									<div class="monthly-bars">
+										${bar("Requests", cm.requests.current, cm.requests.limit, cm.requests.pct)}
+										${bar("CPU-ms", cm.cpu_ms.current, cm.cpu_ms.limit, cm.cpu_ms.pct)}
+										${bar("D1 writes (24h)", cm.d1_writes_24h.current, cm.d1_writes_24h.limit, cm.d1_writes_24h.pct)}
+										${bar("R2 storage (GB)", cm.r2_storage_gb.current, cm.r2_storage_gb.limit, cm.r2_storage_gb.pct, " GB")}
+									</div>
+								</div>
+							`;
+						}
+					}
+
+					// 4. Activity log — read cron runs (recent 50) +
+					// localStorage "trader:activity-log" (manual +
+					// fill events). Same source as the Bot page.
+					const actCron = await fetchJson("/api/pm/cron-runs?limit=50");
+					const actManual = (() => {
+						try { return JSON.parse(localStorage.getItem("trader:activity-log") || "[]"); } catch { return []; }
+					})();
+					renderDevActivityLog(actCron?.runs || [], actManual);
+
+					// 5. Health diagnostics — read /api/pm/bot/status.
+					const bot = await fetchJson("/api/pm/bot/status");
+					if (bot) renderDevHealth(bot);
+
+					// 6. Model config (read-only) — also from
+					// /api/pm/bot/status.
+					if (bot) renderDevModelsConfig(bot);
+				}
+
+				// Render: activity log (moved from Bot page).
+				function renderDevActivityLog(cronRuns, manualEntries) {
+					const tbody = $("dev-activity-log-body");
+					if (!tbody) return;
+					// Cron entries — derived from cron_runs table.
+					const cronEntries = cronRuns.map((r) => ({
+						ts: r.ts,
+						source: "cron",
+						action: r.cron_name,
+						detail: r.error_message
+							? r.error_message.slice(0, 60)
+							: (() => {
+								try {
+									const a = JSON.parse(r.artifacts_json || "{}");
+									return a.skip_reason || a.message || "ok";
+								} catch { return "ok"; }
+							})(),
+						duration_ms: r.duration_ms,
+						result: r.status,
+					}));
+					// Filter by active tab
+					const filterBtn = document.querySelector("#dev-activity-filters .activity-filter.active");
+					const filter = filterBtn ? filterBtn.dataset.filter : "all";
+					const filtered = (filter === "all"
+						? [...cronEntries, ...manualEntries]
+						: [...cronEntries, ...manualEntries].filter((e) => e.source === filter)
+					).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+					if (filtered.length === 0) {
+						tbody.innerHTML = `<tr><td colspan="6" class="empty">no activity yet</td></tr>`;
+						return;
+					}
+					tbody.innerHTML = filtered.slice(0, 50).map((e) => {
+						const resultCls = e.result === "success" ? "pos" : e.result === "error" ? "neg" : "muted";
+						return `<tr>
+							<td class="mono" style="font-size: 11px;">${esc(fmtTime(e.ts))}</td>
+							<td><span class="pill muted" style="font-size: 10px;">${esc(e.source)}</span></td>
+							<td>${esc(e.action)}</td>
+							<td style="font-size: 11px; color: var(--ink-muted);">${esc(e.detail || "—")}</td>
+							<td class="num mono">${e.duration_ms != null ? fmtNum(e.duration_ms) : "—"}</td>
+							<td><span class="${resultCls}">${esc(e.result || "—")}</span></td>
+						</tr>`;
+					}).join("");
+				}
+
+				// Render: health diagnostics (moved from Bot).
+				function renderDevHealth(bot) {
+					const poll = bot.poll ?? {};
+					const cfg = bot.config ?? {};
+					const summary = $("dev-health-summary");
+					if (summary) {
+						summary.textContent = poll.connected
+							? `connected · ${fmtNum(poll.n_polls ?? 0)} polls`
+							: (poll.last_error ? `error · ${poll.last_error.slice(0, 30)}` : "disconnected");
+					}
+					$("dev-health-poll-active").textContent = poll.active ? "active" : "off";
+					$("dev-health-poll-active").className = `health-tile-val ${poll.active ? "ok" : "bad"}`;
+					$("dev-health-poll-connected").textContent = poll.connected ? "yes" : "no";
+					$("dev-health-poll-connected").className = `health-tile-val ${poll.connected ? "ok" : "bad"}`;
+					$("dev-health-poll-count").textContent = fmtNum(poll.n_polls ?? 0);
+					$("dev-health-poll-errors").textContent = fmtNum(poll.n_errors ?? 0);
+					$("dev-health-poll-last").textContent = poll.last_poll_ms != null ? `${poll.last_poll_ms}ms` : "—";
+					$("dev-health-poll-last-error").textContent = poll.last_error ? poll.last_error.slice(0, 60) : "—";
+				}
+
+				// Render: model configuration (moved from Models).
+				function renderDevModelsConfig(bot) {
+					const cfg = bot.config ?? {};
+					const risk = bot.risk ?? {};
+					const fmtDollars = (c) => c == null ? "—" : `$${(c / 100).toFixed(2)}`;
+					const modeEl = $("dev-models-config-mode");
+					if (modeEl) {
+						modeEl.textContent = cfg.trading_mode ?? "—";
+						modeEl.setAttribute("data-color", cfg.trading_mode === "real" ? "warn" : "muted");
+					}
+					$("dev-models-config-bankroll").textContent = fmtDollars(cfg.bankroll_cents);
+					$("dev-models-config-trading-mode").textContent = cfg.trading_mode ?? "—";
+					$("dev-models-config-model-version").textContent = cfg.model_version ?? "—";
+					$("dev-models-config-max-notional").textContent = cfg.max_notional_cents_per_trade != null ? fmtDollars(cfg.max_notional_cents_per_trade) : "—";
+					$("dev-models-config-daily-cap").textContent = cfg.daily_notional_cents_cap != null ? fmtDollars(cfg.daily_notional_cents_cap) : "—";
+					const dailyUsed = risk.daily_notional_cents ?? cfg.daily_notional_cents ?? 0;
+					const dailyCap = cfg.daily_notional_cents_cap ?? 0;
+					const pct = dailyCap > 0 ? Math.round((dailyUsed / dailyCap) * 100) : 0;
+					const usedEl = $("dev-models-config-daily-used");
+					if (usedEl) {
+						usedEl.textContent = `${fmtDollars(dailyUsed)} · ${pct}% of cap`;
+						usedEl.setAttribute("data-color", pct >= 90 ? "bad" : pct >= 70 ? "warn" : "ok");
+					}
+					$("dev-models-config-lookback").textContent = cfg.lookback != null ? `${cfg.lookback} frames` : "—";
+					$("dev-models-config-exit-mode").textContent = cfg.exit_mode ?? "—";
+					$("dev-models-config-min-entry-p").textContent = cfg.min_entry_p != null ? `${(cfg.min_entry_p * 100).toFixed(0)}%` : "—";
+					$("dev-models-config-disable-flips").innerHTML = cfg.disable_flips ? "yes" : `<span class="muted">no</span>`;
+					$("dev-models-config-profit-target").innerHTML = cfg.profit_target_pct != null ? `${(cfg.profit_target_pct * 100).toFixed(0)}%` : `<span class="muted">off</span>`;
+					$("dev-models-config-stop-loss").innerHTML = cfg.stop_loss_pct != null ? `${(cfg.stop_loss_pct * 100).toFixed(0)}%` : `<span class="muted">off</span>`;
+				}
+
+				// Activity log filter tabs
+				document.getElementById("dev-activity-filters")?.addEventListener("click", (e) => {
+					const btn = e.target.closest("[data-filter]");
+					if (!btn) return;
+					for (const t of document.querySelectorAll("#dev-activity-filters .activity-filter")) {
+						t.classList.remove("active");
+						t.setAttribute("aria-selected", "false");
+					}
+					btn.classList.add("active");
+					btn.setAttribute("aria-selected", "true");
+					refreshDevPanels();
+				});
+				// Health details toggle
+				document.getElementById("dev-health-toggle")?.addEventListener("click", (e) => {
+					const body = $("dev-health-body");
+					if (!body) return;
+					const hidden = body.hidden;
+					body.hidden = !hidden;
+					e.target.textContent = hidden ? "Hide details" : "Show details";
+					e.target.setAttribute("aria-expanded", hidden ? "true" : "false");
+				});
 			};
 			window.appPageOnVisible = function () {
 				document.getElementById("dev-refresh")?.click();
