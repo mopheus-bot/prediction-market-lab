@@ -25,7 +25,11 @@
 		// Default paper-trading universe (comma-separated tickers). The
 		// LiveBot DO can be reconfigured via POST /start with a different
 		// set; this is the bootstrap default before any /start call.
-		"DEFAULT_TICKERS": "KXWARMING-50",
+		// 2026-08-09: LLM-generated lead set. The bot's verticals are
+		// weather (reversion), economic (reversion), politics (naive),
+		// sports (naive). Each ticker maps to a vertical — see
+		// ticker_verticals in the LiveBot config.
+		"DEFAULT_TICKERS": "KXWARMING-50,KXWARMING-60,KXGDP-Q3,KXPRES-26,KXNFL-CHAMP",
 		// 2026-08-09: WS→polling migration. The data feed
 		// is now a 1.5s alarm-driven round-robin REST poll
 		// via the kalshi-typescript SDK. DEFAULT_URL is now
