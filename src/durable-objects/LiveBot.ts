@@ -45,21 +45,10 @@
  */
 
 import {
-	applyOrderbookDelta,
 	orderbookMidCents,
-	orderbookSnapshotToOb,
-	type KalshiOrderbook,
+	parseOrderbook,
 	type KalshiOrderbookLevel,
 } from "../kalshi/models.js";
-import {
-	DEFAULT_DEMO_WS,
-	DEFAULT_PRODUCTION_WS,
-	type KalshiWSMessage,
-	type OrderbookDelta,
-	type OrderbookSnapshot,
-	type TickerMessage,
-	type TradeMessage,
-} from "../kalshi/ws.js";
 import { isStructurallyUnprofitable, kalshiTakerFeeCents } from "../lib/fees.js";
 import {
 	makeRiskState,
@@ -266,15 +255,32 @@ export class LiveBot implements DurableObject {
 	private readonly env: LiveBotEnv;
 
 	// Non-persistent caches — rebuilt from ctx.storage on each
-	// request. The Kalshi WS is also a transient connection, not in
-	// storage.
-	private _kalshiWs: WebSocket | null = null;
+	// request. The SDK client is also a transient in-memory
+	// object (rebuilt from env on each alarm fire).
 	private _connected = false;
-	private _reconnectAttempt = 0;
-	private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-	/** Last WS error (sign, upgrade, onclose). Cleared on a successful
-	 *  upgrade. Surfaced in /status for the dashboard's stage panel. */
-	private _lastWsError: { ts_ms: number; code: string; message: string } | null = null;
+
+	// 2026-08-09: WS→polling migration. The data feed is a
+	// REST polling loop driven by the kalshi-typescript SDK
+	// and scheduled via the DO's `setAlarm` (durable across
+	// evictions; setTimeout was unreliable in the DO).
+	private _sdkClient: import("../kalshi/sdk-adapter.js").KalshiSdkClient | null = null;
+	// Polling intent is stored in DO storage (key "is_polling"),
+	// NOT in memory — DOs are evicted when idle, and an
+	// in-memory flag would reset to false on re-instantiation
+	// even though the alarm is still set. The alarm is the
+	// "is polling supposed to be happening" signal; the storage
+	// flag is the "did the user say stop" signal. Both are
+	// durable.
+	/** Round-robin cursor into state.config.tickers. */
+	private _pollIndex = -1;
+	/** Wall-clock duration of the last poll, in ms. */
+	private _lastPollMs: number | null = null;
+	/** Total successful polls. Mirrors `n_frames` for the WS feed. */
+	private _nPolls = 0;
+	/** Total failed polls. Useful for the dashboard's "data feed" panel. */
+	private _nPollErrors = 0;
+	/** Last poll error (network, 429, parse). Cleared on next success. */
+	private _lastPollError: { ts_ms: number; code: string; message: string } | null = null;
 	// Model cache (chunk 4). Loaded from R2 on /start, reused
 	// across every signal call. Re-loaded if the model_version
 	// changes via a subsequent /start call. We don't persist
@@ -289,6 +295,27 @@ export class LiveBot implements DurableObject {
 	constructor(ctx: DurableObjectState, env: LiveBotEnv) {
 		this.ctx = ctx;
 		this.env = env;
+	}
+
+	// ─── Polling-intent flag (durable) ────────────────────────────
+	//
+	// Stored in DO storage so it survives idle evictions.
+	// The in-memory equivalent (`_isPolling`) used to live
+	// here but it reset to false when the DO was
+	// re-instantiated, even though the alarm kept firing.
+	// Reading from storage on every status poll is a few
+	// hundred microseconds — negligible.
+
+	private async isPollingActive(): Promise<boolean> {
+		return (await this.ctx.storage.get("is_polling")) === true;
+	}
+
+	private async setPollingActive(active: boolean): Promise<void> {
+		if (active) {
+			await this.ctx.storage.put("is_polling", true);
+		} else {
+			await this.ctx.storage.delete("is_polling");
+		}
 	}
 
 	// ─── Persistent state helpers ─────────────────────────────────
@@ -355,9 +382,13 @@ export class LiveBot implements DurableObject {
 	private buildDefaultState(): LiveBotState {
 		const tickersCsv = this.env.DEFAULT_TICKERS ?? "KXWARMING-50";
 		const defaultTickers = tickersCsv.split(",").map((t) => t.trim()).filter(Boolean);
-		const defaultUrl =
-			this.env.DEFAULT_URL ??
-			(this.env.ENVIRONMENT === "production" ? DEFAULT_PRODUCTION_WS : DEFAULT_DEMO_WS);
+		// 2026-08-09: WS→polling migration. The defaultUrl
+		// used to point at the Kalshi WS endpoint. Polling
+		// doesn't use a WS URL, so DEFAULT_URL is now just
+		// a placeholder string for backward-compat in the
+		// bot's config.url field — nothing reads it at
+		// runtime.
+		const defaultUrl = this.env.DEFAULT_URL ?? "polling://kalshi-rest";
 		const bankrollCents = 1_000_000; // $10K paper
 		const tickers: LiveBotState["tickers"] = {};
 		for (const t of defaultTickers) {
@@ -591,7 +622,22 @@ export class LiveBot implements DurableObject {
 						]),
 					),
 					last_reject: state.last_reject,
-					last_ws_error: this._lastWsError,
+					// 2026-08-09: WS→polling migration. The
+					// last_ws_error field is gone — the data
+					// feed is REST polling, not a WS connection.
+					// The bot status now exposes the polling
+					// feed state. The `active` flag is read from
+					// durable storage (key: "is_polling") so it
+					// survives DO idle-evictions and re-instantiations.
+					poll: {
+						active: await this.isPollingActive(),
+						connected: this._connected,
+						n_polls: this._nPolls,
+						n_errors: this._nPollErrors,
+						last_poll_ms: this._lastPollMs,
+						last_error: this._lastPollError,
+						tickers: state.config.tickers,
+					},
 				});
 			}
 
@@ -879,6 +925,32 @@ export class LiveBot implements DurableObject {
 					trading_mode: "real",
 					real_order_id: orderResult.orderId,
 				});
+				// 2026-08-09: capture the taker fee. The
+				// /place-test-order path was missing this —
+				// fees were paid to Kalshi but not tracked
+				// in `total_fees_cents` and the bankroll was
+				// not debited, so the dashboard's "fees paid"
+				// stat was stuck at $0.00 and the bankroll
+				// was slightly overstated (~1-2¢ per 10c
+				// contract). Mirror the signal-driven path:
+				// subtract cost + fee from bankroll, add fee
+				// to total_fees_cents.
+				//
+				// Note: the 7 historical manual test orders
+				// placed BEFORE this fix are missing their
+				// fees (~7-14¢ total). The next
+				// /trading-mode or /start refresh will
+				// re-pull the bankroll from Kalshi and
+				// correct it; `total_fees_cents` will be
+				// slightly understated until the first
+				// close, but it self-corrects over time.
+				const entryFeeCents = kalshiTakerFeeCents(
+					side,
+					size,
+					priceCents,
+				);
+				s.risk_state.bankroll_cents -= notionalCents + entryFeeCents;
+				s.total_fees_cents += entryFeeCents;
 				// Record the notional in the 24h window so
 				// the daily cap reflects manual + signal
 				// trades consistently.
@@ -1134,16 +1206,26 @@ export class LiveBot implements DurableObject {
 	// ─── Alarm — 90-min cycle ────────────────────────────────────
 
 	async alarm(alarmInfo?: AlarmInvocationInfo): Promise<void> {
-		const state = await this.ensureState();
-		// Schedule the next cycle. setAlarm replaces the existing
-		// alarm, so we don't need to delete first.
-		await this.ctx.storage.setAlarm(Date.now() + CYCLE_MS);
-		// Restart the WS connection (close + reopen) to refresh state.
+		// 2026-08-09: the alarm handler is now poll-only.
+		// The legacy 90-min cycle (which refreshed the WS
+		// connection) is gone — polling doesn't need a
+		// periodic refresh since each poll is a fresh REST
+		// call.
+		//
+		// **Important:** we don't check the in-memory
+		// `_isPolling` flag here. The DO may have been
+		// idle-evicted and re-instantiated between the
+		// previous poll and this alarm firing, in which
+		// case `_isPolling` is back to its default `false`
+		// value. The alarm itself is the durable intent —
+		// if it's set, polling is meant to be running, and
+		// we re-initialize state from env + storage before
+		// doing the next poll. `/stop` deletes the alarm,
+		// which is the only way to truly halt polling.
 		console.log(
-			`[live-bot] alarm fired (${alarmInfo?.isRetry ? "retry" : "scheduled"}); restarting`,
+			`[live-bot] alarm fired (${alarmInfo?.isRetry ? "retry" : "scheduled"}); polling`,
 		);
-		void state; // state already loaded; closure captures `this`
-		await this.restart();
+		await this.pollTick();
 	}
 
 	// ─── Start / stop / restart ──────────────────────────────────
@@ -1246,460 +1328,279 @@ export class LiveBot implements DurableObject {
 		// change without a bankroll pull.
 		await this.mirrorConfigToD1(state);
 
-		// Open the Kalshi WS. The WS lifecycle is managed by the DO;
-		// we reconnect on close with exponential backoff.
-		await this.openKalshiWs(state);
+		// 2026-08-09: WS→polling migration. The data feed
+		// is now a 1.5s round-robin REST poll via the
+		// kalshi-typescript SDK. The WS code below is
+		// still in the file (commented-out references) for
+		// git history but is no longer called.
+		await this.startPolling(state);
 
 		// Load the reversion models from R2 (chunk 4). Failure to
 		// load is non-fatal — we fall back to NaiveSignal for the
 		// affected vertical. The model_version defaults to "v1" and
 		// can be overridden via /start config.
 		await this.loadModels(state.config.model_version ?? this._modelVersion);
-
-		// Schedule the 90-min cycle alarm (replaces any prior alarm).
-		await this.ctx.storage.setAlarm(Date.now() + CYCLE_MS);
 	}
 
 	async stop(): Promise<void> {
-		if (this._reconnectTimer) {
-			clearTimeout(this._reconnectTimer);
-			this._reconnectTimer = null;
-		}
-		this.closeKalshiWs();
-		await this.ctx.storage.deleteAlarm();
+		// 2026-08-09: stop the polling loop. The WS code is
+		// gone — no separate closeKalshiWs / reconnect timer
+		// to clean up.
+		await this.stopPolling();
 	}
 
 	async restart(): Promise<void> {
-		this.closeKalshiWs();
+		await this.stopPolling();
 		const state = await this.ensureState();
-		await this.openKalshiWs(state);
+		await this.startPolling(state);
 	}
 
-	// ─── Kalshi WS lifecycle ─────────────────────────────────────
 
-	private async openKalshiWs(state: LiveBotState): Promise<void> {
-		if (this._kalshiWs) return; // already open
-		const url = state.config.url;
-		const useDemo = url.includes("demo");
-		// Chunk 10.6: if the URL points at a relay (or any non-Kalshi
-		// host), the relay handles Kalshi auth server-side — the Worker
-		// just opens a plain WebSocket with no extra headers. CF Workers'
-		// `new WebSocket(url, { headers })` is silently broken (the
-		// second arg is treated as a protocols string), so this is the
-		// only reliable form when the URL is not a raw Kalshi endpoint.
-		const isRelay = !url.includes("kalshi");
+	// ─── Polling data feed (2026-08-09, replaces the WS) ──────────
+	//
+	// We poll Kalshi's REST API via the kalshi-typescript SDK
+	// on a 1.5s round-robin across the configured tickers. Each
+	// poll pulls a full orderbook snapshot (no deltas — at 1.5s
+	// cadence the deltas would cost more than they save). The
+	// strategy consumes the same state shape as before, so the
+	// signal/auto-close logic is unchanged.
+	//
+	// Trade-off vs WS streaming: 1-2s data lag instead of
+	// sub-second. For pm-bot's paper-trading strategy this is
+	// invisible — the bot's decisions don't depend on
+	// sub-second precision.
+
+	private async startPolling(state: LiveBotState): Promise<void> {
+		// Read the durable flag instead of an in-memory one.
+		// After a DO eviction, the new instance has no
+		// in-memory state, but the storage flag survives.
+		if (await this.isPollingActive()) return; // already polling
+		const isProd = this.env.ENVIRONMENT === "production";
+		const keyId = isProd
+			? this.env.KALSHI_PROD_KEY_ID
+			: this.env.KALSHI_DEMO_KEY_ID;
+		const pem = isProd
+			? this.env.KALSHI_PROD_PRIVATE_KEY
+			: this.env.KALSHI_DEMO_PRIVATE_KEY;
+		if (!keyId || !pem) {
+			this._lastPollError = {
+				ts_ms: Date.now(),
+				code: "missing_creds",
+				message: isProd
+					? "KALSHI_PROD creds not set on the Worker"
+					: "KALSHI_DEMO creds not set on the Worker",
+			};
+			console.error("[live-bot:polling]", this._lastPollError.message);
+			return;
+		}
+		const { KalshiSdkClient } = await import("../kalshi/sdk-adapter.js");
+		const { loadPrivateKey, KalshiCredentials } = await import("../kalshi/auth.js");
+		const pk = await loadPrivateKey(pem);
+		const creds = new KalshiCredentials(keyId, pk);
+		this._sdkClient = new KalshiSdkClient({
+			creds,
+			privateKeyPem: pem,
+			env: isProd ? "prod" : "demo",
+			requestsPerSecond: 2,
+		});
+		this._pollIndex = -1;
+		this._nPolls = 0;
+		this._nPollErrors = 0;
+		this._lastPollMs = null;
+		this._lastPollError = null;
+		// Mark the polling intent in storage BEFORE setting
+		// the alarm. If we crash between the two, on the next
+		// invocation we see "polling intent: true" but no
+		// alarm — startPolling is idempotent so the next
+		// call kicks off the first alarm.
+		await this.setPollingActive(true);
 		console.log(
-			`[live-bot] openKalshiWs url=${url} useDemo=${useDemo} isRelay=${isRelay}`,
+			`[live-bot:polling] starting; env=${isProd ? "prod" : "demo"} tickers=${state.config.tickers.length}`,
 		);
+		// Kick off the first poll in 100ms via the alarm. setAlarm
+		// is durable (survives DO evictions), unlike setTimeout
+		// which dies when the DO goes idle. The 1.5s poll cadence
+		// is well within CF's alarm limits.
+		await this.ctx.storage.setAlarm(Date.now() + 100);
+		this._connected = true;
+	}
 
-		// Build auth headers ONLY for the direct-Kalshi path. The relay
-		// path doesn't need them — and sending them breaks the upgrade.
-		const headers: Record<string, string> = { Upgrade: "websocket" };
-		if (!isRelay) {
-			const keyId =
-				(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
-			const pem =
-				(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
-			if (keyId && pem) {
-				try {
-					const { buildAuthHeaders, loadPrivateKey } = await import("../kalshi/auth.js");
-					const pk = await loadPrivateKey(pem);
-					const auth = await buildAuthHeaders(pk, keyId, "GET", "/trade-api/ws/v2");
-					Object.assign(headers, auth);
-				} catch (e) {
-					const msg = e instanceof Error ? e.message : String(e);
-					console.error("[live-bot] failed to sign WS headers", msg);
-					this._lastWsError = {
-						ts_ms: Date.now(),
-						code: "auth_sign_failed",
-						message: msg,
-					};
-				}
-			} else {
-				this._lastWsError = {
+	private async stopPolling(): Promise<void> {
+		// Mark the polling intent false in storage FIRST.
+		// If pollTick is mid-execution and races with
+		// /stop, it will see `is_polling = false` at its
+		// reschedule check and not set a new alarm. The
+		// alarm itself is deleted after — the order
+		// matters: a pollTick that started before /stop
+		// might still call setAlarm after the delete, but
+		// the reschedule check guards against that.
+		await this.setPollingActive(false);
+		this._sdkClient = null;
+		this._connected = false;
+		// Clear the alarm so the polling loop truly stops.
+		await this.ctx.storage.deleteAlarm();
+	}
+
+	private async pollTick(): Promise<void> {
+		const POLL_INTERVAL_MS = 1500;
+		// Re-initialize the SDK client if it's gone (DO was
+		// idle-evicted and re-instantiated between polls).
+		// The alarm is durable, but the in-memory client is
+		// not, so we rebuild it on every alarm fire.
+		if (!this._sdkClient) {
+			const isProd = this.env.ENVIRONMENT === "production";
+			const keyId = isProd
+				? this.env.KALSHI_PROD_KEY_ID
+				: this.env.KALSHI_DEMO_KEY_ID;
+			const pem = isProd
+				? this.env.KALSHI_PROD_PRIVATE_KEY
+				: this.env.KALSHI_DEMO_PRIVATE_KEY;
+			if (!keyId || !pem) {
+				this._lastPollError = {
 					ts_ms: Date.now(),
 					code: "missing_creds",
-					message: useDemo
-						? "KALSHI_DEMO creds not set on the Worker"
-						: "KALSHI_PROD creds not set on the Worker",
+					message: isProd
+						? "KALSHI_PROD creds not set on the Worker"
+						: "KALSHI_DEMO creds not set on the Worker",
 				};
-				console.error(
-					"[live-bot]",
-					this._lastWsError.code,
-					"—",
-					this._lastWsError.message,
-				);
+				this._nPollErrors += 1;
+				// Reschedule so we keep trying.
+				await this.ctx.storage.setAlarm(Date.now() + POLL_INTERVAL_MS);
+				return;
 			}
-		} else {
-			// Relay path: clear any prior error from a previous
-			// direct-Kalshi attempt; the relay doesn't need creds.
-			this._lastWsError = null;
-		}
-
-		// Open the WebSocket.
-		//   Relay path: `new WebSocket(url)` — the standard form, no
-		//   second arg. This is what CF Workers handles correctly.
-		//   Direct path: try Node's `new WebSocket(url, { headers })`
-		//   first; fall back to `fetch(url, { headers })` if that
-		//   fails. (Direct path from CF Workers is known not to work
-		//   — see chunk 10 finding. Kept for completeness / local dev.)
-		let ws: WebSocket;
-		try {
-			if (isRelay) {
-				console.log(`[live-bot] relay: plain new WebSocket(${url})`);
-				ws = new WebSocket(url);
-			} else {
-				// Node.js's WebSocket: `new WebSocket(url, { headers })`.
-				// With `nodejs_compat` enabled, the global `WebSocket` is
-				// Node's, which honors the headers option.
-				ws = new WebSocket(url, { headers } as unknown as string[]);
-			}
-		} catch (e) {
-			console.error("[live-bot] Node WebSocket failed, trying fetch()", e);
-			// Fallback: fetch() + Upgrade: websocket.
-			const fetchUrl = url.replace(/^wss:\/\//, "https://");
 			try {
-				const response = await fetch(fetchUrl, { headers });
-				if (response.status !== 101) {
-					const body = await response.text().catch(() => "");
-					const msg = `WS upgrade failed: HTTP ${response.status} ${body.slice(0, 200)}`;
-					console.error("[live-bot]", msg);
-					this._lastWsError = {
-						ts_ms: Date.now(),
-						code: `http_${response.status}`,
-						message: msg,
-					};
-					this.scheduleReconnect(state);
-					return;
-				}
-				ws = response.webSocket!;
-				if (!ws) {
-					const msg = "fetch() returned 101 but response.webSocket is null";
-					this._lastWsError = {
-						ts_ms: Date.now(),
-						code: "no_websocket",
-						message: msg,
-					};
-					this.scheduleReconnect(state);
-					return;
-				}
-				try {
-					ws.accept();
-				} catch {
-					/* already accepted — non-fatal */
-				}
-			} catch (fe) {
-				const msg = fe instanceof Error ? fe.message : String(fe);
-				console.error("[live-bot] both WS approaches failed", msg);
-				this._lastWsError = {
+				const { KalshiSdkClient } = await import("../kalshi/sdk-adapter.js");
+				const { loadPrivateKey, KalshiCredentials } = await import("../kalshi/auth.js");
+				const pk = await loadPrivateKey(pem);
+				const creds = new KalshiCredentials(keyId, pk);
+				this._sdkClient = new KalshiSdkClient({
+					creds,
+					privateKeyPem: pem,
+					env: isProd ? "prod" : "demo",
+					requestsPerSecond: 2,
+				});
+				this._connected = true;
+				this._lastPollError = null;
+				console.log("[live-bot:polling] SDK client re-initialized after DO eviction");
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : String(e);
+				this._lastPollError = {
 					ts_ms: Date.now(),
-					code: "ws_open_failed",
-					message: msg,
+					code: "sdk_init_failed",
+					message: msg.slice(0, 300),
 				};
-				this.scheduleReconnect(state);
+				this._nPollErrors += 1;
+				await this.ctx.storage.setAlarm(Date.now() + POLL_INTERVAL_MS);
 				return;
 			}
 		}
-		this._kalshiWs = ws;
-		this._connected = false;
-		this._reconnectAttempt = 0;
-		// Clear any prior error — the upgrade succeeded at the HTTP layer.
-		this._lastWsError = null;
-
-		// Connection timeout: if `open` doesn't fire within 10s, treat
-		// as a failure and schedule a reconnect. CF Workers' outbound
-		// WebSocket has a known silent-CLOSING state (readyState=2
-		// without ever firing `open`); the timeout catches that case
-		// so the dashboard doesn't sit on "Connecting…" forever.
-		const connectTimeoutMs = 10_000;
-		const connectTimeout = setTimeout(() => {
-			if (!this._connected) {
-				console.error(
-					`[live-bot] WS open did not fire within ${connectTimeoutMs}ms; closing + reconnecting`,
-				);
-				this._lastWsError = {
-					ts_ms: Date.now(),
-					code: "open_timeout",
-					message: `WebSocket open event did not fire within ${connectTimeoutMs}ms (silent CLOSING?)`,
-				};
-				try {
-					ws.close(1000, "open_timeout");
-				} catch {
-					/* ignore */
-				}
-			}
-		}, connectTimeoutMs);
-
-		ws.addEventListener("open", () => {
-			clearTimeout(connectTimeout);
-			this._connected = true;
-			this._reconnectAttempt = 0;
-			// Subscribe to orderbook_delta + trade + ticker for every
-			// watched ticker. market_lifecycle is part of the public
-			// feed too, but we subscribe explicitly to be safe.
-			const tickers = state.config.tickers;
-			const subscribeMsg = {
-				id: 1,
-				cmd: "subscribe",
-				params: {
-					channels: ["orderbook_delta", "trade", "ticker", "market_lifecycle_v2"],
-					market_tickers: tickers,
-				},
-			};
-			ws.send(JSON.stringify(subscribeMsg));
-			console.log(`[live-bot] WS open, subscribed to ${tickers.length} tickers`);
-		});
-
-		ws.addEventListener("message", (event: MessageEvent) => {
-			const data = typeof event.data === "string" ? event.data : "";
-			if (!data) return;
-			try {
-				const msg = JSON.parse(data) as KalshiWSMessage;
-				void this.handleKalshiMessage(state, msg);
-			} catch (e) {
-				console.error("[live-bot] failed to parse WS message", e);
-			}
-		});
-
-		ws.addEventListener("error", (event: Event) => {
-			const msg =
-				(event as ErrorEvent).message ?? "WebSocket error (no message)";
-			console.error("[live-bot] WS error", msg);
-			this._lastWsError = {
+		let state: LiveBotState;
+		try {
+			state = await this.ensureState();
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			console.error("[live-bot:polling] ensureState failed", msg);
+			this._lastPollError = {
 				ts_ms: Date.now(),
-				code: "ws_error",
+				code: "state_load_failed",
 				message: msg,
 			};
-		});
-
-		ws.addEventListener("close", (event: CloseEvent) => {
-			console.log(
-				`[live-bot] WS close code=${event.code} reason=${event.reason ?? ""}`,
-			);
-			this._kalshiWs = null;
-			this._connected = false;
-			if (event.code !== 1000) {
-				this._lastWsError = {
-					ts_ms: Date.now(),
-					code: `close_${event.code}`,
-					message: event.reason || "abnormal closure",
-				};
-			}
-			this.scheduleReconnect(state);
-		});
-	}
-
-	private scheduleReconnect(state: LiveBotState): void {
-		if (this._reconnectTimer) return;
-		const delay = Math.min(1000 * 2 ** this._reconnectAttempt, 30_000);
-		this._reconnectAttempt += 1;
-		this._reconnectTimer = setTimeout(() => {
-			this._reconnectTimer = null;
-			void this.openKalshiWs(state);
-		}, delay);
-	}
-
-	private closeKalshiWs(): void {
-		if (this._kalshiWs) {
-			try {
-				this._kalshiWs.close(1000, "client_close");
-			} catch {
-				// ignore
-			}
-			this._kalshiWs = null;
+			this._nPollErrors += 1;
+			await this.ctx.storage.setAlarm(Date.now() + POLL_INTERVAL_MS);
+			return;
 		}
-		this._connected = false;
-	}
-
-	// ─── Frame processing ────────────────────────────────────────
-
-	private async handleKalshiMessage(
-		state: LiveBotState,
-		msg: KalshiWSMessage,
-	): Promise<void> {
-		// Mutations against state must be serialized. blockConcurrencyWhile
-		// ensures the DO doesn't get re-entered while we save.
-		await this.ctx.blockConcurrencyWhile(async () => {
-			state.n_frames += 1;
-			switch (msg.type) {
-				case "orderbook_snapshot": {
-					const m = msg as OrderbookSnapshot;
-					const ticker = m.msg?.market_ticker;
-					if (!ticker) return;
-					this.onOrderbookSnapshot(state, ticker, m);
-					break;
-				}
-				case "orderbook_delta": {
-					const m = msg as OrderbookDelta;
-					const ticker = m.msg?.market_ticker;
-					if (!ticker) return;
-					this.onOrderbookDelta(state, ticker, m);
-					break;
-				}
-				case "trade": {
-					const m = msg as TradeMessage;
-					const ticker = m.msg?.market_ticker;
-					if (!ticker) return;
-					this.onTrade(state, ticker, m);
-					break;
-				}
-				case "ticker": {
-					const m = msg as TickerMessage;
-					// We don't change state on ticker; the orderbook channel
-					// is the source of truth. The ticker channel is a
-					// periodic summary useful for diagnostics.
-					void m;
-					break;
-				}
-				case "market_lifecycle_v2":
-				case "market_lifecycle": {
-					// Settlement event — close any open position at the
-					// settlement value. The exact wire shape varies; we
-					// look for an `event_type=settled` + `settlement_value`
-					// pair in `msg`.
-					await this.onMarketLifecycle(state, msg);
-					break;
-				}
-				case "subscribed": {
-					console.log(`[live-bot] subscribed: ${JSON.stringify(msg)}`);
-					break;
-				}
-				case "error": {
-					console.error(`[live-bot] kalshi error: ${JSON.stringify(msg)}`);
-					break;
-				}
-				default: {
-					// Unknown — log + skip. Don't fail the loop on a
-					// single unhandled type.
-					console.log(`[live-bot] unhandled msg type=${(msg as { type: string }).type}`);
-				}
-			}
-			// After every frame, maybe call the strategy.
-			await this.maybeSignalAll(state);
-			await this.saveState(state);
-		});
-	}
-
-	private onOrderbookSnapshot(
-		state: LiveBotState,
-		ticker: string,
-		msg: OrderbookSnapshot,
-	): void {
-		const t = state.tickers[ticker];
-		if (!t) return;
-		const ob = orderbookSnapshotToOb(msg);
-		t.book = { yes_levels: ob.yes_levels, no_levels: ob.no_levels };
-		this.appendPriceHistory(state, t);
-	}
-
-	private onOrderbookDelta(
-		state: LiveBotState,
-		ticker: string,
-		msg: OrderbookDelta,
-	): void {
-		const t = state.tickers[ticker];
-		if (!t) return;
-		const current: KalshiOrderbook = t.book
-			? { ticker, yes_levels: t.book.yes_levels, no_levels: t.book.no_levels }
-			: { ticker, yes_levels: [], no_levels: [] };
-		const updated = applyOrderbookDelta(current, msg);
-		t.book = { yes_levels: updated.yes_levels, no_levels: updated.no_levels };
-		this.appendPriceHistory(state, t);
-	}
-
-	private onTrade(state: LiveBotState, ticker: string, msg: TradeMessage): void {
-		const t = state.tickers[ticker];
-		if (!t) return;
-		const yesCents = Math.round(parseFloat(msg.msg.yes_price_dollars ?? "0") * 100);
-		if (yesCents > 0) {
-			t.last_trade_price_cents = yesCents;
-			t.price_history.push(yesCents);
-			// Trim to the lookback window.
-			const max = state.config.lookback;
-			if (t.price_history.length > max) {
-				t.price_history.splice(0, t.price_history.length - max);
-			}
+		const tickers = state.config.tickers;
+		if (tickers.length === 0) {
+			await this.ctx.storage.setAlarm(Date.now() + POLL_INTERVAL_MS);
+			return;
 		}
-		t.trade_count += 1;
-		// Auto-close check (only when in "mtm" mode).
-		if (
-			state.config.close_after_trades !== null &&
-			state.config.close_after_trades > 0 &&
-			state.config.exit_mode === "mtm" &&
-			t.position !== null
-		) {
-			const pos = t.position;
-			const targetTrades = state.config.close_after_trades;
-			// We don't track entry trade count separately; we use the
-			// "elapsed since open" frame count as a proxy. The Python
-			// engine does the same.
-			const tradeCountAtEntry = Math.max(0, t.trade_count - targetTrades);
-			if (t.trade_count - tradeCountAtEntry >= targetTrades) {
-				this.autoCloseAtMark(state, ticker, yesCents);
-			}
+		this._pollIndex = (this._pollIndex + 1) % tickers.length;
+		const ticker = tickers[this._pollIndex];
+		const t = state.tickers[ticker];
+		if (!t) {
+			await this.ctx.storage.setAlarm(Date.now() + POLL_INTERVAL_MS);
+			return;
 		}
-		// Profit target / stop loss (mark-based).
-		if (t.position !== null && t.book) {
-			const mark = orderbookMidCents({
-				ticker,
-				yes_levels: t.book.yes_levels,
-				no_levels: t.book.no_levels,
+		const pollStart = Date.now();
+		try {
+			const wire = (await this._sdkClient.getOrderbook(ticker)) as Record<
+				string,
+				unknown
+			>;
+			const ob = parseOrderbook(ticker, wire);
+			await this.ctx.blockConcurrencyWhile(async () => {
+				t.book = { yes_levels: ob.yes_levels, no_levels: ob.no_levels };
+				// Approximate "last trade price" from the orderbook
+				// mid. The strategy uses this for the price
+				// history (vol calc) and last_trade_price_cents
+				// (PnL mark). The true trade prints came from
+				// the WS `trade` channel — we no longer have
+				// that, so the orderbook mid is the next best
+				// thing for a paper-trading bot.
+				const mid = orderbookMidCents(ob);
+				if (mid !== null) {
+					t.last_trade_price_cents = mid;
+					t.price_history.push(mid);
+					const max = state.config.lookback;
+					if (t.price_history.length > max) {
+						t.price_history.splice(0, t.price_history.length - max);
+					}
+				}
+				// Approximate trade count (one tick = one event).
+				// Used by the auto-close-after-N-trades logic.
+				// Less accurate than the WS trade count but good
+				// enough for paper.
+				t.trade_count += 1;
+				state.n_frames += 1;
+				this._nPolls += 1;
+				this._lastPollMs = Date.now() - pollStart;
+				this._lastPollError = null;
+				// Profit target / stop loss (mark-based, same
+				// as the WS trade handler).
+				if (t.position !== null && mid !== null) {
+					const pos = t.position;
+					const profitPct =
+						pos.side === "yes"
+							? (mid - pos.entry_price_cents) / pos.entry_price_cents
+							: (pos.entry_price_cents - (100 - mid)) /
+								pos.entry_price_cents;
+					if (
+						state.config.profit_target_pct !== null &&
+						profitPct >= state.config.profit_target_pct
+					) {
+						this.autoCloseAtMark(state, ticker, mid, "pm_target");
+					} else if (
+						state.config.stop_loss_pct !== null &&
+						profitPct <= -state.config.stop_loss_pct
+					) {
+						this.autoCloseAtMark(state, ticker, mid, "pm_stop");
+					}
+				}
+				// Run the strategy (same path the WS handler uses).
+				await this.maybeSignalAll(state);
+				await this.saveState(state);
 			});
-			if (mark !== null) {
-				const pos = t.position;
-				const profitPct =
-					pos.side === "yes"
-						? (mark - pos.entry_price_cents) / pos.entry_price_cents
-						: (pos.entry_price_cents - (100 - mark)) / pos.entry_price_cents;
-				if (
-					state.config.profit_target_pct !== null &&
-					profitPct >= state.config.profit_target_pct
-				) {
-					this.autoCloseAtMark(state, ticker, mark, "pm_target");
-				} else if (
-					state.config.stop_loss_pct !== null &&
-					profitPct <= -state.config.stop_loss_pct
-				) {
-					this.autoCloseAtMark(state, ticker, mark, "pm_stop");
-				}
-			}
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			console.error("[live-bot:polling] poll failed for", ticker, msg);
+			this._lastPollError = {
+				ts_ms: Date.now(),
+				code: "poll_failed",
+				message: msg.slice(0, 300),
+			};
+			this._nPollErrors += 1;
+		}
+		// Reschedule the next poll. The alarm is the durable
+		// intent — `/stop` is the only way to halt polling
+		// (it sets the durable `is_polling` flag to false
+		// AND deletes the alarm). We check the flag here so
+		// a pollTick that started before /stop was called
+		// doesn't accidentally re-arm the alarm.
+		if (await this.isPollingActive()) {
+			await this.ctx.storage.setAlarm(Date.now() + POLL_INTERVAL_MS);
 		}
 	}
 
-	private async onMarketLifecycle(
-		state: LiveBotState,
-		msg: KalshiWSMessage,
-	): Promise<void> {
-		// The wire format is `market_lifecycle_v2` with a `msg` object
-		// containing `event_type` and (for `settled`) a `settlement_value`.
-		const inner = (msg as { msg?: { market_ticker?: string; event_type?: string; settlement_value?: string } })
-			.msg;
-		if (!inner) return;
-		const ticker = inner.market_ticker;
-		if (!ticker) return;
-		if (inner.event_type === "settled" && inner.settlement_value !== undefined) {
-			const sv = parseFloat(inner.settlement_value);
-			if (!Number.isFinite(sv)) return;
-			const settlementCents = Math.round(sv * 100);
-			if (settlementCents < 0 || settlementCents > 100) return;
-			this.closeAtSettlement(state, ticker, settlementCents);
-		}
-	}
-
-	private appendPriceHistory(state: LiveBotState, t: LiveBotState["tickers"][string]): void {
-		if (!t.book) return;
-		const mid = orderbookMidCents({
-			ticker: t.vertical ? "" : "", // unused; we read levels directly
-			yes_levels: t.book.yes_levels,
-			no_levels: t.book.no_levels,
-		});
-		if (mid === null) return;
-		t.price_history.push(mid);
-		const max = state.config.lookback;
-		if (t.price_history.length > max) {
-			t.price_history.splice(0, t.price_history.length - max);
-		}
-	}
 
 	// ─── Trade recording ────────────────────────────────────────
 

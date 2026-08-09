@@ -1,10 +1,9 @@
 /**
  * pm-bot — cost-monthly unit tests (chunk 10.5).
  *
- * Pins the math for the new cf_monthly and fly_relay
- * sections of /api/pm/cost. The 7d → 30d extrapolation,
- * the days_until_reset computation, and the Fly.io rate
- * math are all fragile enough to deserve explicit tests.
+ * Pins the math for the cf_monthly section of /api/pm/cost.
+ * The 7d → 30d extrapolation and the days_until_reset
+ * computation are fragile enough to deserve explicit tests.
  */
 
 import { describe, it, expect } from "vitest";
@@ -132,50 +131,5 @@ describe("computeCfMonthly (chunk 10.5)", () => {
 	it("clamps days_until_reset at 0 (past cycle end)", () => {
 		const r = computeCfMonthly("2026-08-01", 0, 0, 0, 0, "2026-10-01");
 		expect(r.days_until_reset).toBe(0);
-	});
-});
-
-// ─── Fly.io rate math (mirrors FLY_PRICING) ─────────────────
-
-const FLY = {
-	pricePerMonth: 1.94,
-	pricePerHour: 1.94 / 730,
-};
-
-describe("Fly.io relay pricing (chunk 10.5)", () => {
-	it("hourly rate is 1.94 / 730", () => {
-		expect(round4(FLY.pricePerHour)).toBe(0.0027);
-	});
-
-	it("monthly cost for 24/7 = $1.94", () => {
-		const cost = 24 * 30 * FLY.pricePerHour; // 720h ≈ 1 month
-		expect(round4(cost)).toBe(1.9134); // ≈ 1.94
-	});
-
-	it("free credit decrement", () => {
-		const freeCredit = 0.83;
-		const cost = 24 * 5 * FLY.pricePerHour; // 5 days × 24h
-		const remaining = Math.max(0, freeCredit - cost);
-		// 120h × 0.002658... = 0.3192
-		// 0.83 - 0.32 = 0.51
-		expect(round4(remaining)).toBeCloseTo(0.5108, 3);
-	});
-
-	// Chunk 10.7: when the Fly.io API returns 404 (machine-scoped
-	// token can't see its own app), we assume 1 machine running 24/7
-	// and surface `status: "assumed_running"` instead of "not_deployed"
-	// (which would zero the cost). This pins the math.
-	it("assumed_running falls back to 1 machine × 24/7", () => {
-		const freeCredit = 0.83;
-		const assumedMachines = 1;
-		const hoursThisMonth = 24 * 30 * assumedMachines; // 720h
-		const cost = hoursThisMonth * FLY.pricePerHour;
-		const remaining = Math.max(0, freeCredit - cost);
-		// ~12.3 days of 24/7 are covered by the $0.83 free credit
-		const daysCovered = (freeCredit / cost) * 30;
-		expect(round4(cost)).toBeCloseTo(1.9134, 3);
-		expect(daysCovered).toBeGreaterThan(11);
-		expect(daysCovered).toBeLessThan(14);
-		expect(round4(remaining)).toBe(0); // cost > credit
 	});
 });

@@ -26,29 +26,16 @@
 		// LiveBot DO can be reconfigured via POST /start with a different
 		// set; this is the bootstrap default before any /start call.
 		"DEFAULT_TICKERS": "KXWARMING-50",
-		// Default WS URL. The Worker can't add auth headers on
-		// outbound WS, so the direct Kalshi URL doesn't work
-		// from CF Workers (chunk 10 finding). The relay at
-		// pm-bot-relay.fly.dev handles Kalshi auth server-side
-		// (chunk 10.6) and exposes an unauthenticated WS to the
-		// Worker. See pm-bot/relay/. The Worker detects the
-		// relay by `!url.includes("kalshi")` and uses plain
-		// `new WebSocket(url)` (no second arg) for the relay
-		// path.
-		"DEFAULT_URL": "wss://pm-bot-relay.fly.dev/",
+		// 2026-08-09: WS→polling migration. The data feed
+		// is now a 1.5s alarm-driven round-robin REST poll
+		// via the kalshi-typescript SDK. DEFAULT_URL is now
+		// a placeholder — the LiveBot no longer reads it.
+		// Kept as a hint for /start callers.
+		"DEFAULT_URL": "polling://kalshi-rest",
 		// CF Workers Paid plan billing cycle (chunk 10.5).
 		// User signed up 2026-08-08. Resets monthly on this date.
 		// Used by /api/pm/cost to compute "resets in N days".
-		"CF_BILLING_CYCLE_START": "2026-08-08",
-		// Fly.io relay app name (chunk 10.5). Defaults to
-		// "pm-bot-relay" if not set in /api/pm/cost.
-		"FLY_APP_NAME": "pm-bot-relay",
-		// Fly.io free credit remaining in USD. The user had $0.83
-		// of free credit at signup. Decrement as relay hours
-		// accumulate (the cost endpoint computes this server-side
-		// for the current month, then surfaces a remaining-credit
-		// estimate).
-		"FLY_FREE_CREDIT_USD": "0.83"
+		"CF_BILLING_CYCLE_START": "2026-08-08"
 	},
 	// D1 database — bound at runtime as `env.DB`.
 	// database_id filled in after `wrangler d1 create pm-bot-prod`.

@@ -8,12 +8,10 @@
  *   - **cf_monthly** (chunk 10.5): usage vs the Workers Paid
  *     plan's monthly included amounts, with a "resets on"
  *     date and progress bars.
- *   - **fly_relay** (chunk 10.5): machine state + hours +
- *     estimated cost, minus the user's free credit.
  *
  * Numbers are ESTIMATES, not invoiced amounts. See the
  * notes field for caveats. Source: cloudflare.com/plans +
- * fly.io/docs/machines/ + the public MMX pricing.
+ * the public MMX pricing.
  */
 
 import type { CfAnalyticsResponse } from "./cf-analytics.js";
@@ -49,19 +47,10 @@ const CF_PRICING = {
 	},
 };
 
-// Public Fly.io machine pricing (USD). Source: fly.io/docs/machines/
-// (chunk 10.5 user-provided table). Per-second rate × seconds in
-// the month. Default plan: shared-cpu-1x, 1GB RAM.
-const FLY_PRICING = {
-	sharedCpu1x1GB: {
-		// $1.94/month. A month is 730 hours (8760 hours / 12).
-		pricePerMonth: 1.94,
-		pricePerHour: 1.94 / 730,
-		pricePerSecond: 1.94 / (730 * 3600),
-	},
-};
-
-// Public MMX pricing for `MiniMax-M2.7-highspeed` (USD).
+// Public MMX pricing (USD per 1M tokens). Last verified for
+// `MiniMax-M2.7-highspeed`; check the MMX dashboard for
+// `MiniMax-M3` and update if rates differ. Treat the cost
+// endpoint output as a best-effort estimate, not a bill.
 const MMX_PRICING = {
 	inputPer1M: 0.10,
 	outputPer1M: 0.40,
@@ -74,12 +63,6 @@ export interface CostEnv {
 	CF_SCRIPT_NAME?: string;
 	/** ISO YYYY-MM-DD of the Workers Paid plan signup. */
 	CF_BILLING_CYCLE_START?: string;
-	/** Fly.io machine API token. */
-	FLY_API_TOKEN?: string;
-	/** Fly.io app name. Defaults to "pm-bot-relay". */
-	FLY_APP_NAME?: string;
-	/** Free credit remaining (USD) for the user's Fly.io trial. */
-	FLY_FREE_CREDIT_USD?: string;
 }
 
 export interface CfMonthlySection {
@@ -92,19 +75,6 @@ export interface CfMonthlySection {
 	cpu_ms: { current: number; limit: number; pct: number; overage_units: number };
 	d1_writes_24h: { current: number; limit: number; pct: number };
 	r2_storage_gb: { current: number; limit: number; pct: number };
-}
-
-export interface FlyRelaySection {
-	ok: boolean;
-	reason?: string;
-	/** "running" | "stopped" | "unknown" | "no_token" | "assumed_running" */
-	status: "running" | "stopped" | "unknown" | "no_token" | "not_deployed" | "assumed_running";
-	plan: "shared-cpu-1x-1gb";
-	price_per_month: number;
-	hours_this_month: number;
-	estimated_cost_month: number;
-	free_credit_remaining_usd: number;
-	notes: string[];
 }
 
 export interface CostResponse {
@@ -129,7 +99,6 @@ export interface CostResponse {
 	dashboard_url: string;
 	// Chunk 10.5:
 	cf_monthly: CfMonthlySection;
-	fly_relay: FlyRelaySection;
 }
 
 export interface CostError {
@@ -211,114 +180,6 @@ async function getD1RowCounts(
 		}
 	}
 	return { reads, writes };
-}
-
-/** Compute the Fly.io relay section.
- *  - If FLY_API_TOKEN is missing: status="no_token", cost=0.
- *  - If the Fly.io API call fails: status="unknown", cost=0.
- *  - Otherwise: pull machine state + uptime, compute hours
- *    this month, multiply by the per-second rate. */
-async function getFlyRelaySection(env: CostEnv): Promise<FlyRelaySection> {
-	const freeCredit = Number(env.FLY_FREE_CREDIT_USD ?? "0");
-	const notes: string[] = [];
-	if (!env.FLY_API_TOKEN) {
-		notes.push("FLY_API_TOKEN not set; relay cost not measured (set it via wrangler secret put FLY_API_TOKEN)");
-		return {
-			ok: false,
-			reason: "FLY_API_TOKEN not set",
-			status: "no_token",
-			plan: "shared-cpu-1x-1gb",
-			price_per_month: FLY_PRICING.sharedCpu1x1GB.pricePerMonth,
-			hours_this_month: 0,
-			estimated_cost_month: 0,
-			free_credit_remaining_usd: freeCredit,
-			notes,
-		};
-	}
-	const appName = env.FLY_APP_NAME ?? "pm-bot-relay";
-	const url = `https://api.fly.io/v1/apps/${appName}/machines`;
-	let machines: Array<{ state?: string; started_at?: string; region?: string }> = [];
-	try {
-		const resp = await fetch(url, {
-			headers: { Authorization: `Bearer ${env.FLY_API_TOKEN}` },
-		});
-		if (resp.status === 404) {
-			// Chunk 10.7: a machine-scoped token (`fm2_*`) can't see
-			// the app's machines via the org-level endpoint, so the
-			// API returns 404 even when the app IS deployed and
-			// running. Don't fall through to "not_deployed" — the
-			// user clearly has a token, so they set it for a reason.
-			// Fall through to the cost estimate using assumed
-			// 24/7 operation and surface the API failure as a note.
-			notes.push(
-				`App "${appName}" not visible via this token (machine-scoped, not org-scoped). Cost estimated assuming 24/7 operation.`,
-			);
-		} else if (!resp.ok) {
-			notes.push(`Fly.io API returned HTTP ${resp.status}`);
-			return {
-				ok: false,
-				reason: `http_${resp.status}`,
-				status: "unknown",
-				plan: "shared-cpu-1x-1gb",
-				price_per_month: FLY_PRICING.sharedCpu1x1GB.pricePerMonth,
-				hours_this_month: 0,
-				estimated_cost_month: 0,
-				free_credit_remaining_usd: freeCredit,
-				notes,
-			};
-		} else {
-			const data = (await resp.json()) as { machines?: Array<{ state?: string }> };
-			machines = data.machines ?? [];
-		}
-	} catch (e) {
-		notes.push(`Fly.io API fetch failed: ${e instanceof Error ? e.message : String(e)}`);
-		return {
-			ok: false,
-			reason: "fetch_failed",
-			status: "unknown",
-			plan: "shared-cpu-1x-1gb",
-			price_per_month: FLY_PRICING.sharedCpu1x1GB.pricePerMonth,
-			hours_this_month: 0,
-			estimated_cost_month: 0,
-			free_credit_remaining_usd: freeCredit,
-			notes,
-		};
-	}
-
-	// Compute hours for any machine in "started" state.
-	const monthStart = new Date();
-	monthStart.setUTCDate(1);
-	monthStart.setUTCHours(0, 0, 0, 0);
-	const monthStartMs = monthStart.getTime();
-	const nowMs = Date.now();
-	const runningMachines = machines.filter((m) => m.state === "started");
-	// Chunk 10.7: if the API returned no machines (either the app
-	// really doesn't exist, or our token can't see it because it's
-	// machine-scoped, not org-scoped), assume 1 machine running
-	// 24/7. The `notes` will surface which case it is.
-	const assumedRunning = runningMachines.length > 0 ? runningMachines.length : 1;
-	const hoursThisMonth = ((nowMs - monthStartMs) / 3600000) * assumedRunning;
-	const estimatedCost = hoursThisMonth * FLY_PRICING.sharedCpu1x1GB.pricePerHour;
-	if (runningMachines.length > 0) {
-		notes.push(
-			`${runningMachines.length}/${machines.length} machine(s) running; ${hoursThisMonth.toFixed(1)}h @ $${FLY_PRICING.sharedCpu1x1GB.pricePerHour.toFixed(4)}/h.`,
-		);
-	} else {
-		notes.push(
-			`No machine data visible (machine-scoped token); assuming 1 machine running 24/7: ${hoursThisMonth.toFixed(1)}h @ $${FLY_PRICING.sharedCpu1x1GB.pricePerHour.toFixed(4)}/h.`,
-		);
-	}
-
-	return {
-		ok: true,
-		status: runningMachines.length > 0 ? "running" : "assumed_running",
-		plan: "shared-cpu-1x-1gb",
-		price_per_month: FLY_PRICING.sharedCpu1x1GB.pricePerMonth,
-		hours_this_month: round4(hoursThisMonth),
-		estimated_cost_month: round4(estimatedCost),
-		free_credit_remaining_usd: round4(Math.max(0, freeCredit - estimatedCost)),
-		notes,
-	};
 }
 
 /** Compute the CF monthly section. Extrapolates 7-day
@@ -478,7 +339,7 @@ export async function handleCost(env: CostEnv, url: URL): Promise<Response> {
 		CF_PRICING.r2.storagePerGBMonth;
 	notes.push("R2: ~10MB storage; reads not measured. Below free tier.");
 
-	// ─── CF monthly + Fly.io relay (chunk 10.5) ───
+	// ─── CF monthly (chunk 10.5) ───
 	const cycleStart = env.CF_BILLING_CYCLE_START ?? "2026-08-08";
 	const cfMonthly = computeCfMonthly(
 		cycleStart,
@@ -487,12 +348,12 @@ export async function handleCost(env: CostEnv, url: URL): Promise<Response> {
 		d1Writes,
 		r2StorageGBEstimate,
 	);
-	const flyRelay = await getFlyRelaySection(env);
 
 	// ─── Total ───
 	const cfCostTotal24h = cfCost24hCents + d1CostCents + r2CostCents;
 	const totalCents24h = cfCostTotal24h + mmxCostCents;
-	const monthlyCents = totalCents24h * 30 + flyRelay.estimated_cost_month;
+	// No third-party infrastructure — no relay cost to add.
+	const monthlyCents = totalCents24h * 30;
 
 	const result: CostResponse = {
 		ok: true,
@@ -515,7 +376,6 @@ export async function handleCost(env: CostEnv, url: URL): Promise<Response> {
 		notes,
 		dashboard_url: dashboardUrl,
 		cf_monthly: cfMonthly,
-		fly_relay: flyRelay,
 	};
 	return Response.json(result, {
 		headers: {

@@ -140,7 +140,12 @@ export async function handleSummary(
 			.bind(DEFAULT_USER_ID, since)
 			.first<{ n_trades: number; pnl_cents: number }>();
 		// Per-vertical breakdown (chunk 10.8). Drives the
-		// "Per-vertical breakdown (24h)" card in the dashboard.
+		// "Per-vertical breakdown" card in the dashboard.
+		// 2026-08-09: now includes lifetime PnL alongside the
+		// 24h window. Always includes the 4 standard verticals
+		// (weather / economic / politics / sports) with 0
+		// values for any that haven't traded yet, so the
+		// dashboard has a consistent shape.
 		const perVerticalRows = await env.DB
 			.prepare(
 				`SELECT
@@ -155,18 +160,129 @@ export async function handleSummary(
 			)
 			.bind(DEFAULT_USER_ID, since)
 			.all<{ vertical: string; n_trades: number; pnl_cents: number }>();
+		// 2026-08-09: lifetime PnL per vertical — same shape
+		// but no `ts >= ?2` filter. Drives the "Lifetime PnL"
+		// column in the dashboard.
+		const perVerticalLifetimeRows = await env.DB
+			.prepare(
+				`SELECT
+				   vertical,
+				   COUNT(*) as n_trades,
+				   COALESCE(SUM(CASE WHEN pnl_cents IS NOT NULL
+				                     THEN pnl_cents ELSE 0 END), 0) as pnl_cents,
+				   MIN(ts) as first_trade_ts
+				 FROM trades
+				 WHERE user_id = ?1 AND vertical IS NOT NULL
+				 GROUP BY vertical`,
+			)
+			.bind(DEFAULT_USER_ID)
+			.all<{
+				vertical: string;
+				n_trades: number;
+				pnl_cents: number;
+				first_trade_ts: number;
+			}>();
+		const STANDARD_VERTICALS = ["weather", "economic", "politics", "sports"];
 		const verticals: Record<
 			string,
-			{ n_trades: number; pnl_cents: number; pnl_dollars: number; n_open: number }
+			{
+				n_trades_24h: number;
+				pnl_24h_cents: number;
+				n_trades_lifetime: number;
+				pnl_lifetime_cents: number;
+				first_trade_ts: number | null;
+				n_open: number;
+			}
 		> = {};
-		for (const row of perVerticalRows.results ?? []) {
-			verticals[row.vertical] = {
-				n_trades: row.n_trades,
-				pnl_cents: row.pnl_cents,
-				pnl_dollars: row.pnl_cents / 100,
-				n_open: 0, // 24h window — paper positions don't really "open" here
+		// Seed with all 4 standard verticals at zero so the
+		// dashboard always has the same row count.
+		for (const v of STANDARD_VERTICALS) {
+			verticals[v] = {
+				n_trades_24h: 0,
+				pnl_24h_cents: 0,
+				n_trades_lifetime: 0,
+				pnl_lifetime_cents: 0,
+				first_trade_ts: null,
+				n_open: 0,
 			};
 		}
+		// Per-vertical open-position count (lifetime — we
+		// don't really have "opened in last 24h and still
+		// open" as a meaningful stat for a paper-trading
+		// bot. n_open = number of tickers with a current
+		// open position in that vertical).
+		const perVerticalOpenRows = await env.DB
+			.prepare(
+				`SELECT
+				   t.vertical,
+				   COUNT(DISTINCT t.ticker) as n_open
+				 FROM trades t
+				 WHERE t.user_id = ?1
+				   AND t.action = 'open'
+				   AND t.vertical IS NOT NULL
+				   AND NOT EXISTS (
+				     SELECT 1 FROM trades c
+				     WHERE c.user_id = t.user_id
+				       AND c.ticker = t.ticker
+				       AND c.action = 'close'
+				       AND c.id > t.id
+				   )
+				 GROUP BY t.vertical`,
+			)
+			.bind(DEFAULT_USER_ID)
+			.all<{ vertical: string; n_open: number }>();
+		for (const row of perVerticalRows.results ?? []) {
+			const v = verticals[row.vertical] ?? {
+				n_trades_24h: 0,
+				pnl_24h_cents: 0,
+				n_trades_lifetime: 0,
+				pnl_lifetime_cents: 0,
+				first_trade_ts: null,
+				n_open: 0,
+			};
+			v.n_trades_24h = row.n_trades;
+			v.pnl_24h_cents = row.pnl_cents;
+			verticals[row.vertical] = v;
+		}
+		for (const row of perVerticalLifetimeRows.results ?? []) {
+			const v = verticals[row.vertical] ?? {
+				n_trades_24h: 0,
+				pnl_24h_cents: 0,
+				n_trades_lifetime: 0,
+				pnl_lifetime_cents: 0,
+				first_trade_ts: null,
+				n_open: 0,
+			};
+			v.n_trades_lifetime = row.n_trades;
+			v.pnl_lifetime_cents = row.pnl_cents;
+			v.first_trade_ts = row.first_trade_ts;
+			verticals[row.vertical] = v;
+		}
+		for (const row of perVerticalOpenRows.results ?? []) {
+			const v = verticals[row.vertical] ?? {
+				n_trades_24h: 0,
+				pnl_24h_cents: 0,
+				n_trades_lifetime: 0,
+				pnl_lifetime_cents: 0,
+				first_trade_ts: null,
+				n_open: 0,
+			};
+			v.n_open = row.n_open;
+			verticals[row.vertical] = v;
+		}
+		// Also include a lifetime total across all verticals.
+		const lifetimeAgg = await env.DB
+			.prepare(
+				`SELECT
+				   COUNT(*) as n_trades,
+				   COALESCE(SUM(CASE WHEN pnl_cents IS NOT NULL
+				                     THEN pnl_cents ELSE 0 END), 0) as pnl_cents,
+				   MIN(ts) as first_trade_ts
+				 FROM trades
+				 WHERE user_id = ?1 AND pnl_cents IS NOT NULL`,
+			)
+			.bind(DEFAULT_USER_ID)
+			.first<{ n_trades: number; pnl_cents: number; first_trade_ts: number }>();
 		return json({
 			ok: true,
 			source: "live",
@@ -174,7 +290,12 @@ export async function handleSummary(
 				n_trades: tradesAgg?.n_trades ?? 0,
 				pnl_cents: tradesAgg?.pnl_cents ?? 0,
 				lookback_hours: 24,
-				verticals: Object.keys(verticals).length > 0 ? verticals : null,
+				verticals,
+				lifetime: {
+					n_trades: lifetimeAgg?.n_trades ?? 0,
+					pnl_cents: lifetimeAgg?.pnl_cents ?? 0,
+					first_trade_ts: lifetimeAgg?.first_trade_ts ?? null,
+				},
 			},
 		});
 	} catch (e) {

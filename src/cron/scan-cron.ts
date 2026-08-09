@@ -29,6 +29,20 @@
  * pattern. The hand-rolled client has chunk 10.8 retries
  * on 5xx/429, so the reliability benefit is already
  * captured.
+ *
+ * **Cache layer (2026-08-08):** a full scan is ~2,500 Kalshi
+ * REST calls (~21 min wall-clock at the default 2 req/s
+ * throttle). The cron fires every 15 min, so scans were
+ * overlapping and tripping Kalshi's IP-based 429 limiter
+ * (every recent scan returned 429 on the first call).
+ * We now short-circuit if a successful scan ran in the
+ * last `SCAN_CACHE_TTL_SEC` (default 1800 = 30 min) — the
+ * paper engine doesn't need a fresher candidate set than
+ * that, and we stop hammering Kalshi. If a 429 hit within
+ * the last `SCAN_429_BACKOFF_SEC` (default 3600 = 1 hour),
+ * we also skip — Kalshi's IP throttling is sustained, not
+ * bursty, so the short backoff wasn't enough to let it
+ * lift. Operators can override via Worker vars.
  */
 
 import {
@@ -36,7 +50,8 @@ import {
 	DEFAULT_PRODUCTION_BASE,
 	KalshiClient,
 } from "../kalshi/client.js";
-import { scans as scansDb } from "../lib/db.js";
+import { scans as scansDb, cronRuns as cronRunsDb } from "../lib/db.js";
+import { DEFAULT_USER_ID } from "../lib/types.js";
 import type { CronEnv, CronResult } from "./dispatcher.js";
 import {
 	computeRealizedVol,
@@ -54,6 +69,8 @@ const DEFAULT_VOL24H_MIN = 0;
 const DEFAULT_MARKET_LIMIT = 500;
 const TRADES_PAGE_SIZE = 1000;
 const TRADES_MAX_PAGES = 5;
+const DEFAULT_SCAN_CACHE_TTL_SEC = 1800; // 30 min
+const DEFAULT_SCAN_429_BACKOFF_SEC = 3600; // 1 hour — Kalshi's IP throttling is sustained, not bursty
 
 function envInt(env: CronEnv, key: keyof CronEnv, fallback: number): number {
 	const v = env[key];
@@ -62,16 +79,98 @@ function envInt(env: CronEnv, key: keyof CronEnv, fallback: number): number {
 	return Number.isFinite(n) ? n : fallback;
 }
 
+/**
+ * Check D1 for a recent successful scan (the cache layer).
+ * Returns the cached row + candidates if one ran within
+ * `ttlSec`, else null. Also returns null if a 429 hit in
+ * the cron_runs table within the last `backoffSec` (don't
+ * re-trigger the throttle).
+ */
+async function checkScanCache(
+	env: CronEnv,
+	ttlSec: number,
+	backoffSec: number,
+): Promise<{ row: unknown; candidates: unknown[]; reason: string } | null> {
+	const db = env.DB;
+	if (!db) return null;
+	const now = Date.now();
+
+	// Throttle check: was the most recent scan a 429 in the
+	// last backoffSec? If so, skip — Kalshi is already
+	// throttling us, more calls won't help.
+	if (backoffSec > 0) {
+		const lastRun = await cronRunsDb.lastRun(db, "scan", DEFAULT_USER_ID);
+		if (lastRun && now - lastRun.ts < backoffSec * 1000) {
+			const art = (() => {
+				try {
+					return JSON.parse(lastRun.artifacts_json ?? "{}") as {
+						error_message?: string;
+						ok?: boolean;
+					};
+				} catch {
+					return {};
+				}
+			})();
+			if (art.ok === false && /429/.test(art.error_message ?? "")) {
+				return {
+					row: {},
+					candidates: [],
+					reason: `recent_429_within_${backoffSec}s`,
+				};
+			}
+		}
+	}
+
+	// Cache check: did a successful scan run within ttlSec?
+	if (ttlSec > 0) {
+		const latest = await scansDb.latest(db, DEFAULT_USER_ID);
+		if (latest && now - latest.row.ts < ttlSec * 1000) {
+			return {
+				row: latest.row,
+				candidates: latest.candidates,
+				reason: `cached_within_${ttlSec}s`,
+			};
+		}
+	}
+
+	return null;
+}
+
 export async function runScanCron(env: CronEnv): Promise<CronResult> {
 	const topN = envInt(env, "SCAN_TOP_N", DEFAULT_TOP_N);
 	const lookbackHours = envInt(env, "SCAN_LOOKBACK_HOURS", DEFAULT_LOOKBACK_HOURS);
 	const minTrades = envInt(env, "SCAN_MIN_TRADES", DEFAULT_MIN_TRADES);
 	const vol24hMin = envInt(env, "SCAN_VOL24H_MIN", DEFAULT_VOL24H_MIN);
 	const marketLimit = DEFAULT_MARKET_LIMIT;
+	const cacheTtlSec = envInt(env, "SCAN_CACHE_TTL_SEC", DEFAULT_SCAN_CACHE_TTL_SEC);
+	const backoffSec = envInt(env, "SCAN_429_BACKOFF_SEC", DEFAULT_SCAN_429_BACKOFF_SEC);
 	const seriesList = (env.SCAN_SERIES ?? "")
 		.split(",")
 		.map((s) => s.trim())
 		.filter(Boolean);
+
+	// Cache check: don't re-scan if a successful scan ran
+	// within the TTL, or if a 429 was hit very recently.
+	const cached = await checkScanCache(env, cacheTtlSec, backoffSec);
+	if (cached) {
+		const n = Array.isArray(cached.candidates) ? cached.candidates.length : 0;
+		console.log(
+			`[cron:scan] skipped (${cached.reason}) — using ${n} cached candidates`,
+		);
+		return {
+			ok: true,
+			cron_name: "scan",
+			duration_ms: 0,
+			artifacts: {
+				skipped: true,
+				skip_reason: cached.reason,
+				n_candidates: n,
+				n_scanned: 0,
+				top_n: topN,
+				lookback_hours: lookbackHours,
+			},
+		};
+	}
 
 	const baseUrl =
 		env.ENVIRONMENT === "production"

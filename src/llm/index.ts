@@ -5,8 +5,11 @@
  * MiniMax Messages API. In Workers we can't shell out, so
  * we call the API directly via HTTP.
  *
- * **Model:** `MiniMax-M2.7-highspeed` — per the plan's
- * "don't compromise quality for cost" decision.
+ * **Model:** `MiniMax-M3` — per the plan's
+ * "don't compromise quality for cost" decision. (Updated
+ * 2026-08-08 from `MiniMax-M2.7-highspeed` to M3 — user
+ * preference. Still on personal MMX token, no quality
+ * compromise.)
  *
  * **Env (set via `wrangler secret put`):**
  *   - `MMX_API_KEY` — the API key
@@ -43,7 +46,7 @@ export interface LLMResult {
 	stub: boolean;
 }
 
-export const DEFAULT_MODEL = "MiniMax-M2.7-highspeed";
+export const DEFAULT_MODEL = "MiniMax-M3";
 export const DEFAULT_BASE_URL = "https://api.mmx.com/v1";
 
 /**

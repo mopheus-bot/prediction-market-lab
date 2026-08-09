@@ -1,14 +1,14 @@
-# pm-bot — operations runbook (chunk 10.5)
+# pm-bot — operations runbook
 
 This is the rules-of-engagement for everything pm-bot does
 in production. Read this before changing cron intervals, the
-LLM call pattern, or the WS connection strategy.
+LLM call pattern, or the data feed strategy.
 
 ## The cadence (every auto-running service)
 
 | Service        | Cadence              | What it does                                          | Where the math lives              |
 | -------------- | -------------------- | ----------------------------------------------------- | --------------------------------- |
-| Live WebSocket | continuous           | Stream orderbook + trade + ticker data from Kalshi    | `src/durable-objects/LiveBot.ts`  |
+| Data feed      | 1.5s round-robin     | Pull orderbook + ticker from Kalshi via REST polling  | `src/durable-objects/LiveBot.ts`  |
 | Universe scan  | every 15 min         | Fetch Kalshi markets, rank by volume, write top N     | `src/cron/scan-cron.ts`           |
 | News check     | every 6 hours        | For every open position, ask LLM for breaking news     | `src/cron/news-cron.ts`           |
 | Daily recap    | daily at 06:00 UTC   | Aggregate 24h of trades + PnL, write R2, post Telegram | `src/cron/daily-cron.ts`          |
@@ -16,7 +16,7 @@ LLM call pattern, or the WS connection strategy.
 | Model registry | on every /start      | Read active model_version from D1 per vertical         | `src/durable-objects/LiveBot.ts`  |
 | LLM calls      | on news + daily cron | Per-call rate limit + dedup window                    | `src/llm/index.ts`                |
 | CF Analytics   | on dashboard poll    | 60-90s, no CF cost (GraphQL is free)                  | `src/api/cf-analytics.ts`         |
-| Cost estimate  | on dashboard poll    | 60s, combines CF + D1 + R2 + MMX + Fly.io             | `src/api/cost.ts`                 |
+| Cost estimate  | on dashboard poll    | 60s, combines CF + D1 + R2 + MMX                      | `src/api/cost.ts`                 |
 
 ## Rate limits (the rules)
 
@@ -28,20 +28,20 @@ LLM call pattern, or the WS connection strategy.
 - The news cron fires every 6 hours and does 1 LLM call per open position. At 5 open positions, that's 5 calls per 6h = 20 calls/day.
 - The daily cron fires once at 06:00 UTC and does ~10 requests (trades + signals + summary + write R2 + post Telegram).
 - The train cron fires weekly and does 1-5 R2 listing calls + ~10 model registry calls.
-- **The WS is NOT rate-limited** (push feed, not polling). It's a single persistent connection that the bot reconnects on.
+- **The polling feed** is rate-limited by the SDK's 2 req/s throttle. With 1 ticker polled at 1.5s = 0.67 req/s, well under the limit.
 
 ### LLM calls (per-call rate limit + dedup)
 
 - The news cron uses LLM with a `purpose: 'news_verdict'` and a per-ticker dedup window of 4 hours (don't call twice within 4h for the same ticker).
 - The daily cron uses LLM with `purpose: 'daily_recap'`. 1 call per day.
 - The model retrain does NOT call LLM.
-- **Token budget**: at ~$0.10/$0.40 per M tokens (MMX M2.7-highspeed), and ~2K input + 1K output per call, the news cron is ~$0.0006/call. 5 open positions × 4 calls/day = $0.012/day ≈ $0.36/month from news alone.
+- **Token budget**: at ~$0.10/$0.40 per M tokens (MMX M3, last-verified on M2.7-highspeed pricing — recheck if M3 rates differ), and ~2K input + 1K output per call, the news cron is ~$0.0006/call. 5 open positions × 4 calls/day = $0.012/day ≈ $0.36/month from news alone.
 - The daily recap is ~5K input + 2K output = $0.002/call = $0.06/month.
 
 ### CF Workers (10M requests + 30M CPU-ms included)
 
 - The dashboard polls 14 endpoints on a 5-30s cadence. At one page load + auto-refresh every 5-30s, that's ~3,000-18,000 requests/day.
-- At the current usage (chunk 10: ~12 requests/24h, way under the 10M/mo limit), we're at ~0% of the monthly included amount.
+- At the current usage (~12 requests/24h, way under the 10M/mo limit), we're at ~0% of the monthly included amount.
 - The CF Analytics GraphQL is free (no rate limit cost).
 
 ### D1 (5M reads + 100K writes/day included)
@@ -59,62 +59,31 @@ LLM call pattern, or the WS connection strategy.
 - Total storage: ~1MB. At 10GB free, we're at 0.01%.
 - Reads: rare. The bot reads models on /start, daily recap on dashboard load. <100 reads/day.
 
-### Fly.io relay (chunk 10.6+)
-
-- The relay runs on `shared-cpu-1x` (1GB RAM) at $1.94/mo.
-- 24/7 uptime = $1.94/mo. With $0.83 free credit, the first ~12 days are free.
-- The user can shut it down via `fly machines stop` to pause the cost.
-- **Why a relay exists (chunk 10 finding):** CF Workers' native
-  `new WebSocket(url, { headers })` is silently broken (the
-  second arg is treated as a protocols string). Direct Kalshi
-  auth from CF Workers is impossible. The relay runs Python
-  (`websockets` library, which DOES support `extra_headers`) and
-  signs the Kalshi path server-side. The Worker just opens a
-  plain `new WebSocket(url)` (no second arg) to the relay.
-- **Relay auth spec (chunk 10.6):** RSA-PSS with `saltLength =
-  PSS.DIGEST_LENGTH` (32 for SHA-256). NOT PKCS1v15. Reference
-  implementations: `pm-bot/src/kalshi/auth.ts` (TS) and
-  `
-  live/kalshi_auth.py` (Python). Both are correct.
-- **Fly.io API token scope:** a `fm2_*` machine token can't see
-  the app's machines via `GET /v1/apps/{name}/machines` (it
-  returns 404). The cost endpoint falls back to
-  `status: "assumed_running"` and assumes 1 machine × 24/7 when
-  this happens. Use an org-scoped `Fo1_*` token or `fly auth
-  login` (OAuth) to get accurate machine data.
-
 ## Order of operations (what runs when)
 
 1. **Worker starts**: serves dashboard + API endpoints.
-2. **Dashboard auto-start on page load**: hits `POST /api/pm/bot/auto-start`, which opens the WS if not already open.
-3. **WS opens**: opens plain `new WebSocket(url)` to the relay
-   (`wss://pm-bot-relay.fly.dev/` by default; configurable via
-   `wrangler.jsonc DEFAULT_URL` or per-/start). The relay signs
-   the Kalshi path server-side. The Worker subscribes to
-   `orderbook_delta + trade + ticker + market_lifecycle_v2` for
-   every ticker in `config.tickers`.
-4. **Every 90 min (alarm)**: the bot's main cycle fires (check positions, maybe signal, maybe exit).
-5. **Every 15 min**: scan cron fires, updates `scans` table.
-6. **Every 6 hours**: news cron fires, asks LLM for each open position, posts Telegram on AT RISK / BROKEN.
-7. **Every day at 06:00 UTC**: daily cron fires, writes R2 recap, posts Telegram summary.
-8. **Every Sunday at 00:00 UTC**: train cron fires, polls R2 for new model artifacts, registers in D1.
+2. **Dashboard auto-start on page load**: hits `POST /api/pm/bot/auto-start`, which kicks off the polling loop.
+3. **Polling loop starts**: 1.5s round-robin REST poll via the kalshi-typescript SDK, scheduled via the DO's `setAlarm` (durable across evictions). Each tick: pick the next ticker, call `getOrderbook(ticker)`, update `state.tickers[ticker].book` + price history, run the strategy.
+4. **Every 15 min**: scan cron fires, updates `scans` table.
+5. **Every 6 hours**: news cron fires, asks LLM for each open position, posts Telegram on AT RISK / BROKEN.
+6. **Every day at 06:00 UTC**: daily cron fires, writes R2 recap, posts Telegram summary.
+7. **Every Sunday at 00:00 UTC**: train cron fires, polls R2 for new model artifacts, registers in D1.
 
 ## When things go wrong (recovery)
 
-- **WS not connecting**: check `last_ws_error` in `/api/pm/bot/status`. The error code + message points to the failure mode (auth_sign_failed, missing_creds, http_xxx, ws_open_failed).
+- **Polling not running**: check `last_poll_error` in `/api/pm/bot/status`. The error code + message points to the failure mode (missing_creds, sdk_init_failed, poll_failed, state_load_failed).
 - **Cron not firing**: check `/api/pm/cron-runs?limit=10`. If the last run is older than the expected interval, the cron is stuck. CF will retry on the next scheduled tick.
-- **Cost spiking**: check `/api/pm/cost` → `cf_monthly` + `fly_relay` sections. If a bar is >80%, you're approaching the limit. If the bar is red (>100%), you're being billed.
+- **Cost spiking**: check `/api/pm/cost` → `cf_monthly` section. If a bar is >80%, you're approaching the limit. If the bar is red (>100%), you're being billed.
 - **Bot placing bad trades**: check the kill switch — flip to "Killed" via the trading-mode panel. The engine will refuse all new trades.
 
 ## Memory rule: the bot's edge has to exceed the bill
 
 For a personal trading bot on a $9.73 Kalshi account, the bar is:
 - CF: $0-2/mo (under free tier)
-- Fly.io: $1.94/mo
 - MMX: $0.40/mo
-- **Total: $2-4/mo**
+- **Total: $0.40-2.40/mo**
 
-The bot has to make at least $2-4/mo in net PnL after fees, or we have no product. The current caps ($0.25/trade + $1.50/day) mean the bot can lose at most $0.75/day, or ~$22/mo — way more than the bill. If the bot's edge is real, even a 5% win rate at these caps covers the cost 10x over.
+The bot has to make at least $0.40-2.40/mo in net PnL after fees, or we have no product. The current caps ($0.25/trade + $1.50/day) mean the bot can lose at most $0.75/day, or ~$22/mo — way more than the bill. If the bot's edge is real, even a 5% win rate at these caps covers the cost 10x over.
 
 ## When in doubt
 
@@ -123,4 +92,3 @@ The bot has to make at least $2-4/mo in net PnL after fees, or we have no produc
 - `GET /api/pm/cadence` — every service with last-ran + next-scheduled.
 - `GET /api/pm/bot/stage` — single badge: what is the bot doing right now.
 - `wrangler tail pm-bot` — live Worker logs.
-- `fly logs --app pm-bot-relay` — live relay logs.

@@ -31,13 +31,12 @@ We moved to Cloudflare so the bot is:
 - **Hot-swappable** — new models in R2, deploy via `git push`
 - **Multi-tenant-ready** — `user_id` columns from day one
 
-## Why Cloudflare specifically (not Fly.io, not Cloud Run)
+## Why Cloudflare specifically (not Cloud Run)
 
-Three architectures were on the table:
+Two architectures were on the table:
 
 | 			  Option 			 | 				   What 		   	   | 					 Why not 					 |
 |--------------------------------|-------------------------------------|-------------------------------------------------|
-| Fly.io shared-cpu VM | Long-running Docker container | Not "serverless" in spirit; manual VM management |
 | Cloud Run service + jobs | True serverless, Python native | ~$30–40/mo for 24/7 with min-instances=1; not the cheapest |
 | **CF Workers + DOs + D1 + R2** | True serverless, $5/mo base + usage | Required Python→TS port (~5–10 days work) |
 
@@ -127,9 +126,12 @@ at any chunk and have something useful.
 These were committed on 2026-08-08. Push back on any of them before
 starting a chunk, not after.
 
-- **LLM model:** `MiniMax-M2.7-highspeed` via `mmx` CLI. Don't
-  compromise quality for cost. Optimization layer (caching, smaller
-  models) lands in v1.2+ if cost ever bites.
+- **LLM model:** `MiniMax-M3` via `mmx` CLI. Don't
+  compromise quality for cost. (Was `MiniMax-M2.7-highspeed`
+  until 2026-08-08; user override to M3. Same personal
+  token — isolation deferred until pm-bot becomes a
+  multi-user / revenue product.) Optimization layer
+  (caching, smaller models) lands in v1.2+ if cost ever bites.
 - **Path-based routing** over subdomain-per-bot. `/pm/*` +
   `/api/pm/*`. One cert, one CF Access policy, one Pages project.
 - **Telegram as primary IM bridge.** A secondary IM channel if a public

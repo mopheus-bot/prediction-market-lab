@@ -172,6 +172,18 @@ export class KalshiSdkClient {
 		});
 	}
 
+	// 2026-08-09: was missing from the adapter even though
+	// the doc claimed it. Used by the polling data feed
+	// (WS→polling migration). The shape mirrors the WS
+	// `orderbook_snapshot` envelope so we can reuse
+	// `parseOrderbook` in src/kalshi/models.ts.
+	getOrderbook(ticker: string, depth?: number): Promise<unknown> {
+		return this.withRetry(async () => {
+			const r = await this.market.getMarketOrderbook(ticker, depth);
+			return r.data;
+		});
+	}
+
 	listMarkets(opts: { limit?: number; cursor?: string } = {}): Promise<unknown> {
 		return this.withRetry(async () => {
 			// Signature: getMarkets(limit?, cursor?, eventTicker?, seriesTicker?,

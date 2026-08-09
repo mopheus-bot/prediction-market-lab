@@ -85,6 +85,13 @@ export interface CronEnv extends LLMEnv, TelegramEnv {
 	SCAN_LOOKBACK_HOURS?: string;
 	SCAN_MIN_TRADES?: string;
 	SCAN_VOL24H_MIN?: string;
+	// 2026-08-08: scan caching knobs. The full scan does
+	// ~2,500 Kalshi calls; with the 15-min cron interval,
+	// scans were overlapping and getting 429'd. Cache
+	// results for this many seconds; skip entirely if a
+	// 429 was hit within the backoff window.
+	SCAN_CACHE_TTL_SEC?: string;
+	SCAN_429_BACKOFF_SEC?: string;
 	// Optional list of Kalshi series to anchor the scan on
 	// (default = full-market scan).
 	SCAN_SERIES?: string;       // comma-separated

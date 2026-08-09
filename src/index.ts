@@ -40,6 +40,7 @@ import { handleStage } from "./api/stage.js";
 import { handleKalshiSdkTest } from "./api/kalshi-sdk-test.js";
 import { handleVerticals } from "./api/verticals.js";
 import { handleBacktestRun } from "./api/backtest-run.js";
+import { handleTelegramTest } from "./api/telegram-test.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -83,15 +84,6 @@ export interface Env extends CronEnv {
 	// CF Workers Paid plan billing cycle start date (ISO YYYY-MM-DD).
 	// The cost endpoint computes "resets in N days" from this.
 	CF_BILLING_CYCLE_START?: string;
-	// Fly.io machine API token (chunk 10.5). Used by the cost
-	// endpoint to fetch machine hours for the relay app.
-	// `wrangler secret put FLY_API_TOKEN`.
-	FLY_API_TOKEN?: string;
-	// Fly.io app name (defaults to "pm-bot-relay" if not set).
-	FLY_APP_NAME?: string;
-	// Fly.io free credit remaining (USD). Set once via wrangler var;
-	// decrements as the relay's machine-hours × rate accumulates.
-	FLY_FREE_CREDIT_USD?: string;
 }
 
 export { LiveBot } from "./durable-objects/LiveBot.js";
@@ -191,6 +183,13 @@ export default {
 		// real mode (paper orders are local-only).
 		if (path === "/api/pm/bot/cancel-order" && request.method === "POST") {
 			return forwardToBot(env, request, "/cancel-order");
+		}
+		// 2026-08-08: Telegram test endpoint. Verifies
+		// the env's TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID
+		// without placing real orders. Used to debug the
+		// "real fill didn't alert" issue.
+		if (path === "/api/pm/bot/telegram-test" && request.method === "POST") {
+			return handleTelegramTest(env);
 		}
 		// Auto-start (chunk 9.8): idempotent bot start. If
 		// already running, returns current state. Otherwise

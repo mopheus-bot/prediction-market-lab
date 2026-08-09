@@ -1832,21 +1832,23 @@
 				</div>
 				<div class="col-6">
 					<div class="card">
-						<div class="card-title"><span class="dot"></span>Per-vertical breakdown (24h)</div>
-						<div class="card-blurb">How each prediction strategy is doing. Weather + economic have the reversion model; politics + sports are still on the naive baseline.</div>
+						<div class="card-title"><span class="dot"></span>Per-vertical PnL</div>
+						<div class="card-blurb">Current (24h) and lifetime realized PnL per vertical. Weather + economic have the reversion model; politics + sports are still on the naive baseline. All four verticals always show (zeroes where there's been no action yet).</div>
 						<table class="tbl" id="vertical-tbl">
 							<thead>
 								<tr>
 									<th>Vertical</th>
-									<th class="num">Trades</th>
-									<th class="num">Realized PnL</th>
+									<th class="num">24h PnL</th>
+									<th class="num">Lifetime PnL</th>
+									<th class="num">Lifetime trades</th>
 									<th class="num">Open</th>
 								</tr>
 							</thead>
 							<tbody id="vertical-tbody">
-								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -2009,7 +2011,7 @@
 							<span aria-hidden="true">📊</span>
 							<span>Monthly limits</span>
 						</div>
-						<div class="card-blurb">Progress bars for the CF Workers Paid plan's monthly included amounts (10M requests, 30M CPU-ms, 100K D1 writes/day, 10GB R2) plus the Fly.io relay cost. Resets on the CF billing cycle start date you signed up for Workers Paid. The 7d usage is extrapolated to a 30d window — not a perfect estimate but a useful one.</div>
+						<div class="card-blurb">Progress bars for the CF Workers Paid plan's monthly included amounts (10M requests, 30M CPU-ms, 100K D1 writes/day, 10GB R2). Resets on the CF billing cycle start date you signed up for Workers Paid. The 7d usage is extrapolated to a 30d window — not a perfect estimate but a useful one.</div>
 						<div class="monthly-limits" id="monthly-limits">loading…</div>
 					</div>
 				</div>
@@ -2447,16 +2449,27 @@
 			function renderVerticals(verticals) {
 				const tbody = $("vertical-tbody");
 				if (!verticals || Object.keys(verticals).length === 0) {
-					tbody.innerHTML = '<tr><td colspan="4" class="empty"><div class="empty-icon">📈</div>no trades in the last 24h<div class="empty-hint">one row per vertical (weather / politics / sports / economic)</div></td></tr>';
+					tbody.innerHTML = '<tr><td colspan="5" class="empty"><div class="empty-icon">📈</div>no verticals yet<div class="empty-hint">one row per vertical (weather / economic / politics / sports)</div></td></tr>';
 					return;
 				}
-				tbody.innerHTML = Object.entries(verticals).map(([v, d]) => {
-					const pnlCls = d.pnl_cents > 0 ? "pos" : d.pnl_cents < 0 ? "neg" : "muted";
+				// Stable order: weather, economic, politics, sports.
+				const order = ["weather", "economic", "politics", "sports"];
+				const rows = order
+					.filter((v) => verticals[v] !== undefined)
+					.map((v) => [v, verticals[v]]);
+				// Append any non-standard verticals (defensive — future-proof).
+				for (const [v, d] of Object.entries(verticals)) {
+					if (!order.includes(v)) rows.push([v, d]);
+				}
+				tbody.innerHTML = rows.map(([v, d]) => {
+					const pnl24Cls = d.pnl_24h_cents > 0 ? "pos" : d.pnl_24h_cents < 0 ? "neg" : "muted";
+					const pnlLifeCls = d.pnl_lifetime_cents > 0 ? "pos" : d.pnl_lifetime_cents < 0 ? "neg" : "muted";
 					return `
 						<tr>
 							<td>${esc(v)}</td>
-							<td class="num">${fmtNum(d.n_trades)}</td>
-							<td class="num ${pnlCls}">${fmtCents(d.pnl_cents)}</td>
+							<td class="num ${pnl24Cls}">${fmtCents(d.pnl_24h_cents)}</td>
+							<td class="num ${pnlLifeCls}">${fmtCents(d.pnl_lifetime_cents)}</td>
+							<td class="num">${fmtNum(d.n_trades_lifetime)}</td>
 							<td class="num">${fmtNum(d.n_open ?? 0)}</td>
 						</tr>
 					`;
@@ -2882,25 +2895,55 @@
 					if (n < 0.01) return "<$0.01";
 					return `$${n.toFixed(2)}`;
 				};
+				// Chunk 12 (2026-08-08): when a cost is $0, the
+				// old display just showed "$0.00" which looks
+				// broken. Add a context line below the dollar
+				// amount so the operator sees what's actually
+				// going on ("below free tier", "no LLM calls
+				// yet", etc.).
+				const freeContext = (kind) => {
+					if (kind === "cf") {
+						return "below 100K free requests/day";
+					}
+					if (kind === "d1") {
+						return "below 100K free writes/day";
+					}
+					if (kind === "r2") {
+						return "below 10GB free storage";
+					}
+					if (kind === "mmx") {
+						return "no LLM calls yet (or stub mode)";
+					}
+					return "below free tier";
+				};
 				const totalEl = $("cost-total");
 				totalEl.textContent = fmtUsd(d.total_estimated_cost_24h);
 				totalEl.classList.toggle("free", d.total_estimated_cost_24h === 0);
-				$("cost-monthly").textContent = `≈ ${fmtUsd(d.monthly_estimate)}/mo`;
+				if (d.total_estimated_cost_24h === 0 && d.cf.estimated_cost_24h === 0) {
+					$("cost-monthly").textContent =
+						`≈ ${fmtUsd(d.monthly_estimate)}/mo · free tier`;
+				} else {
+					$("cost-monthly").textContent = `≈ ${fmtUsd(d.monthly_estimate)}/mo`;
+				}
 
 				const cfEl = $("cost-cf");
 				cfEl.textContent = fmtUsd(d.cf.estimated_cost_24h);
 				cfEl.classList.toggle("free", d.cf.estimated_cost_24h === 0);
 				$("cost-cf-detail").textContent =
-					`${fmtNum(d.cf.requests_24h)} requests · ${fmtNum(d.cf.errors_24h)} errors`;
+					d.cf.estimated_cost_24h === 0
+						? `${fmtNum(d.cf.requests_24h)} requests · ${freeContext("cf")}`
+						: `${fmtNum(d.cf.requests_24h)} requests · ${fmtNum(d.cf.errors_24h)} errors`;
 
 				const mmxEl = $("cost-mmx");
 				mmxEl.textContent = fmtUsd(d.mmx.estimated_cost_24h);
 				mmxEl.classList.toggle("free", d.mmx.estimated_cost_24h === 0);
 				$("cost-mmx-detail").textContent =
-					`${fmtNum(d.mmx.calls_24h)} calls · ${fmtNum(d.mmx.input_tokens_24h)} in / ${fmtNum(d.mmx.output_tokens_24h)} out tokens`;
+					d.mmx.estimated_cost_24h === 0 && d.mmx.calls_24h === 0
+						? freeContext("mmx")
+						: `${fmtNum(d.mmx.calls_24h)} calls · ${fmtNum(d.mmx.input_tokens_24h)} in / ${fmtNum(d.mmx.output_tokens_24h)} out tokens`;
 
 				// Chunk 10.5: monthly limits card.
-				renderMonthlyLimits(d.cf_monthly, d.fly_relay, d.dashboard_url);
+				renderMonthlyLimits(d.cf_monthly, d.dashboard_url);
 
 				$("cost-cf-dashboard").href = d.dashboard_url;
 				const notesHtml = (d.notes || []).map((n) => `<li>${esc(n)}</li>`).join("");
@@ -2911,8 +2954,10 @@
 			}
 
 			// ─── Monthly limits (chunk 10.5) ───
-			// Two sections: CF (Workers Paid plan) + Fly.io (relay).
-			function renderMonthlyLimits(cf, fly, dashboardUrl) {
+			// Single section: CF (Workers Paid plan). pm-bot
+			// is fully Cloudflare-native — no third-party
+			// infrastructure to track.
+			function renderMonthlyLimits(cf, dashboardUrl) {
 				const container = $("monthly-limits");
 				if (!container) return;
 
@@ -2966,40 +3011,6 @@
 						)
 					: "<div class=\"muted\">CF billing date not configured.</div>";
 
-				// Fly.io section
-				const flyStatusEmoji = {
-					running: "🟢",
-					stopped: "🟡",
-					unknown: "❔",
-					no_token: "⚪",
-					not_deployed: "⚪",
-				};
-				const flyEmoji = flyStatusEmoji[fly?.status] ?? "❔";
-				const flyStatusLabel = {
-					running: "running",
-					stopped: "stopped",
-					unknown: "unknown",
-					no_token: "no API token",
-					not_deployed: "not deployed",
-				};
-				const flyBarPct = fly && fly.price_per_month > 0
-					? Math.min(100, ((fly.estimated_cost_month ?? 0) / fly.price_per_month) * 100)
-					: 0;
-				const flyBar = `
-					<div class="monthly-bar">
-						<div class="monthly-bar-head">
-							<span class="monthly-bar-label">Fly.io relay (${esc(fly?.plan ?? "shared-cpu-1x-1gb")})</span>
-							<span class="monthly-bar-pct ${flyBarPct >= 90 ? "pct-err" : flyBarPct >= 70 ? "pct-warn" : "pct-ok"}">${flyBarPct.toFixed(1)}%</span>
-						</div>
-						<div class="monthly-bar-track">
-							<div class="monthly-bar-fill ${flyBarPct >= 90 ? "bar-err" : flyBarPct >= 70 ? "bar-warn" : "bar-ok"}" style="width: ${flyBarPct.toFixed(1)}%;"></div>
-						</div>
-						<div class="monthly-bar-detail">$${(fly?.estimated_cost_month ?? 0).toFixed(2)} / $${(fly?.price_per_month ?? 0).toFixed(2)} this month · ${fly?.hours_this_month ?? 0}h</div>
-					</div>`;
-				const flyCreditBar = fly && (fly.free_credit_remaining_usd ?? 0) > 0
-					? `<div class="monthly-credit-row">${flyEmoji} status: <strong>${esc(flyStatusLabel[fly?.status] ?? "unknown")}</strong> · free credit remaining: <strong>$${fly.free_credit_remaining_usd.toFixed(2)}</strong>${fly.notes?.length ? ` · <span class="muted">${esc(fly.notes[0])}</span>` : ""}</div>`
-					: `<div class="monthly-credit-row">${flyEmoji} status: <strong>${esc(flyStatusLabel[fly?.status] ?? "unknown")}</strong>${fly.notes?.length ? ` · <span class="muted">${esc(fly.notes[0])}</span>` : ""}</div>`;
-
 				container.innerHTML = `
 					<div class="monthly-section">
 						<div class="monthly-section-head">
@@ -3008,14 +3019,6 @@
 						</div>
 						${cfResetInfo}
 						<div class="monthly-bars">${cfBars}</div>
-					</div>
-					<div class="monthly-section">
-						<div class="monthly-section-head">
-							<span class="monthly-section-title">Fly.io relay</span>
-							<a class="muted" href="https://fly.io/dashboard/${esc(fly ? "pm-bot-relay" : "")}" target="_blank" rel="noopener">open Fly.io dashboard ↗</a>
-						</div>
-						${flyBar}
-						${flyCreditBar}
 					</div>`;
 			}
 
@@ -3127,13 +3130,26 @@
 					const d = await r.json();
 					if (!d.ok) {
 						$("caps-balance").textContent = "—";
+						$("hero-balance").textContent = "—";
+						$("hero-balance-sub").textContent = "loading balance…";
+						window._lastBalance = null;
 						return;
 					}
+					// Single source of truth: stash the response so
+					// renderHero() can read it on the next refresh()
+					// cycle, and update every balance-bearing element
+					// here so the fix is immediate (no 30s wait for
+					// the next refresh).
+					window._lastBalance = d;
 					$("caps-balance").textContent = `$${d.balance_dollars}`;
-					// Also update the modal's balance field.
 					$("modal-balance").textContent = `$${d.balance_dollars}`;
+					$("hero-balance").textContent = `$${d.balance_dollars}`;
+					$("hero-balance-sub").textContent =
+						`portfolio $${d.portfolio_value_dollars} on Kalshi`;
 				} catch (_e) {
 					$("caps-balance").textContent = "—";
+					$("hero-balance").textContent = "—";
+					$("hero-balance-sub").textContent = "loading balance…";
 				}
 			}
 

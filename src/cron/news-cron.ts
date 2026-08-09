@@ -28,7 +28,7 @@ import { chat } from "../llm/index.js";
 import { sendMarkdown, telegramConfigured } from "../telegram/index.js";
 import type { CronEnv, CronResult } from "./dispatcher.js";
 
-const NEWS_MODEL = "MiniMax-M2.7-highspeed";
+const NEWS_MODEL = "MiniMax-M3";
 const NEWS_PURPOSE = "news-check";
 const NEWS_PROMPT_SYSTEM = (
 	"You are a quant analyst. Given an open prediction-market " +
