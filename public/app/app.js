@@ -1465,6 +1465,29 @@ const BRAND_MONO_SVG = `
 	</svg>
 `;
 
+// CF Access team host. Discovered from the login redirect
+// Location: header. The team host is part of the CF account
+// setup and rarely changes; if the dashboard breaks on logout,
+// update this constant to the new team host (find it by
+// visiting /app/ in an incognito window and copying the
+// `wandering-river-XXX.cloudflareaccess.com` substring from
+// the redirect URL). Auth lives in CF Access; the dashboard
+// JS can't read the HttpOnly CF_AppSession cookie to discover
+// it dynamically, so we hardcode.
+const CF_ACCESS_TEAM_HOST = "wandering-river-109b.cloudflareaccess.com";
+
+function signoutUrl(returnTo) {
+	// The CF Access logout endpoint clears the CF_AppSession
+	// cookie and 302-redirects to `redirect_url`. Note: this
+	// only works when the user is actually auth'd (the endpoint
+	// 404s without a session cookie) — that's the desired
+	// behavior, the dashboard pages all sit behind CF Access.
+	const ret = returnTo || `${window.location.protocol}//${window.location.host}/`;
+	const u = new URL(`https://${CF_ACCESS_TEAM_HOST}/cdn-cgi/access/logout`);
+	u.searchParams.set("redirect_url", ret);
+	return u.toString();
+}
+
 function injectAppNav() {
 	const nav = document.createElement("nav");
 	nav.className = "app-nav";
@@ -1487,6 +1510,12 @@ function injectAppNav() {
 				<span class="stage-dot" id="stage-dot"></span>
 				<span class="stage-label" id="stage-label">connecting…</span>
 			</span>
+			<a href="${signoutUrl()}" class="app-nav-signout" id="app-nav-signout" rel="nofollow" aria-label="Sign out of Trader">
+				<svg class="app-nav-signout-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+					<path fill="currentColor" d="M3 3.5A1.5 1.5 0 0 1 4.5 2h5A1.5 1.5 0 0 1 11 3.5v1a.5.5 0 0 1-1 0v-1A.5.5 0 0 0 9.5 3h-5A.5.5 0 0 0 4 3.5v9a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 1 1 0v1A1.5 1.5 0 0 1 9.5 14h-5A1.5 1.5 0 0 1 3 12.5v-9Zm8.854 4.354a.5.5 0 0 0-.708-.708L9.793 8.5H6a.5.5 0 0 0 0 1h3.793l-1.353 1.354a.5.5 0 0 0 .708.708l2.5-2.5Z"/>
+				</svg>
+				<span class="app-nav-signout-label">Sign out</span>
+			</a>
 		</div>
 	`;
 
