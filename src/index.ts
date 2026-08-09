@@ -164,6 +164,16 @@ export default {
 			return Response.redirect(newPath, 301);
 		}
 
+		// ─── Backwards compat: /app/cadence → /app/schedule ────────────
+		// The Cadence page was renamed to "Schedule" in v2 of the
+		// SaaS UI (the API endpoint stays /api/pm/cadence — the
+		// "cadence" name persists as a backend term for the rhythm
+		// of services). Old bookmarks and the legacy nav link
+		// bounce through here.
+		if (path === "/app/cadence" || path === "/app/cadence/") {
+			return Response.redirect("/app/schedule", 301);
+		}
+
 		// ─── Old static-asset fallback (chunk 0): direct file paths ────
 		// Pre-chunk-11 deployments served any file from public/ at
 		// `/<filename>`. The dashboard used to be at /index.html; now

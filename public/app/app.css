@@ -2353,3 +2353,10 @@ footer {
 @media (max-width: 720px) {
   .config-grid { grid-template-columns: 1fr; gap: 0; }
 }
+
+/* ─── Schedule page v2 ─── */
+
+/* Cron runs table */
+.cron-tbl th, .cron-tbl td { font-size: 12px; }
+.cron-tbl th { white-space: nowrap; }
+.cron-tbl td.num { font-variant-numeric: tabular-nums; }

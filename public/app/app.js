@@ -130,23 +130,26 @@ function renderStage(data) {
 	}
 }
 
-// ─── Cadence (chunk 10) — every auto-running service ───
-async function fetchCadence() {
+// ─── Schedule (chunk 10, renamed from Cadence in v2) — every auto-running service ───
+// The API endpoint is still /api/pm/cadence (the backend term
+// for the rhythm of services); the user-facing surface is
+// "Schedule". Renamed in v2 of the SaaS UI for clarity.
+async function fetchSchedule() {
 	try {
 		const data = await fetchJSON("/api/pm/cadence");
-		renderCadence(data);
+		renderSchedule(data);
 		return data;
 	} catch (e) {
-		console.warn("cadence fetch failed", e);
-		$("cadence-grid").innerHTML = `<div class="cadence-skeleton">Cadence unavailable — check API</div>`;
+		console.warn("schedule fetch failed", e);
+		$("schedule-grid").innerHTML = `<div class="cadence-skeleton">Schedule unavailable — check API</div>`;
 		return null;
 	}
 }
-function renderCadence(data) {
-	const grid = $("cadence-grid");
+function renderSchedule(data) {
+	const grid = $("schedule-grid");
 	if (!grid || !data || !data.services) return;
 	const summary = data.summary;
-	$("cadence-summary").textContent =
+	$("schedule-summary").textContent =
 		`${summary.n_ok} ok · ${summary.n_error} error${summary.n_error === 1 ? "" : "s"} · ${summary.n_starting} starting`;
 
 	grid.innerHTML = data.services
@@ -325,7 +328,7 @@ async function postBotAction(path, body) {
 		const data = await r.json().catch(() => ({}));
 		if (r.ok && data.ok) {
 			toast(`bot ${path} — ok`, true);
-			setTimeout(() => { void fetchStage(); void fetchCadence(); }, 600);
+			setTimeout(() => { void fetchStage(); void fetchSchedule(); }, 600);
 		} else {
 			toast(`${path} failed: ${data.message ?? r.statusText}`, false);
 		}
@@ -725,7 +728,7 @@ async function refresh() {
 			fetchJSON("/api/pm/cron-runs?limit=10").then((v) => { tick(1); return v; }).catch(() => ({ runs: [] })),
 			fetchJSON("/api/pm/bot/status").then((v) => { tick(1); return v; }).catch(() => null),
 			fetchStage().then((v) => { tick(1); return v; }).catch(() => null),
-			fetchCadence().then((v) => { tick(1); return v; }).catch(() => null),
+			fetchSchedule().then((v) => { tick(1); return v; }).catch(() => null),
 		]);
 
 		// Chunk 9.8: hero stat cards.
@@ -1444,7 +1447,7 @@ const NAV_LINKS = [
 	{ page: "positions", href: "/app/positions", label: "Positions" },
 	{ page: "trades", href: "/app/trades", label: "Trades" },
 	{ page: "models", href: "/app/models", label: "Models" },
-	{ page: "cadence", href: "/app/cadence", label: "Cadence" },
+	{ page: "schedule", href: "/app/schedule", label: "Schedule" },
 	{ page: "dev", href: "/app/dev", label: "Dev" },
 ];
 
