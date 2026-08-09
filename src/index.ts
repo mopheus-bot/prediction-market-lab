@@ -41,6 +41,7 @@ import { handleKalshiSdkTest } from "./api/kalshi-sdk-test.js";
 import { handleVerticals } from "./api/verticals.js";
 import { handleBacktestRun } from "./api/backtest-run.js";
 import { handleTelegramTest } from "./api/telegram-test.js";
+import { handleLLMTest } from "./api/llm-test.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -243,6 +244,13 @@ export default {
 		// "real fill didn't alert" issue.
 		if (path === "/api/pm/bot/telegram-test" && request.method === "POST") {
 			return handleTelegramTest(env);
+		}
+		// 2026-08-09: LLM test endpoint. Verifies the
+		// configured MiniMax-M3 endpoint without waiting
+		// for the next scheduled cron. Same pattern as the
+		// telegram-test endpoint.
+		if (path === "/api/pm/bot/llm-test" && request.method === "POST") {
+			return handleLLMTest(env);
 		}
 		// Auto-start (chunk 9.8): idempotent bot start. If
 		// already running, returns current state. Otherwise
