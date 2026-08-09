@@ -11,7 +11,9 @@
 	</head>
 	<body>
 		<div class="app-shell">
-			<!-- Stage panel — single most important answer: what is the bot doing? -->
+			<!-- ============================================ -->
+			<!-- STAGE PANEL — single most important answer -->
+			<!-- ============================================ -->
 			<section class="card stage-panel" id="stage-panel" data-color="warn" aria-labelledby="stage-panel-title">
 				<div class="stage-panel-head">
 					<div class="stage-panel-title-block">
@@ -25,135 +27,168 @@
 				</div>
 			</section>
 
-			<!-- Hero overview: 4 stat cards -->
-			<section class="grid hero-grid" style="margin-bottom: 24px;">
-				<div class="stat-card stat-large">
-					<div class="stat-label">Account balance</div>
-					<div class="stat-num mono" id="hero-balance">$—</div>
-					<div class="stat-sub" id="hero-balance-sub">real money on Kalshi</div>
-				</div>
-				<div class="stat-card">
-					<div class="stat-label">Total PnL</div>
-					<div class="stat-num mono" id="hero-pnl-total">$0.00</div>
-					<div class="stat-sub">realized + unrealized</div>
-				</div>
-				<div class="stat-card">
-					<div class="stat-label">24h PnL</div>
-					<div class="stat-num mono" id="hero-pnl-24h">$0.00</div>
-					<div class="stat-sub" id="hero-pnl-24h-sub">—</div>
-				</div>
-				<div class="stat-card">
-					<div class="stat-label">Fees paid</div>
-					<div class="stat-num mono" id="hero-fees">$0.00</div>
-					<div class="stat-sub">Kalshi taker fees</div>
-				</div>
-			</section>
-
-			<!-- Per-vertical PnL + Last 5 trades -->
-			<section class="grid" style="margin-bottom: 24px;">
-				<div class="col-6">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Per-vertical PnL</div>
-						<div class="card-blurb">24h + lifetime realized PnL per vertical. Weather + economic have the reversion model; politics + sports on the naive baseline.</div>
-						<table class="tbl" id="vertical-tbl">
-							<thead>
-								<tr>
-									<th>Vertical</th>
-									<th class="num">24h PnL</th>
-									<th class="num">Lifetime PnL</th>
-									<th class="num">Trades</th>
-									<th class="num">Open</th>
-								</tr>
-							</thead>
-							<tbody id="vertical-tbody">
-								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-							</tbody>
-						</table>
+			<!-- ============================================ -->
+			<!-- FINANCIAL HERO                              -->
+			<!-- ============================================ -->
+			<section class="card pos-hero" id="dash-hero" data-color="ok" style="margin-bottom: 20px;">
+				<div class="pos-hero-head">
+					<div class="pos-hero-pnl">
+						<div class="pos-hero-label">Realized PnL (today)</div>
+						<div class="pos-hero-num mono" id="dash-pnl-today">$0.00</div>
+						<div class="pos-hero-sub" id="dash-pnl-today-sub">loading…</div>
 					</div>
-				</div>
-				<div class="col-6">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Last 5 trades</div>
-						<div class="card-blurb">The 5 most recent Kalshi fills.</div>
-						<table class="tbl last-trades-tbl">
-							<thead>
-								<tr>
-									<th>When</th>
-									<th>Ticker</th>
-									<th>Side</th>
-									<th>Mode</th>
-									<th class="num">Price</th>
-									<th class="num">Size</th>
-									<th class="num">PnL</th>
-									<th></th>
-								</tr>
-							</thead>
-							<tbody id="last-trades-tbody">
-								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-							</tbody>
-						</table>
-						<div style="margin-top: 12px; text-align: right;">
-							<a href="/app/trades" style="font-size: 12px; color: var(--accent-soft); text-decoration: none;">see all trades →</a>
+					<div class="pos-hero-kpis">
+						<div class="kpi-card">
+							<div class="kpi-label">Bankroll</div>
+							<div class="kpi-num mono" id="dash-bankroll">—</div>
+							<div class="kpi-sub" id="dash-bankroll-sub">on Kalshi</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">Open positions</div>
+							<div class="kpi-num mono" id="dash-open">0</div>
+							<div class="kpi-sub" id="dash-open-sub">unrealized PnL —</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">24h PnL</div>
+							<div class="kpi-num mono" id="dash-pnl-24h">$0.00</div>
+							<div class="kpi-sub" id="dash-pnl-24h-sub">—</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">Fees paid</div>
+							<div class="kpi-num mono" id="dash-fees">$0.00</div>
+							<div class="kpi-sub">Kalshi taker fees</div>
 						</div>
 					</div>
 				</div>
 			</section>
 
-			<!-- Quick links -->
-			<section class="grid" style="margin-bottom: 24px;">
-				<div class="col-12">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Quick links</div>
-						<div class="quick-links">
-							<a href="/app/bot" class="quick-link">
-								<span class="quick-link-icon" aria-hidden="true">⚙</span>
-								<span class="quick-link-text">
-									<span class="quick-link-name">Bot</span>
-									<span class="quick-link-desc">Trading mode · kill switch · start/stop</span>
-								</span>
-							</a>
-							<a href="/app/positions" class="quick-link">
-								<span class="quick-link-icon" aria-hidden="true">📊</span>
-								<span class="quick-link-text">
-									<span class="quick-link-name">Positions</span>
-									<span class="quick-link-desc">Open positions · per-vertical · close manually</span>
-								</span>
-							</a>
-							<a href="/app/trades" class="quick-link">
-								<span class="quick-link-icon" aria-hidden="true">📜</span>
-								<span class="quick-link-text">
-									<span class="quick-link-name">Trades</span>
-									<span class="quick-link-desc">Trade history · signals · rationale</span>
-								</span>
-							</a>
-							<a href="/app/models" class="quick-link">
-								<span class="quick-link-icon" aria-hidden="true">🧠</span>
-								<span class="quick-link-text">
-									<span class="quick-link-name">Models</span>
-									<span class="quick-link-desc">Per-vertical model info · retrain</span>
-								</span>
-							</a>
-							<a href="/app/cadence" class="quick-link">
-								<span class="quick-link-icon" aria-hidden="true">⏱</span>
-								<span class="quick-link-text">
-									<span class="quick-link-name">Cadence</span>
-									<span class="quick-link-desc">Crons · costs · monthly limits</span>
-								</span>
-							</a>
-							<a href="/app/dev" class="quick-link">
-								<span class="quick-link-icon" aria-hidden="true">🔧</span>
-								<span class="quick-link-text">
-									<span class="quick-link-name">Dev</span>
-									<span class="quick-link-desc">API · env · manual actions</span>
-								</span>
-							</a>
-						</div>
+			<!-- ============================================ -->
+			<!-- RECENT ACTIVITY (2-col)                     -->
+			<!-- ============================================ -->
+			<section style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+				<div class="card">
+					<div class="card-title">
+						<span aria-hidden="true">⊞</span>
+						<span>Last 5 trades</span>
+						<a href="/app/trades" class="muted" style="margin-left: auto; font-size: 11px; text-decoration: none;">see all →</a>
 					</div>
+					<div class="card-blurb">The 5 most recent Kalshi fills, newest first.</div>
+					<table class="tbl last-trades-tbl" id="dash-last-trades-tbl">
+						<thead>
+							<tr>
+								<th>When</th>
+								<th>Ticker</th>
+								<th>Side</th>
+								<th class="num">Price</th>
+								<th class="num">Size</th>
+								<th class="num">PnL</th>
+							</tr>
+						</thead>
+						<tbody id="dash-last-trades-tbody">
+							<tr><td colspan="6" class="empty">loading…</td></tr>
+						</tbody>
+					</table>
+				</div>
+
+				<div class="card">
+					<div class="card-title">
+						<span aria-hidden="true">⏶</span>
+						<span>Recent signals</span>
+						<a href="/app/trades#signals-section" class="muted" style="margin-left: auto; font-size: 11px; text-decoration: none;">see all →</a>
+					</div>
+					<div class="card-blurb">The model's "wants to trade" calls. Each signal is a probability estimate + a rationale.</div>
+					<table class="tbl signals-tbl" id="dash-signals-tbl">
+						<thead>
+							<tr>
+								<th>When</th>
+								<th>Ticker</th>
+								<th class="num">Side</th>
+								<th class="num">p(model)</th>
+								<th>Rationale</th>
+							</tr>
+						</thead>
+						<tbody id="dash-signals-tbody">
+							<tr><td colspan="5" class="empty">loading…</td></tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- PER-VERTICAL PNL — quick at-a-glance        -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">∿</span>
+					<span>Per-vertical PnL</span>
+					<a href="/app/models" class="muted" style="margin-left: auto; font-size: 11px; text-decoration: none;">manage verticals →</a>
+				</div>
+				<div class="card-blurb">Today's and lifetime realized PnL per vertical. Click a vertical on the Models page to see its strategy, model version, and tickers.</div>
+				<table class="tbl" id="dash-vertical-tbl">
+					<thead>
+						<tr>
+							<th>Vertical</th>
+							<th class="num">Today</th>
+							<th class="num">Lifetime</th>
+							<th class="num">Trades</th>
+							<th class="num">Open</th>
+						</tr>
+					</thead>
+					<tbody id="dash-vertical-tbody">
+						<tr><td colspan="5" class="empty">loading…</td></tr>
+					</tbody>
+				</table>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- QUICK LINKS                                  -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title"><span aria-hidden="true">⌘</span><span>Quick links</span></div>
+				<div class="card-blurb">Drill into any area. The dashboard is a snapshot — these pages are where the operator work happens.</div>
+				<div class="quick-links">
+					<a href="/app/bot" class="quick-link">
+						<span class="quick-link-icon" aria-hidden="true">⚙</span>
+						<span class="quick-link-text">
+							<span class="quick-link-name">Bot</span>
+							<span class="quick-link-desc">Trading mode · kill switch · start/stop · per-vertical caps</span>
+						</span>
+					</a>
+					<a href="/app/positions" class="quick-link">
+						<span class="quick-link-icon" aria-hidden="true">📊</span>
+						<span class="quick-link-text">
+							<span class="quick-link-name">Positions</span>
+							<span class="quick-link-desc">Open positions · per-vertical exposure · close manually</span>
+						</span>
+					</a>
+					<a href="/app/trades" class="quick-link">
+						<span class="quick-link-icon" aria-hidden="true">📜</span>
+						<span class="quick-link-text">
+							<span class="quick-link-name">Trades</span>
+							<span class="quick-link-desc">Trade history · cumulative PnL chart · CSV export</span>
+						</span>
+					</a>
+					<a href="/app/models" class="quick-link">
+						<span class="quick-link-icon" aria-hidden="true">🧠</span>
+						<span class="quick-link-text">
+							<span class="quick-link-name">Models</span>
+							<span class="quick-link-desc">Per-vertical strategies · PnL · configuration</span>
+						</span>
+					</a>
+					<a href="/app/schedule" class="quick-link">
+						<span class="quick-link-icon" aria-hidden="true">⏱</span>
+						<span class="quick-link-text">
+							<span class="quick-link-name">Schedule</span>
+							<span class="quick-link-desc">Cron jobs · cost · monthly limits · CF analytics</span>
+						</span>
+					</a>
+					<a href="/app/dev" class="quick-link">
+						<span class="quick-link-icon" aria-hidden="true">🔧</span>
+						<span class="quick-link-text">
+							<span class="quick-link-name">Dev</span>
+							<span class="quick-link-desc">API · env · manual actions · in-progress work</span>
+						</span>
+					</a>
 				</div>
 			</section>
 
@@ -166,10 +201,188 @@
 
 		<script src="app.js"></script>
 		<script>
-			// Dashboard: full default refresh cycle. Hero + stage +
-			// last trades + per-vertical are the page's focus; the
-			// cron / cost timers keep the cadence alive for any
-			// cross-page link navigation.
+			// Dashboard v2: stage panel + financial hero +
+			// recent activity + per-vertical + quick links.
+			// Each section fetches its own data on a 5s cycle
+			// (some pages run on a different cadence; this one
+			// is meant to feel "live"). Stage is the only one
+			// that runs faster (the default 90s fetchStage from
+			// the main refresh cycle is enough — it's already
+			// cheap).
+			let _dashRaw = { status: null, summary: null, balance: null, verticals: null, trades: null, signals: null, ts: 0 };
+			const CACHE_TTL_MS = 5_000;
+
+			async function fetchJson(path) {
+				try {
+					const r = await fetch(path, { credentials: "same-origin" });
+					if (!r.ok) return null;
+					return await r.json();
+				} catch (_e) { return null; }
+			}
+
+			async function fetchDashboard() {
+				const now = Date.now();
+				if (now - _dashRaw.ts < CACHE_TTL_MS) return _dashRaw;
+				const [status, summary, balance, verticals, trades, signals] = await Promise.all([
+					fetchJson("/api/pm/bot/status"),
+					fetchJson("/api/pm/summary"),
+					fetchJson("/api/pm/bot/balance"),
+					fetchJson("/api/pm/verticals"),
+					fetchJson("/api/pm/trades?limit=5"),
+					fetchJson("/api/pm/signals?limit=5"),
+				]);
+				_dashRaw = { status, summary, balance, verticals: verticals?.verticals || [], trades: trades?.trades || [], signals: signals?.signals || [], ts: now };
+				return _dashRaw;
+			}
+
+			// ─── Helpers ───
+			// fmtCents, fmtNum, esc are provided by app.js.
+
+			// ─── Render: financial hero ───
+			function renderDashHero(d) {
+				const heroEl = $("dash-hero");
+				const pnlEl = $("dash-pnl-today");
+				const pnlSubEl = $("dash-pnl-today-sub");
+				const bankrollEl = $("dash-bankroll");
+				const bankrollSubEl = $("dash-bankroll-sub");
+				const openEl = $("dash-open");
+				const openSubEl = $("dash-open-sub");
+				const pnl24El = $("dash-pnl-24h");
+				const pnl24SubEl = $("dash-pnl-24h-sub");
+				const feesEl = $("dash-fees");
+
+				const status = d.status;
+				const summary = d.summary;
+				const balance = d.balance;
+
+				// Today's PnL = realized (closed) + unrealized (open)
+				const realized = summary?.recap?.realized_cents ?? 0;
+				const unrealized = status?.risk?.total_unrealized_pnl_cents ?? 0;
+				const todayPnl = realized + unrealized;
+				const pnlCls = todayPnl > 0 ? "ok" : todayPnl < 0 ? "bad" : "muted";
+				heroEl.setAttribute("data-color", pnlCls === "muted" ? "ok" : pnlCls);
+				pnlEl.textContent = fmtCents(todayPnl);
+				pnlEl.className = `pos-hero-num mono ${pnlCls === "muted" ? "" : pnlCls}`;
+				const nTrades = summary?.recap?.n_trades_24h ?? 0;
+				const nCloses = summary?.recap?.trades?.n_closes ?? 0;
+				pnlSubEl.textContent = nCloses > 0
+					? `${nCloses} closed · ${status?.risk?.open_positions?.length ?? 0} open · ${nTrades} trades 24h`
+					: `${status?.risk?.open_positions?.length ?? 0} open · ${nTrades} trades 24h`;
+
+				// Bankroll
+				if (balance && balance.ok && balance.balance_dollars != null) {
+					bankrollEl.textContent = `$${balance.balance_dollars}`;
+					bankrollSubEl.textContent = balance.portfolio_value_dollars != null
+						? `portfolio $${balance.portfolio_value_dollars} on Kalshi`
+						: "on Kalshi";
+				} else {
+					bankrollEl.textContent = "—";
+					bankrollSubEl.textContent = "loading balance…";
+				}
+
+				// Open positions
+				const openPositions = status?.risk?.open_positions ?? [];
+				openEl.textContent = String(openPositions.length);
+				openSubEl.textContent = openPositions.length === 0
+					? "none"
+					: `unrealized ${fmtCents(unrealized)}`;
+
+				// 24h PnL
+				const pnl24 = summary?.recap?.last_24h_cents ?? 0;
+				pnl24El.textContent = fmtCents(pnl24);
+				pnl24El.className = `kpi-num mono ${pnl24 > 0 ? "ok" : pnl24 < 0 ? "bad" : ""}`;
+				pnl24SubEl.textContent = `${nTrades} trades`;
+
+				// Fees
+				const feesCents = status?.counts?.total_fees_cents ?? 0;
+				feesEl.textContent = fmtCents(feesCents);
+			}
+
+			// ─── Render: last 5 trades ───
+			function renderDashTrades(trades) {
+				const tbody = $("dash-last-trades-tbody");
+				if (!trades || trades.length === 0) {
+					tbody.innerHTML = `<tr><td colspan="6" class="empty">no trades yet</td></tr>`;
+					return;
+				}
+				tbody.innerHTML = trades.slice(0, 5).map((t) => {
+					const pnlCls = t.pnl_cents == null ? "muted" : t.pnl_cents > 0 ? "pos" : t.pnl_cents < 0 ? "neg" : "";
+					const modePill = t.is_paper === 0
+						? `<span class="pill ok" style="font-size: 9px;">real</span>`
+						: `<span class="pill muted" style="font-size: 9px;">paper</span>`;
+					return `<tr>
+						<td class="mono" style="font-size: 11px;">${esc(fmtTime(t.ts))}</td>
+						<td class="mono">${esc(t.ticker)} ${modePill}</td>
+						<td>${esc(t.side)}</td>
+						<td class="num mono">${esc(t.price_cents)}¢</td>
+						<td class="num mono">${fmtNum(t.size)}</td>
+						<td class="num mono ${pnlCls}">${t.pnl_cents == null ? "—" : fmtCents(t.pnl_cents)}</td>
+					</tr>`;
+				}).join("");
+			}
+
+			// ─── Render: recent signals ───
+			function renderDashSignals(signals) {
+				const tbody = $("dash-signals-tbody");
+				if (!signals || signals.length === 0) {
+					tbody.innerHTML = `<tr><td colspan="5" class="empty">no signals yet · the model hasn't crossed a threshold</td></tr>`;
+					return;
+				}
+				tbody.innerHTML = signals.slice(0, 5).map((s) => {
+					const p = s.p_model ?? s.signal_p ?? 0;
+					const pStr = (p * 100).toFixed(0) + "%";
+					const pCls = p >= 0.7 ? "ok" : p >= 0.55 ? "warn" : "muted";
+					return `<tr>
+						<td class="mono" style="font-size: 11px;">${esc(fmtTime(s.ts))}</td>
+						<td class="mono">${esc(s.ticker || "—")}</td>
+						<td class="num mono">${esc(s.side || "—")}</td>
+						<td class="num mono ${pCls}"><strong>${pStr}</strong></td>
+						<td style="font-size: 11px; color: var(--ink-muted);">${esc((s.rationale || "—").slice(0, 50))}</td>
+					</tr>`;
+				}).join("");
+			}
+
+			// ─── Render: per-vertical PnL ───
+			function renderDashVerticals(verticals) {
+				const tbody = $("dash-vertical-tbody");
+				if (!verticals || verticals.length === 0) {
+					tbody.innerHTML = `<tr><td colspan="5" class="empty">no verticals configured</td></tr>`;
+					return;
+				}
+				tbody.innerHTML = verticals.map((v) => {
+					const pnlToday = v.pnl_cents_24h ?? 0;
+					const pnlLife = v.pnl_cents_total ?? 0;
+					const todayCls = pnlToday > 0 ? "ok" : pnlToday < 0 ? "bad" : "muted";
+					const lifeCls = pnlLife > 0 ? "ok" : pnlLife < 0 ? "bad" : "muted";
+					return `<tr>
+						<td><strong>${v.emoji || ""} ${esc(v.label || v.id)}</strong></td>
+						<td class="num mono ${todayCls}">${fmtCents(pnlToday)}</td>
+						<td class="num mono ${lifeCls}">${fmtCents(pnlLife)}</td>
+						<td class="num mono">${fmtNum(v.n_trades_total ?? 0)}</td>
+						<td class="num mono">${fmtNum(v.n_open ?? 0)}</td>
+					</tr>`;
+				}).join("");
+			}
+
+			// ─── Main render loop ───
+			async function renderDashboardPage() {
+				const d = await fetchDashboard();
+				renderDashHero(d);
+				renderDashTrades(d.trades);
+				renderDashSignals(d.signals);
+				renderDashVerticals(d.verticals);
+			}
+
+			// ─── Wire into app.js ───
+			const _origInit = window.appPageInit;
+			window.appPageInit = function dashboardPageInit() {
+				if (_origInit) _origInit();
+				startTimers([{ fn: renderDashboardPage, ms: 5_000 }]);
+				renderDashboardPage();
+			};
+			window.appPageOnVisible = function () {
+				renderDashboardPage();
+			};
 		</script>
 	</body>
 </html>
