@@ -44,6 +44,7 @@ import { handleTelegramTest } from "./api/telegram-test.js";
 import { handleLLMTest } from "./api/llm-test.js";
 import { handleCronTrigger, TRIGGERABLE_CRONS } from "./api/cron-trigger.js";
 import { handleSmokeTest } from "./api/smoke-test.js";
+import { handleSuggestLeads } from "./api/suggest-leads.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -261,6 +262,14 @@ export default {
 		// for months undetected.
 		if (path === "/api/pm/bot/smoke-test" && request.method === "POST") {
 			return handleSmokeTest(env);
+		}
+		// 2026-08-09: LLM-powered lead generation. Asks the
+		// LLM to suggest new Kalshi tickers for the bot's
+		// universe. The LLM is the source of truth for
+		// which tickers to add; the operator reviews and
+		// applies via /api/pm/bot/start.
+		if (path === "/api/pm/bot/suggest-leads" && request.method === "POST") {
+			return handleSuggestLeads(env, request);
 		}
 		// 2026-08-09: Manual cron trigger. POST
 		// /api/pm/cron/{name}/run triggers the named cron

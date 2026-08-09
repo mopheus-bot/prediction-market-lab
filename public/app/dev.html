@@ -33,6 +33,7 @@
 							<button class="btn" data-action="/api/pm/bot/auto-start">Auto-start</button>
 							<button class="btn" data-action="/api/pm/bot/telegram-test">Telegram test</button>
 							<button class="btn" data-action="/api/pm/bot/llm-test">LLM test</button>
+							<button class="btn" data-action="/api/pm/bot/suggest-leads">Suggest leads (LLM)</button>
 						</div>
 					</div>
 				</div>
@@ -202,6 +203,11 @@
 								<span class="dev-endpoint-method post">POST</span>
 								<span class="dev-endpoint-path">/api/pm/bot/llm-test</span>
 								<span class="dev-endpoint-desc">Test the configured LLM (MiniMax-M3) end-to-end</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/suggest-leads</span>
+								<span class="dev-endpoint-desc">LLM-powered lead generation: asks M3 for new Kalshi tickers to add (body: {count?, exclude?, current_tickers?, verticals?, bankroll_cents?})</span>
 							</div>
 							<div class="dev-endpoint">
 								<span class="dev-endpoint-method post">POST</span>
