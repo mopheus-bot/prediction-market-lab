@@ -162,8 +162,12 @@ export async function handleSuggestLeads(
 	// 1. Build the prompt.
 	const userPrompt = buildUserPrompt({ ...body, count });
 
-	// 2. Ask the LLM.
-	const result = await chat(env, SYSTEM_PROMPT, userPrompt, { max_tokens: 600 });
+	// 2. Ask the LLM. M3 is a reasoning model that
+	// wraps its output in <think>...</think>, so we
+	// need a generous max_tokens budget — 1500 lets the
+	// think block + the JSON response both fit. 600 was
+	// truncating right at the JSON.
+	const result = await chat(env, SYSTEM_PROMPT, userPrompt, { max_tokens: 1500 });
 
 	if (!result.ok) {
 		return Response.json(
