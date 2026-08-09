@@ -29,10 +29,17 @@ const _noopEl = new Proxy(_noopFn, {
 		if (prop === "addEventListener" || prop === "removeEventListener"
 			|| prop === "setAttribute" || prop === "removeAttribute"
 			|| prop === "appendChild" || prop === "insertBefore" || prop === "removeChild"
-			|| prop === "querySelector" || prop === "querySelectorAll"
 			|| prop === "focus" || prop === "blur" || prop === "click"
 			|| prop === "reset" || prop === "submit" || prop === "play"
 			|| prop === "pause" || prop === "scrollIntoView") return _noopFn;
+		// querySelector / querySelectorAll return an
+		// array-like (NodeList). The early `if (!el) return`
+		// guard doesn't catch the noop proxy (it's truthy),
+		// so callers that do `for (const x of el.querySelectorAll(...))`
+		// would iterate undefined and throw. Returning []
+		// here makes the for-loop a no-op, which is what the
+		// caller already wants when the element is missing.
+		if (prop === "querySelector" || prop === "querySelectorAll") return () => [];
 		return undefined;
 	},
 	set: () => true,
