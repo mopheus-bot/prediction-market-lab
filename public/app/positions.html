@@ -5,7 +5,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="color-scheme" content="dark" />
 		<title>Trader — Positions</title>
-		<meta name="description" content="Open positions · per-vertical PnL · manual close." />
+		<meta name="description" content="Open positions · exposure · closed positions · analytics · risk." />
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
@@ -13,93 +13,177 @@
 		<div class="app-shell">
 			<div class="app-section-header">
 				<h2>Positions</h2>
-				<p>Open positions · per-vertical PnL · manual close</p>
+				<p>Open positions · exposure · closed positions · analytics · risk</p>
 			</div>
 
-			<!-- Hero stats: total positions + total unrealized -->
-			<section class="grid hero-grid" style="margin-bottom: 24px;">
-				<div class="stat-card stat-large">
-					<div class="stat-label">Open positions</div>
-					<div class="stat-num mono" id="hero-pnl-total">0</div>
-					<div class="stat-sub">across 4 verticals</div>
-				</div>
-				<div class="stat-card">
-					<div class="stat-label">Unrealized PnL</div>
-					<div class="stat-num mono" id="hero-pnl-24h">$0.00</div>
-					<div class="stat-sub">marked to current mid</div>
-				</div>
-				<div class="stat-card">
-					<div class="stat-label">Per-vertical PnL (24h)</div>
-					<div class="stat-num mono" id="hero-fees">$0.00</div>
-					<div class="stat-sub">realized today</div>
-				</div>
-				<div class="stat-card">
-					<div class="stat-label">Lifetime PnL</div>
-					<div class="stat-num mono" id="hero-balance">$0.00</div>
-					<div class="stat-sub">all-time realized</div>
-				</div>
-			</section>
-
-			<!-- Open positions table -->
-			<section class="grid" style="margin-bottom: 24px;">
-				<div class="col-12">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Open positions</div>
-						<div class="card-blurb">Markets where the bot is currently holding a YES or NO position. Mark price = current mid-market. Unrealized PnL = (mark − entry) × size for YES, or (100 − entry − mark + 100) × size for NO, capped at the resolution value. Click <strong>close</strong> to exit at the current mark.</div>
-						<div id="positions-list" class="positions-list">
-							<div class="app-empty">
-								<div class="app-empty-icon">📈</div>
-								<div>no open positions</div>
-								<div class="app-empty-hint">positions appear when a signal turns into a fill</div>
-							</div>
+			<!-- ============================================ -->
+			<!-- STATUS HERO                                -->
+			<!-- ============================================ -->
+			<section class="card pos-hero" id="pos-hero" data-color="ok" aria-labelledby="pos-hero-title" style="margin-bottom: 20px;">
+				<div class="pos-hero-head">
+					<div class="pos-hero-pnl">
+						<div class="pos-hero-label">Unrealized PnL</div>
+						<div class="pos-hero-num mono" id="pos-total-pnl">$0.00</div>
+						<div class="pos-hero-sub" id="pos-total-pnl-sub">no open positions</div>
+					</div>
+					<div class="pos-hero-kpis">
+						<div class="kpi-card">
+							<div class="kpi-label">Total exposure</div>
+							<div class="kpi-num mono" id="pos-total-exposure">$0.00</div>
+							<div class="kpi-sub" id="pos-total-exposure-sub">deployed across all positions</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">Open positions</div>
+							<div class="kpi-num mono" id="pos-count">0</div>
+							<div class="kpi-sub" id="pos-count-sub">across 4 verticals</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">Largest position</div>
+							<div class="kpi-num mono" id="pos-largest">$0.00</div>
+							<div class="kpi-sub" id="pos-largest-sub">0% of bankroll</div>
+						</div>
+						<div class="kpi-card">
+							<div class="kpi-label">Realized PnL (24h)</div>
+							<div class="kpi-num mono" id="pos-realized-24h">$0.00</div>
+							<div class="kpi-sub" id="pos-realized-24h-sub">lifetime: $0.00</div>
 						</div>
 					</div>
 				</div>
 			</section>
 
-			<!-- Per-vertical PnL detail -->
-			<section class="grid" style="margin-bottom: 24px;">
-				<div class="col-6">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Per-vertical PnL</div>
-						<div class="card-blurb">24h + lifetime realized PnL per vertical. Weather + economic have the reversion model; politics + sports on the naive baseline.</div>
-						<table class="tbl" id="vertical-tbl">
-							<thead>
-								<tr>
-									<th>Vertical</th>
-									<th class="num">24h PnL</th>
-									<th class="num">Lifetime PnL</th>
-									<th class="num">Trades</th>
-									<th class="num">Open</th>
-								</tr>
-							</thead>
-							<tbody id="vertical-tbody">
-								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
-							</tbody>
-						</table>
+			<!-- ============================================ -->
+			<!-- EXPOSURE BY VERTICAL (conditional)         -->
+			<!-- ============================================ -->
+			<section class="card" id="exposure-section" style="margin-bottom: 20px;" hidden>
+				<div class="card-title">
+					<span aria-hidden="true">⟁</span>
+					<span>Exposure by vertical</span>
+				</div>
+				<div class="card-blurb">Where your bankroll is currently deployed. Concentrated exposure (one vertical > 50%) is a red flag — consider rebalancing.</div>
+				<div class="exposure-bars" id="exposure-bars"></div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- OPEN POSITIONS                              -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">▤</span>
+					<span>Open positions</span>
+					<span class="muted mono" id="open-pos-count" style="margin-left: auto; font-size: 11px;">0 open</span>
+				</div>
+				<div class="card-blurb">Markets where the bot is currently holding a YES or NO position. Mark price is the current mid-market (unrealized PnL = (mark − entry) × size for YES). Click <strong>close</strong> to exit at the current mark.</div>
+				<table class="tbl positions-tbl" id="open-positions-tbl">
+					<thead>
+						<tr>
+							<th>Ticker</th>
+							<th>Vertical</th>
+							<th class="num">Side</th>
+							<th class="num">Entry</th>
+							<th class="num">Mark</th>
+							<th class="num">Size</th>
+							<th class="num">Value</th>
+							<th class="num">PnL</th>
+							<th class="num">PnL%</th>
+							<th class="num">Age</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody id="open-positions-body">
+						<tr><td colspan="11" class="empty">no open positions</td></tr>
+					</tbody>
+				</table>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- CLOSED POSITIONS                            -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">⊟</span>
+					<span>Closed positions</span>
+					<span class="muted mono" id="closed-pos-count" style="margin-left: auto; font-size: 11px;">0 closed</span>
+				</div>
+				<div class="card-blurb">Positions that have been closed (manually via the close button, by the kill switch auto-close, or by settlement). Realized PnL is locked in at close.</div>
+				<table class="tbl positions-tbl" id="closed-positions-tbl">
+					<thead>
+						<tr>
+							<th>Closed at</th>
+							<th>Ticker</th>
+							<th class="num">Side</th>
+							<th class="num">Entry</th>
+							<th class="num">Exit</th>
+							<th class="num">Size</th>
+							<th class="num">PnL</th>
+							<th class="num">Held</th>
+						</tr>
+					</thead>
+					<tbody id="closed-positions-body">
+						<tr><td colspan="8" class="empty">no closed positions yet</td></tr>
+					</tbody>
+				</table>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- POSITION ANALYTICS (NEW)                    -->
+			<!-- ============================================ -->
+			<section class="card" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">∿</span>
+					<span>Position analytics</span>
+				</div>
+				<div class="card-blurb">All-time stats across all closed positions. Win rate = closed positions with positive PnL / total closed. Hold time = how long the position was open.</div>
+				<div class="analytics-grid">
+					<div class="kpi-card">
+						<div class="kpi-label">Win rate</div>
+						<div class="kpi-num mono" id="pos-win-rate">—</div>
+						<div class="kpi-sub" id="pos-win-rate-sub">no closed positions</div>
+					</div>
+					<div class="kpi-card">
+						<div class="kpi-label">Avg PnL per position</div>
+						<div class="kpi-num mono" id="pos-avg-pnl">—</div>
+						<div class="kpi-sub" id="pos-avg-pnl-sub">all-time</div>
+					</div>
+					<div class="kpi-card">
+						<div class="kpi-label">Avg hold time</div>
+						<div class="kpi-num mono" id="pos-avg-hold">—</div>
+						<div class="kpi-sub" id="pos-avg-hold-sub">per closed position</div>
+					</div>
+					<div class="kpi-card">
+						<div class="kpi-label">Best / Worst</div>
+						<div class="kpi-num mono" id="pos-best-worst">— / —</div>
+						<div class="kpi-sub" id="pos-best-worst-sub">single best / worst</div>
 					</div>
 				</div>
-				<div class="col-6">
-					<div class="card">
-						<div class="card-title"><span class="dot"></span>Verticals — what's live, what strategy, how each is doing</div>
-						<div class="card-blurb">Toggle pauses signals on every ticker in that vertical. Strategy + ELI5 explain the rule the bot follows when a model fires.</div>
-						<div class="verticals-grid" id="verticals-grid">
-							<div class="vertical-card skel-card">
-								<div class="vertical-card-head">
-									<span class="vertical-emoji">·</span>
-									<span class="vertical-name skel-bar m"></span>
-									<span class="vertical-status skel-bar s"></span>
-								</div>
-								<div class="vertical-strategy skel-bar l"></div>
-								<div class="vertical-eli5 skel-bar l"></div>
-								<div class="vertical-stats">
-									<span class="skel-bar s"></span>
-									<span class="skel-bar s"></span>
-									<span class="skel-bar s"></span>
-								</div>
-							</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- RISK VIEW (NEW, conditional + collapsible)   -->
+			<!-- ============================================ -->
+			<section class="card risk-card" id="risk-section" style="margin-bottom: 20px;" hidden>
+				<div class="card-title risk-card-head">
+					<span aria-hidden="true">⚠</span>
+					<span>Risk</span>
+					<span class="muted mono" id="risk-summary" style="font-size: 11px; margin-left: 8px;">—</span>
+					<button class="btn small health-toggle" id="risk-toggle" style="margin-left: auto;" aria-expanded="false" aria-controls="risk-body">Show details</button>
+				</div>
+				<div class="card-blurb">Concentration risk + per-vertical cap utilization. Open this when you want to check if your exposure is well-distributed.</div>
+				<div class="risk-body" id="risk-body" hidden>
+					<div class="health-grid">
+						<div class="health-tile">
+							<div class="health-tile-label">Concentration</div>
+							<div class="health-tile-val mono" id="risk-concentration">—</div>
+						</div>
+						<div class="health-tile">
+							<div class="health-tile-label">Days in drawdown</div>
+							<div class="health-tile-val mono" id="risk-drawdown">—</div>
+						</div>
+						<div class="health-tile">
+							<div class="health-tile-label">Consec losses</div>
+							<div class="health-tile-val mono" id="risk-consec-losses">—</div>
 						</div>
 					</div>
+					<div class="risk-verticals" id="risk-verticals"></div>
 				</div>
 			</section>
 
@@ -111,5 +195,509 @@
 		<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 		<script src="app.js"></script>
+		<script>
+			// Positions page: status hero, open positions, closed positions,
+			// analytics, risk. Pulls open positions from /api/pm/bot/status
+			// (window._lastBotStatus.risk.open_positions), trades from
+			// /api/pm/trades, summary from /api/pm/summary. Derived:
+			// closed positions (matching opens to closes by ticker+side+size),
+			// analytics (win rate, avg PnL, hold time, best/worst),
+			// risk (concentration, per-vertical cap utilization).
+			const RISK_OPEN_KEY = "trader:positions-risk-open";
+
+			function fmtPrice(cents) {
+				if (cents == null) return "—";
+				return `${cents}¢`;
+			}
+			function fmtAge(sec) {
+				if (sec == null || sec < 0) return "—";
+				if (sec < 60) return `${Math.floor(sec)}s`;
+				if (sec < 3600) return `${Math.floor(sec / 60)}m`;
+				if (sec < 86400) return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+				return `${Math.floor(sec / 86400)}d ${Math.floor((sec % 86400) / 3600)}h`;
+			}
+			function fmtCentsShort(c) {
+				if (c == null) return "—";
+				const sign = c < 0 ? "−" : c > 0 ? "+" : "";
+				return `${sign}$${(Math.abs(c) / 100).toFixed(2)}`;
+			}
+
+			// ─── Data fetchers (cached) ───
+			let _tradesCache = { data: null, ts: 0 };
+			let _summaryCache = { data: null, ts: 0 };
+			const CACHE_TTL_MS = 5_000;
+			async function fetchTrades(limit = 50) {
+				const now = Date.now();
+				if (_tradesCache.data && now - _tradesCache.ts < CACHE_TTL_MS) {
+					return _tradesCache.data;
+				}
+				try {
+					const r = await fetch(`/api/pm/trades?limit=${limit}`, { credentials: "same-origin" });
+					if (!r.ok) return _tradesCache.data || [];
+					const d = await r.json();
+					_tradesCache = { data: d.trades || [], ts: now };
+					return _tradesCache.data;
+				} catch (_e) { return _tradesCache.data || []; }
+			}
+			async function fetchSummary() {
+				const now = Date.now();
+				if (_summaryCache.data && now - _summaryCache.ts < CACHE_TTL_MS) {
+					return _summaryCache.data;
+				}
+				try {
+					const r = await fetch("/api/pm/summary", { credentials: "same-origin" });
+					if (!r.ok) return _summaryCache.data || null;
+					const d = await r.json();
+					_summaryCache = { data: d, ts: now };
+					return _summaryCache.data;
+				} catch (_e) { return _summaryCache.data || null; }
+			}
+
+			// ─── Match opens to closes for closed positions ───
+			// Each trade has ticker + side + size. We group opens
+			// and closes by (ticker+side+size) and pair them in
+			// time order. PnL for a closed pair = (exit − entry) × size
+			// for YES, or (100 − entry − (100 − exit)) × size for NO
+			// (= (exit − entry) × size either way, in cents).
+			function deriveClosedPositions(trades) {
+				if (!trades || trades.length === 0) return [];
+				// Group by (ticker|side|size) preserving order
+				const groups = new Map();
+				for (const t of trades) {
+					const key = `${t.ticker}|${t.side}|${t.size}`;
+					if (!groups.has(key)) groups.set(key, []);
+					groups.get(key).push(t);
+				}
+				const closed = [];
+				for (const [, list] of groups) {
+					// Sort by ts ascending
+					list.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+					let open = null;
+					for (const t of list) {
+						if (t.action === "open") {
+							// If we already have an open for this key, close it
+							// at zero (shouldn't happen, but be safe)
+							if (open) {
+								closed.push({
+									...open,
+									exit_cents: open.entry_cents,
+									closed_at: open.opened_at,
+									hold_ms: 0,
+									pnl_cents: 0,
+									still_open: true,
+								});
+							}
+							open = {
+								id: t.id,
+								ticker: t.ticker,
+								vertical: t.vertical,
+								side: t.side,
+								entry_cents: t.price_cents,
+								size: t.size,
+								opened_at: t.ts,
+								opened_at_iso: t.ts ? new Date(t.ts).toISOString() : null,
+								is_paper: t.is_paper,
+								trading_mode: t.trading_mode,
+								signal_p: t.signal_p,
+								signal_rationale: t.signal_rationale,
+							};
+						} else if (t.action === "close" && open) {
+							closed.push({
+								...open,
+								exit_cents: t.price_cents,
+								closed_at: t.ts,
+								closed_at_iso: t.ts ? new Date(t.ts).toISOString() : null,
+								hold_ms: (t.ts || 0) - (open.opened_at || 0),
+								pnl_cents: t.pnl_cents != null ? t.pnl_cents : ((t.price_cents - open.entry_cents) * open.size),
+								still_open: false,
+							});
+							open = null;
+						} else if (t.action === "close" && !open) {
+							// Close without an open — skip
+						}
+					}
+					// If open remains, it's still open
+					if (open) {
+						closed.push({ ...open, still_open: true });
+					}
+				}
+				// Sort by closed_at desc (or opened_at desc for still_open)
+				closed.sort((a, b) => {
+					const aT = a.closed_at || a.opened_at || 0;
+					const bT = b.closed_at || b.opened_at || 0;
+					return bT - aT;
+				});
+				return closed;
+			}
+
+			// ─── Render: status hero ───
+			function renderStatusHero(openPositions, closedAll) {
+				const heroEl = document.getElementById("pos-hero");
+				const totalPnlEl = document.getElementById("pos-total-pnl");
+				const totalPnlSub = document.getElementById("pos-total-pnl-sub");
+				const totalExposureEl = document.getElementById("pos-total-exposure");
+				const totalExposureSub = document.getElementById("pos-total-exposure-sub");
+				const countEl = document.getElementById("pos-count");
+				const countSub = document.getElementById("pos-count-sub");
+				const largestEl = document.getElementById("pos-largest");
+				const largestSub = document.getElementById("pos-largest-sub");
+				const realized24hEl = document.getElementById("pos-realized-24h");
+				const realized24hSub = document.getElementById("pos-realized-24h-sub");
+
+				let totalPnlCents = 0;
+				let totalExposureCents = 0;
+				let largestCents = 0;
+				const verticals = new Set();
+				for (const p of openPositions) {
+					totalPnlCents += p.unrealized_pnl_cents || 0;
+					const valueCents = (p.mark_cents != null ? p.mark_cents : p.entry_cents) * (p.size || 1);
+					totalExposureCents += valueCents;
+					if (valueCents > largestCents) largestCents = valueCents;
+					if (p.vertical) verticals.add(p.vertical);
+				}
+				const bankrollCents = (window._lastBotStatus?.risk?.bankroll_cents) || 0;
+				const largestPct = bankrollCents > 0 ? (largestCents / bankrollCents * 100) : 0;
+
+				// Color
+				const pnlCls = totalPnlCents > 0 ? "ok" : totalPnlCents < 0 ? "bad" : "muted";
+				heroEl.setAttribute("data-color", openPositions.length > 0 ? (pnlCls === "muted" ? "warn" : pnlCls) : "ok");
+				totalPnlEl.textContent = fmtCentsShort(totalPnlCents);
+				totalPnlEl.className = `pos-hero-num mono ${pnlCls}`;
+				totalPnlSub.textContent = openPositions.length === 0
+					? "no open positions"
+					: `across ${openPositions.length} ${openPositions.length === 1 ? "position" : "positions"}`;
+
+				totalExposureEl.textContent = "$" + (totalExposureCents / 100).toFixed(2);
+				totalExposureSub.textContent = openPositions.length === 0
+					? "—"
+					: `${((totalExposureCents / bankrollCents) * 100 || 0).toFixed(1)}% of bankroll`;
+
+				countEl.textContent = String(openPositions.length);
+				countSub.textContent = verticals.size > 0
+					? `across ${verticals.size} ${verticals.size === 1 ? "vertical" : "verticals"}`
+					: "—";
+
+				largestEl.textContent = "$" + (largestCents / 100).toFixed(2);
+				largestSub.textContent = bankrollCents > 0
+					? `${largestPct.toFixed(1)}% of bankroll`
+					: "no bankroll";
+
+				// Realized PnL 24h — pull from summary
+				const summary = window._lastSummary;
+				if (summary && summary.recap) {
+					const realized24h = summary.recap.last_24h_cents || 0;
+					realized24hEl.textContent = fmtCentsShort(realized24h);
+					const realizedTotal = summary.recap.realized_cents || 0;
+					realized24hSub.textContent = `lifetime: ${fmtCentsShort(realizedTotal)}`;
+				}
+			}
+
+			// ─── Render: exposure by vertical ───
+			function renderExposureByVertical(openPositions) {
+				const section = document.getElementById("exposure-section");
+				const bars = document.getElementById("exposure-bars");
+				if (openPositions.length === 0) {
+					section.hidden = true;
+					return;
+				}
+				section.hidden = false;
+				// Group by vertical
+				const byVert = new Map();
+				for (const p of openPositions) {
+					const v = p.vertical || "?";
+					if (!byVert.has(v)) byVert.set(v, { exposure: 0, count: 0 });
+					const valueCents = (p.mark_cents != null ? p.mark_cents : p.entry_cents) * (p.size || 1);
+					byVert.get(v).exposure += valueCents;
+					byVert.get(v).count += 1;
+				}
+				// Find max for bar width
+				let maxExposure = 0;
+				for (const v of byVert.values()) {
+					if (v.exposure > maxExposure) maxExposure = v.exposure;
+				}
+				const totalExposure = [...byVert.values()].reduce((a, b) => a + b.exposure, 0);
+				const bankrollCents = (window._lastBotStatus?.risk?.bankroll_cents) || 0;
+				// Render
+				const VERTICAL_COLORS = {
+					weather: "ok",
+					economic: "warn",
+					politics: "bad",
+					sports: "muted",
+				};
+				const VERTICAL_EMOJI = {
+					weather: "🌤",
+					economic: "📊",
+					politics: "🏛",
+					sports: "🏀",
+				};
+				bars.innerHTML = [...byVert.entries()]
+					.sort((a, b) => b[1].exposure - a[1].exposure)
+					.map(([v, d]) => {
+						const pct = maxExposure > 0 ? (d.exposure / maxExposure * 100) : 0;
+						const bankrollPct = bankrollCents > 0 ? (d.exposure / bankrollCents * 100) : 0;
+						const color = VERTICAL_COLORS[v] || "muted";
+						return `<div class="exposure-row">
+							<div class="exposure-label">${VERTICAL_EMOJI[v] || ""} ${v} <span class="exposure-count">${d.count} ${d.count === 1 ? "pos" : "poses"}</span></div>
+							<div class="exposure-bar-wrap">
+								<div class="exposure-bar exposure-bar-${color}" style="width: ${pct.toFixed(1)}%"></div>
+							</div>
+							<div class="exposure-val mono">$${(d.exposure / 100).toFixed(2)}</div>
+							<div class="exposure-pct mono">${bankrollPct.toFixed(1)}% bankroll</div>
+						</div>`;
+					}).join("");
+			}
+
+			// ─── Render: open positions table ───
+			function renderOpenPositions(openPositions) {
+				const tbody = document.getElementById("open-positions-body");
+				const countEl = document.getElementById("open-pos-count");
+				countEl.textContent = `${openPositions.length} open`;
+				if (openPositions.length === 0) {
+					tbody.innerHTML = `<tr><td colspan="11" class="empty">no open positions · the bot will fill this table as signals turn into fills</td></tr>`;
+					return;
+				}
+				// Sort by unrealized PnL desc (best first)
+				const sorted = [...openPositions].sort((a, b) =>
+					(b.unrealized_pnl_cents || 0) - (a.unrealized_pnl_cents || 0));
+				const bankrollCents = (window._lastBotStatus?.risk?.bankroll_cents) || 0;
+				tbody.innerHTML = sorted.map((p) => {
+					const pnlCls = (p.unrealized_pnl_cents || 0) > 0 ? "ok" : (p.unrealized_pnl_cents || 0) < 0 ? "bad" : "muted";
+					const ageSec = p.opened_at_ms ? (Date.now() - p.opened_at_ms) / 1000 : null;
+					const valueCents = (p.mark_cents != null ? p.mark_cents : p.entry_cents) * (p.size || 1);
+					const pnlPct = p.entry_cents && p.size ? ((p.unrealized_pnl_cents || 0) / (p.entry_cents * p.size) * 100) : 0;
+					const bankrollPct = bankrollCents > 0 ? (valueCents / bankrollCents * 100) : 0;
+					return `<tr>
+						<td class="mono"><strong>${p.ticker || "—"}</strong></td>
+						<td>${p.vertical || "—"}</td>
+						<td class="num mono">${p.side || "—"}</td>
+						<td class="num mono">${fmtPrice(p.entry_cents)}</td>
+						<td class="num mono">${fmtPrice(p.mark_cents)}</td>
+						<td class="num mono">${p.size || "—"}</td>
+						<td class="num mono">$${(valueCents / 100).toFixed(2)}</td>
+						<td class="num mono ${pnlCls}"><strong>${fmtCentsShort(p.unrealized_pnl_cents)}</strong></td>
+						<td class="num mono ${pnlCls}">${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%</td>
+						<td class="num mono">${fmtAge(ageSec)}</td>
+						<td><button class="btn small danger pos-close-btn" data-ticker="${p.ticker || ""}">Close</button></td>
+					</tr>`;
+				}).join("");
+
+				// Wire up close buttons
+				for (const btn of tbody.querySelectorAll(".pos-close-btn")) {
+					btn.addEventListener("click", () => closePosition(btn.dataset.ticker));
+				}
+			}
+
+			async function closePosition(ticker) {
+				if (!ticker) return;
+				if (!confirm(`Close position on ${ticker} at current mark?`)) return;
+				try {
+					const r = await fetch("/api/pm/bot/close-position", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						credentials: "same-origin",
+						body: JSON.stringify({ ticker }),
+					});
+					const text = await r.text();
+					if (r.ok) {
+						const data = JSON.parse(text);
+						toast(`closed ${ticker}: ${fmtCentsShort(data.realized_cents || data.pnl_cents || 0)}`, true);
+					} else {
+						toast(`close failed: ${text.slice(0, 200)}`, false);
+					}
+				} catch (e) {
+					toast(`close error: ${e.message}`, false);
+				}
+			}
+
+			// ─── Render: closed positions table ───
+			function renderClosedPositions(closedAll) {
+				const tbody = document.getElementById("closed-positions-body");
+				const countEl = document.getElementById("closed-pos-count");
+				const closedOnly = closedAll.filter((c) => !c.still_open);
+				countEl.textContent = `${closedOnly.length} closed`;
+				if (closedOnly.length === 0) {
+					tbody.innerHTML = `<tr><td colspan="8" class="empty">no closed positions yet · they appear when the bot or you close a position, or when a market settles</td></tr>`;
+					return;
+				}
+				// Last 15 closes
+				const last15 = closedOnly.slice(0, 15);
+				tbody.innerHTML = last15.map((c) => {
+					const pnlCls = c.pnl_cents > 0 ? "ok" : c.pnl_cents < 0 ? "bad" : "muted";
+					const when = c.closed_at_iso ? new Date(c.closed_at_iso).toLocaleString() : "—";
+					const holdStr = c.hold_ms != null ? fmtAge(c.hold_ms / 1000) : "—";
+					const modePill = c.is_paper === 0
+						? `<span class="pill ok" style="font-size: 10px;">real</span>`
+						: `<span class="pill muted" style="font-size: 10px;">paper</span>`;
+					return `<tr>
+						<td class="mono" style="font-size: 12px;">${when}</td>
+						<td class="mono">${c.ticker} ${modePill}</td>
+						<td class="num mono">${c.side}</td>
+						<td class="num mono">${fmtPrice(c.entry_cents)}</td>
+						<td class="num mono">${fmtPrice(c.exit_cents)}</td>
+						<td class="num mono">${c.size}</td>
+						<td class="num mono ${pnlCls}"><strong>${fmtCentsShort(c.pnl_cents)}</strong></td>
+						<td class="num mono">${holdStr}</td>
+					</tr>`;
+				}).join("");
+			}
+
+			// ─── Render: position analytics ───
+			function renderAnalytics(closedAll) {
+				const closedOnly = closedAll.filter((c) => !c.still_open);
+				const winRateEl = document.getElementById("pos-win-rate");
+				const winRateSub = document.getElementById("pos-win-rate-sub");
+				const avgPnlEl = document.getElementById("pos-avg-pnl");
+				const avgPnlSub = document.getElementById("pos-avg-pnl-sub");
+				const avgHoldEl = document.getElementById("pos-avg-hold");
+				const avgHoldSub = document.getElementById("pos-avg-hold-sub");
+				const bestWorstEl = document.getElementById("pos-best-worst");
+				const bestWorstSub = document.getElementById("pos-best-worst-sub");
+
+				if (closedOnly.length === 0) {
+					winRateEl.textContent = "—";
+					winRateSub.textContent = "no closed positions";
+					avgPnlEl.textContent = "—";
+					avgPnlSub.textContent = "no closed positions";
+					avgHoldEl.textContent = "—";
+					avgHoldSub.textContent = "no closed positions";
+					bestWorstEl.textContent = "— / —";
+					bestWorstSub.textContent = "no closed positions";
+					return;
+				}
+				// Win rate
+				const wins = closedOnly.filter((c) => c.pnl_cents > 0).length;
+				const winRate = (wins / closedOnly.length * 100);
+				winRateEl.textContent = `${winRate.toFixed(0)}%`;
+				winRateSub.textContent = `${wins} / ${closedOnly.length} closed positions`;
+
+				// Avg PnL
+				const totalPnl = closedOnly.reduce((a, c) => a + c.pnl_cents, 0);
+				const avgPnl = totalPnl / closedOnly.length;
+				avgPnlEl.textContent = fmtCentsShort(avgPnl);
+				avgPnlEl.className = `kpi-num mono ${avgPnl > 0 ? "ok" : avgPnl < 0 ? "bad" : ""}`;
+				avgPnlSub.textContent = `total: ${fmtCentsShort(totalPnl)}`;
+
+				// Avg hold time
+				const holds = closedOnly.filter((c) => c.hold_ms != null).map((c) => c.hold_ms / 1000);
+				if (holds.length > 0) {
+					const avgHoldSec = holds.reduce((a, b) => a + b, 0) / holds.length;
+					avgHoldEl.textContent = fmtAge(avgHoldSec);
+					avgHoldSub.textContent = `${holds.length} positions`;
+				}
+
+				// Best / worst
+				const sortedByPnl = [...closedOnly].sort((a, b) => b.pnl_cents - a.pnl_cents);
+				const best = sortedByPnl[0];
+				const worst = sortedByPnl[sortedByPnl.length - 1];
+				bestWorstEl.textContent = `${fmtCentsShort(best.pnl_cents)} / ${fmtCentsShort(worst.pnl_cents)}`;
+				bestWorstEl.className = "kpi-num mono";
+				bestWorstSub.textContent = `${best.ticker} / ${worst.ticker}`;
+			}
+
+			// ─── Render: risk view ───
+			function renderRisk(openPositions, closedAll) {
+				const section = document.getElementById("risk-section");
+				if (openPositions.length === 0) {
+					section.hidden = true;
+					return;
+				}
+				section.hidden = false;
+				const bankrollCents = (window._lastBotStatus?.risk?.bankroll_cents) || 0;
+				// Concentration: largest as % of bankroll
+				let largestCents = 0;
+				for (const p of openPositions) {
+					const v = (p.mark_cents != null ? p.mark_cents : p.entry_cents) * (p.size || 1);
+					if (v > largestCents) largestCents = v;
+				}
+				const concPct = bankrollCents > 0 ? (largestCents / bankrollCents * 100) : 0;
+				document.getElementById("risk-concentration").textContent = `${concPct.toFixed(0)}%`;
+				document.getElementById("risk-concentration").className = `health-tile-val mono ${concPct > 50 ? "bad" : concPct > 25 ? "warn" : "ok"}`;
+				// Days in drawdown (since last positive unrealized PnL)
+				const totalUnrealized = openPositions.reduce((a, p) => a + (p.unrealized_pnl_cents || 0), 0);
+				const inDrawdown = totalUnrealized < 0;
+				// Days in drawdown isn't tracked per-position; show "—" for now
+				document.getElementById("risk-drawdown").textContent = inDrawdown ? "yes (open)" : "no";
+				document.getElementById("risk-drawdown").className = `health-tile-val mono ${inDrawdown ? "warn" : "ok"}`;
+				// Consec losses (from bot status)
+				const consec = (window._lastBotStatus?.risk?.consecutive_losses) ?? 0;
+				document.getElementById("risk-consec-losses").textContent = String(consec);
+				document.getElementById("risk-consec-losses").className = `health-tile-val mono ${consec >= 3 ? "bad" : consec >= 1 ? "warn" : "ok"}`;
+				// Per-vertical exposure
+				const byVert = new Map();
+				for (const p of openPositions) {
+					const v = p.vertical || "?";
+					if (!byVert.has(v)) byVert.set(v, 0);
+					byVert.set(v, byVert.get(v) + (p.mark_cents != null ? p.mark_cents : p.entry_cents) * (p.size || 1));
+				}
+				const totalExposure = [...byVert.values()].reduce((a, b) => a + b, 0);
+				const verticalsEl = document.getElementById("risk-verticals");
+				verticalsEl.innerHTML = `<div class="health-tickers-label" style="margin-top: 12px;">Per-vertical exposure</div>
+					<table class="tbl health-tickers-tbl">
+						<thead>
+							<tr>
+								<th>Vertical</th>
+								<th class="num">Exposure</th>
+								<th class="num">% total</th>
+								<th class="num">% bankroll</th>
+							</tr>
+						</thead>
+						<tbody>
+							${[...byVert.entries()].sort((a, b) => b[1] - a[1]).map(([v, e]) => {
+								const pctOfTotal = totalExposure > 0 ? (e / totalExposure * 100) : 0;
+								const pctOfBankroll = bankrollCents > 0 ? (e / bankrollCents * 100) : 0;
+								const concFlag = pctOfBankroll > 50 ? "bad" : pctOfBankroll > 25 ? "warn" : "";
+								return `<tr>
+									<td>${v}</td>
+									<td class="num mono">$${(e / 100).toFixed(2)}</td>
+									<td class="num mono">${pctOfTotal.toFixed(1)}%</td>
+									<td class="num mono ${concFlag}">${pctOfBankroll.toFixed(1)}%</td>
+								</tr>`;
+							}).join("")}
+						</tbody>
+					</table>`;
+			}
+
+			// ─── Risk toggle (collapsible) ───
+			const riskToggle = document.getElementById("risk-toggle");
+			const riskBody = document.getElementById("risk-body");
+			function setRiskOpen(open) {
+				if (!riskToggle || !riskBody) return;
+				riskBody.hidden = !open;
+				riskToggle.textContent = open ? "Hide details" : "Show details";
+				riskToggle.setAttribute("aria-expanded", open ? "true" : "false");
+				try { localStorage.setItem(RISK_OPEN_KEY, open ? "1" : "0"); } catch (_e) {}
+			}
+			riskToggle?.addEventListener("click", () => setRiskOpen(riskBody.hidden));
+			try {
+				setRiskOpen(localStorage.getItem(RISK_OPEN_KEY) === "1");
+			} catch (_e) {}
+
+			// ─── Main render loop ───
+			async function renderPositionsPage() {
+				const s = window._lastBotStatus;
+				const trades = await fetchTrades(50);
+				const summary = await fetchSummary();
+				window._lastSummary = summary;
+				const closedAll = deriveClosedPositions(trades);
+				const openPositions = (s?.risk?.open_positions) || [];
+				renderStatusHero(openPositions, closedAll);
+				renderExposureByVertical(openPositions);
+				renderOpenPositions(openPositions);
+				renderClosedPositions(closedAll);
+				renderAnalytics(closedAll);
+				renderRisk(openPositions, closedAll);
+			}
+
+			// ─── Wire into app.js ───
+			const _origInit = window.appPageInit;
+			window.appPageInit = function positionsPageInit() {
+				if (_origInit) _origInit();
+				startTimers([{ fn: renderPositionsPage, ms: 5000 }]);
+				renderPositionsPage();
+			};
+			window.appPageOnVisible = function () {
+				renderPositionsPage();
+			};
+		</script>
 	</body>
 </html>

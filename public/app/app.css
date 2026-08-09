@@ -2049,3 +2049,130 @@ footer {
   font-weight: 600;
 }
 .health-tickers-tbl th, .health-tickers-tbl td { font-size: 12px; }
+
+/* ─── Positions page v2 ─── */
+.pos-hero {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.04), transparent 50%);
+  border-color: var(--card-border);
+}
+.pos-hero[data-color="ok"] { border-color: rgba(16, 185, 129, 0.25); }
+.pos-hero[data-color="warn"] { border-color: rgba(245, 158, 11, 0.25); }
+.pos-hero[data-color="bad"] { border-color: rgba(239, 68, 68, 0.25); }
+
+.pos-hero-head {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) 2fr;
+  gap: 32px;
+  align-items: center;
+}
+.pos-hero-pnl { text-align: left; }
+.pos-hero-label {
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+.pos-hero-num {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.pos-hero-num.ok { color: var(--green); }
+.pos-hero-num.bad { color: var(--red); }
+.pos-hero-num.muted { color: var(--ink-faint); }
+.pos-hero-sub {
+  font-size: 12px;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+}
+.pos-hero-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (max-width: 880px) {
+  .pos-hero-head { grid-template-columns: 1fr; }
+}
+
+/* Exposure bars */
+.exposure-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+.exposure-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 100px 140px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.exposure-label {
+  font-weight: 500;
+  color: var(--ink);
+}
+.exposure-count {
+  color: var(--ink-faint);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  margin-left: 4px;
+}
+.exposure-bar-wrap {
+  background: var(--bg-0);
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+  height: 18px;
+  overflow: hidden;
+}
+.exposure-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.exposure-bar-ok { background: linear-gradient(90deg, var(--green), #34d399); }
+.exposure-bar-warn { background: linear-gradient(90deg, var(--amber), #fbbf24); }
+.exposure-bar-bad { background: linear-gradient(90deg, var(--red), #fca5a5); }
+.exposure-bar-muted { background: linear-gradient(90deg, #475569, #64748b); }
+.exposure-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: right;
+}
+.exposure-pct {
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-align: right;
+  font-family: var(--font-mono);
+}
+@media (max-width: 720px) {
+  .exposure-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .exposure-val, .exposure-pct { text-align: left; }
+}
+
+/* Positions table — sortable, action column */
+.positions-tbl th, .positions-tbl td { font-size: 12px; }
+.positions-tbl th { white-space: nowrap; }
+.positions-tbl td.num { font-variant-numeric: tabular-nums; }
+.pos-close-btn { font-size: 11px; padding: 3px 8px; }
+
+/* Analytics grid — 4 KPIs side by side */
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* Risk view — reuses health-grid, health-tile, health-tickers-tbl from Bot */
+.risk-card-head { flex-wrap: wrap; }
+.risk-verticals { margin-top: 4px; }
