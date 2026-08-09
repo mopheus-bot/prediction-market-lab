@@ -1480,10 +1480,12 @@ const BRAND_MONO_SVG = `
 const CF_ACCESS_TEAM_HOST = "wandering-river-109b.cloudflareaccess.com";
 
 // Post-logout landing page. Always the production public
-// landing — NOT the current host, so local dev / previews /
-// preview deploys still log the user out into the real
-// marketing site instead of a dead localhost or staging URL.
-const POST_LOGOUT_URL = "";
+// marketing site () — NOT the current host, so local
+// dev / previews / preview deploys still log the user out into
+// the real marketing landing instead of a dead localhost or
+// staging URL. The marketing site has the public-facing copy
+// + a sign-in button to come back in.
+const POST_LOGOUT_URL = "/";
 
 function signoutUrl() {
 	// The CF Access logout endpoint clears the CF_AppSession
