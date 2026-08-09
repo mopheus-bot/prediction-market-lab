@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="color-scheme" content="dark" />
+		<title>Trader — Cadence</title>
+		<meta name="description" content="Crons · costs · monthly limits · CF analytics." />
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
+		<link rel="stylesheet" href="app.css" />
+	</head>
+	<body>
+		<div class="app-shell">
+			<div class="app-section-header">
+				<h2>Cadence</h2>
+				<p>Crons · costs · monthly limits · CF analytics</p>
+			</div>
+
+			<!-- Cadence panel — every auto-running service -->
+			<section class="card" aria-labelledby="cadence-title" style="margin-bottom: 24px;">
+				<div class="card-title" id="cadence-title">
+					<span aria-hidden="true">⏱</span>
+					<span>Cadence</span>
+					<span class="muted mono" id="cadence-summary" style="margin-left: auto; font-size: 10px; letter-spacing: 0;">…</span>
+				</div>
+				<div class="card-blurb">The full automation pipeline. The WS is a single persistent connection to Kalshi that pushes orderbook + trade + ticker frames in real time. The 4 cron jobs fire on a schedule (scan every 15 min, news every 6h, daily 06:00 UTC, train + backtest weekly). LLM calls power the news + daily summaries. The model registry tracks which ML model is active per vertical. None of these need operator action — they all just run.</div>
+				<div class="cadence-grid" id="cadence-grid" role="list">
+					<div class="cadence-skeleton">Loading cadence…</div>
+				</div>
+			</section>
+
+			<!-- Daily recap + Cron runs -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Daily recap (today)</div>
+						<div class="card-blurb">Yesterday's summary. The daily cron writes this to R2 at 06:00 UTC every day, then posts a digest to Telegram.</div>
+						<div id="recap-body">
+							<div class="empty">no recap yet — runs at 06:00 UTC</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Cron runs (latest 10)</div>
+						<div class="card-blurb">4 scheduled jobs: scan (every 15min), news (every 6h), daily (06:00 UTC), train (Sunday 00:00 UTC). Status = success or error.</div>
+						<table class="tbl">
+							<thead>
+								<tr>
+									<th>Cron</th>
+									<th>Status</th>
+									<th>When</th>
+									<th class="num">ms</th>
+								</tr>
+							</thead>
+							<tbody id="cron-tbody">
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+
+			<!-- CF Workers Analytics -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span class="dot"></span>Cloudflare Workers usage (last 24h)
+							<a id="cf-dashboard-link" href="#" target="_blank" rel="noopener" style="margin-left:auto; font-size:11px; color: var(--accent); text-decoration:none;">open CF dashboard ↗</a>
+						</div>
+						<div class="card-blurb">How busy the bot is on Cloudflare's edge. Free up to 100K requests/day; we're nowhere near that.</div>
+						<div class="cf-stats" id="cf-stats">
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="cf-requests">—</div>
+								<div class="cf-stat-label">Requests</div>
+							</div>
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="cf-errors">—</div>
+								<div class="cf-stat-label">Errors</div>
+							</div>
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="cf-success">—</div>
+								<div class="cf-stat-label">Success rate</div>
+							</div>
+							<div class="cf-stat">
+								<div class="cf-stat-num" id="cf-subrequests">—</div>
+								<div class="cf-stat-label">Subrequests</div>
+							</div>
+						</div>
+						<div class="cf-chart" id="cf-chart">
+							<div class="empty">loading CF analytics…</div>
+						</div>
+						<div class="cf-foot" id="cf-foot"></div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Cost estimate -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span class="dot"></span>Cost (last 24h, estimated)
+							<a id="cost-cf-dashboard" href="#" target="_blank" rel="noopener" style="margin-left:auto; font-size:11px; color: var(--accent); text-decoration:none;">open CF billing ↗</a>
+						</div>
+						<div class="card-blurb">Estimates, not invoiced. Cloudflare covers free tier; MiniMax (LLM) is the only real cost. Confirm at the CF billing dashboard.</div>
+						<div class="cost-grid">
+							<div class="cost-card">
+								<div class="cost-num" id="cost-total">$—</div>
+								<div class="cost-label">Total today</div>
+								<div class="cost-sub" id="cost-monthly">≈ $—/mo</div>
+							</div>
+							<div class="cost-card">
+								<div class="cost-num" id="cost-cf">$—</div>
+								<div class="cost-label">Cloudflare</div>
+								<div class="cost-sub" id="cost-cf-detail">— requests · — errors</div>
+							</div>
+							<div class="cost-card">
+								<div class="cost-num" id="cost-mmx">$—</div>
+								<div class="cost-label">MMX (LLM)</div>
+								<div class="cost-sub" id="cost-mmx-detail">— calls · — in / — out tokens</div>
+							</div>
+						</div>
+						<div class="cost-foot" id="cost-foot">loading cost estimate…</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Monthly limits -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span aria-hidden="true">📊</span>
+							<span>Monthly limits</span>
+						</div>
+						<div class="card-blurb">Progress bars for the CF Workers Paid plan's monthly included amounts (10M requests, 30M CPU-ms, 100K D1 writes/day, 10GB R2). Resets on the CF billing cycle start date you signed up for Workers Paid. The 7d usage is extrapolated to a 30d window — not a perfect estimate but a useful one.</div>
+						<div class="monthly-limits" id="monthly-limits">loading…</div>
+					</div>
+				</div>
+			</section>
+
+			<footer style="text-align: center; padding: 24px; color: var(--ink-faint); font-size: 11px; font-family: var(--font-mono);">
+				auto-refresh · last fetched <span id="last-fetched">—</span>
+			</footer>
+		</div>
+
+		<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+		<script src="app.js"></script>
+	</body>
+</html>

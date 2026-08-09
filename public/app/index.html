@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="color-scheme" content="dark" />
+		<title>Trader — Dashboard</title>
+		<meta name="description" content="Live trading bot operator dashboard. Kalshi paper + real-money trading, CF Workers + D1 + R2." />
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
+		<link rel="stylesheet" href="app.css" />
+	</head>
+	<body>
+		<div class="app-shell">
+			<!-- Stage panel — single most important answer: what is the bot doing? -->
+			<section class="card stage-panel" id="stage-panel" data-color="warn" aria-labelledby="stage-panel-title">
+				<div class="stage-panel-head">
+					<div class="stage-panel-title-block">
+						<div class="card-title" id="stage-panel-title">
+							<span class="stage-panel-dot" id="stage-panel-dot"></span>
+							<span id="stage-panel-label">Connecting…</span>
+						</div>
+						<div class="stage-panel-desc" id="stage-panel-desc">Opening the WebSocket to Kalshi. This usually takes a few seconds.</div>
+					</div>
+					<div class="stage-panel-action" id="stage-panel-action"></div>
+				</div>
+			</section>
+
+			<!-- Hero overview: 4 stat cards -->
+			<section class="grid hero-grid" style="margin-bottom: 24px;">
+				<div class="stat-card stat-large">
+					<div class="stat-label">Account balance</div>
+					<div class="stat-num mono" id="hero-balance">$—</div>
+					<div class="stat-sub" id="hero-balance-sub">real money on Kalshi</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-label">Total PnL</div>
+					<div class="stat-num mono" id="hero-pnl-total">$0.00</div>
+					<div class="stat-sub">realized + unrealized</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-label">24h PnL</div>
+					<div class="stat-num mono" id="hero-pnl-24h">$0.00</div>
+					<div class="stat-sub" id="hero-pnl-24h-sub">—</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-label">Fees paid</div>
+					<div class="stat-num mono" id="hero-fees">$0.00</div>
+					<div class="stat-sub">Kalshi taker fees</div>
+				</div>
+			</section>
+
+			<!-- Per-vertical PnL + Last 5 trades -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Per-vertical PnL</div>
+						<div class="card-blurb">24h + lifetime realized PnL per vertical. Weather + economic have the reversion model; politics + sports on the naive baseline.</div>
+						<table class="tbl" id="vertical-tbl">
+							<thead>
+								<tr>
+									<th>Vertical</th>
+									<th class="num">24h PnL</th>
+									<th class="num">Lifetime PnL</th>
+									<th class="num">Trades</th>
+									<th class="num">Open</th>
+								</tr>
+							</thead>
+							<tbody id="vertical-tbody">
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Last 5 trades</div>
+						<div class="card-blurb">The 5 most recent Kalshi fills.</div>
+						<table class="tbl last-trades-tbl">
+							<thead>
+								<tr>
+									<th>When</th>
+									<th>Ticker</th>
+									<th>Side</th>
+									<th>Mode</th>
+									<th class="num">Price</th>
+									<th class="num">Size</th>
+									<th class="num">PnL</th>
+									<th></th>
+								</tr>
+							</thead>
+							<tbody id="last-trades-tbody">
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+								<tr class="skel-row"><td><span class="skel-bar s"></span></td><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+							</tbody>
+						</table>
+						<div style="margin-top: 12px; text-align: right;">
+							<a href="/app/trades" style="font-size: 12px; color: var(--accent-soft); text-decoration: none;">see all trades →</a>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Quick links -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Quick links</div>
+						<div class="quick-links">
+							<a href="/app/bot" class="quick-link">
+								<span class="quick-link-icon" aria-hidden="true">⚙</span>
+								<span class="quick-link-text">
+									<span class="quick-link-name">Bot</span>
+									<span class="quick-link-desc">Trading mode · kill switch · start/stop</span>
+								</span>
+							</a>
+							<a href="/app/positions" class="quick-link">
+								<span class="quick-link-icon" aria-hidden="true">📊</span>
+								<span class="quick-link-text">
+									<span class="quick-link-name">Positions</span>
+									<span class="quick-link-desc">Open positions · per-vertical · close manually</span>
+								</span>
+							</a>
+							<a href="/app/trades" class="quick-link">
+								<span class="quick-link-icon" aria-hidden="true">📜</span>
+								<span class="quick-link-text">
+									<span class="quick-link-name">Trades</span>
+									<span class="quick-link-desc">Trade history · signals · rationale</span>
+								</span>
+							</a>
+							<a href="/app/models" class="quick-link">
+								<span class="quick-link-icon" aria-hidden="true">🧠</span>
+								<span class="quick-link-text">
+									<span class="quick-link-name">Models</span>
+									<span class="quick-link-desc">Per-vertical model info · retrain</span>
+								</span>
+							</a>
+							<a href="/app/cadence" class="quick-link">
+								<span class="quick-link-icon" aria-hidden="true">⏱</span>
+								<span class="quick-link-text">
+									<span class="quick-link-name">Cadence</span>
+									<span class="quick-link-desc">Crons · costs · monthly limits</span>
+								</span>
+							</a>
+							<a href="/app/dev" class="quick-link">
+								<span class="quick-link-icon" aria-hidden="true">🔧</span>
+								<span class="quick-link-text">
+									<span class="quick-link-name">Dev</span>
+									<span class="quick-link-desc">API · env · manual actions</span>
+								</span>
+							</a>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<footer style="text-align: center; padding: 24px; color: var(--ink-faint); font-size: 11px; font-family: var(--font-mono);">
+				auto-refresh · last fetched <span id="last-fetched">—</span>
+			</footer>
+		</div>
+
+		<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+		<script src="app.js"></script>
+		<script>
+			// Dashboard: full default refresh cycle. Hero + stage +
+			// last trades + per-vertical are the page's focus; the
+			// cron / cost timers keep the cadence alive for any
+			// cross-page link navigation.
+		</script>
+	</body>
+</html>

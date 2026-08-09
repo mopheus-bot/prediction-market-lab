@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="color-scheme" content="dark" />
+		<title>Trader — Bot</title>
+		<meta name="description" content="Trading mode · kill switch · caps · per-vertical overrides." />
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
+		<link rel="stylesheet" href="app.css" />
+	</head>
+	<body>
+		<div class="app-shell">
+			<div class="app-section-header">
+				<h2>Bot</h2>
+				<p>Trading mode · kill switch · caps · per-vertical overrides</p>
+			</div>
+
+			<!-- Stage panel (live status) -->
+			<section class="card stage-panel" id="stage-panel" data-color="warn" aria-labelledby="stage-panel-title" style="margin-bottom: 24px;">
+				<div class="stage-panel-head">
+					<div class="stage-panel-title-block">
+						<div class="card-title" id="stage-panel-title">
+							<span class="stage-panel-dot" id="stage-panel-dot"></span>
+							<span id="stage-panel-label">Connecting…</span>
+						</div>
+						<div class="stage-panel-desc" id="stage-panel-desc">Opening the WebSocket to Kalshi. This usually takes a few seconds.</div>
+					</div>
+					<div class="stage-panel-action" id="stage-panel-action"></div>
+				</div>
+			</section>
+
+			<!-- Bot controls (Start/Stop/Restart) -->
+			<div class="controls" id="controls" style="margin-bottom: 24px; justify-content: flex-start;">
+				<button class="btn primary" id="btn-start">Start</button>
+				<button class="btn" id="btn-restart">Restart</button>
+				<button class="btn danger" id="btn-stop">Stop</button>
+			</div>
+
+			<!-- Trading mode + Caps + Kill switch -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-8">
+					<div class="card">
+						<div class="card-title">
+							<span class="dot"></span>Trading mode
+							<span class="pill paper" id="mode-pill">paper</span>
+						</div>
+						<div class="card-blurb">On Kalshi, a "fill" means the bot bought (or sold) a YES/NO contract at a market price. paper = log only, no real money. real = place actual orders on Kalshi's exchange. off = no new trades; the WS keeps streaming so you can see state. Kill switch is the panic button — flips the bot into a state where every new trade is rejected with reason "kill_switch_active".</div>
+						<div class="mode-buttons">
+							<button class="btn mode-btn" id="btn-pause" data-mode="off">
+								<span class="mode-num">1 · pause</span>
+								<span class="mode-name">Pause</span>
+								<span class="mode-desc">WS keeps running, no new trades. Use this to stop losses or step away.</span>
+							</button>
+							<button class="btn mode-btn active" id="btn-paper" data-mode="paper">
+								<span class="mode-num">2 · paper</span>
+								<span class="mode-name">Paper</span>
+								<span class="mode-desc">Signals + paper fills. No real money. Default mode.</span>
+							</button>
+							<button class="btn mode-btn primary" id="btn-live" data-mode="real">
+								<span class="mode-num">3 · real money</span>
+								<span class="mode-name">Go live</span>
+								<span class="mode-desc">Place real orders on Kalshi. Confirmation modal required.</span>
+							</button>
+						</div>
+						<div class="kill-row">
+							<button class="btn danger" id="btn-killswitch">
+								Kill switch
+								<span class="kill-state" id="kill-state">off</span>
+							</button>
+							<span class="kill-help">panic-stop: refuses all new trades immediately. No auto-close of open positions.</span>
+						</div>
+					</div>
+				</div>
+				<div class="col-4">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Caps & today</div>
+						<div class="card-blurb">Hard limits on Kalshi exposure. per-trade cap = max cents the bot will deploy on a single fill. Daily cap = max cents in any 24h rolling window. Per-vertical overrides let you tune each vertical independently.</div>
+						<div class="caps-row">
+							<div class="caps-label">Account balance</div>
+							<div class="caps-val" id="caps-balance">$—</div>
+						</div>
+						<div class="caps-row">
+							<div class="caps-label">Per-trade cap</div>
+							<div class="caps-val" id="caps-per-trade">$0.25</div>
+						</div>
+						<div class="caps-row">
+							<div class="caps-label">Daily deployed</div>
+							<div class="caps-val" id="caps-daily">$0.00 / $1.50</div>
+						</div>
+						<div class="caps-bar-wrap">
+							<div class="caps-bar" id="caps-bar" style="width: 0%"></div>
+						</div>
+						<div class="caps-row" style="margin-top: 12px;">
+							<div class="caps-label">Per-vertical overrides</div>
+							<div class="caps-val" id="per-vertical-caps" style="font-size: 11px; line-height: 1.5;"></div>
+						</div>
+						<div class="per-vertical-input-row" style="margin-top: 6px;">
+							<input
+								type="text"
+								id="per-vertical-input-name"
+								class="per-vertical-input"
+								placeholder="vertical (e.g. weather)"
+								aria-label="Per-vertical cap name"
+								style="flex: 1; min-width: 0;"
+							/>
+							<input
+								type="number"
+								id="per-vertical-input-cents"
+								class="per-vertical-input"
+								placeholder="¢/trade"
+								min="1"
+								max="999"
+								step="1"
+								aria-label="Per-vertical cap in cents"
+								style="width: 64px;"
+							/>
+							<button class="btn small" id="per-vertical-add-btn">Add</button>
+						</div>
+						<div class="caps-row" style="margin-top: 12px;">
+							<div class="caps-label">
+								Blocklist
+								<span class="muted" style="font-size:10px; font-weight: 400;">— tickers the bot will skip</span>
+							</div>
+							<div class="blocklist-wrap">
+								<div class="blocklist-tags" id="blocklist"></div>
+								<div class="blocklist-input-row">
+									<input
+										type="text"
+										id="blocklist-input"
+										class="blocklist-input"
+										placeholder="add ticker (e.g. KXWARMING-50)"
+										aria-label="Add ticker to blocklist"
+									/>
+									<button class="btn small" id="blocklist-add-btn">Add</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Go-live confirmation modal (chunk 9.6) -->
+			<div class="modal-back" id="modal-live-back">
+				<div class="modal">
+					<div class="modal-title">Go live with real money</div>
+					<div class="modal-warn">
+						⚠ This will place real orders on Kalshi using your prod credentials. The bot will respect the caps shown below. Open positions are NOT auto-closed.
+					</div>
+					<div class="modal-row">
+						<div class="modal-label">Account balance</div>
+						<div class="modal-val" id="modal-balance">$—</div>
+					</div>
+					<div class="modal-row">
+						<div class="modal-label">Per-trade cap</div>
+						<div class="modal-val" id="modal-per-trade">$0.25</div>
+					</div>
+					<div class="modal-row">
+						<div class="modal-label">Daily cap (24h)</div>
+						<div class="modal-val" id="modal-daily-cap">$1.50</div>
+					</div>
+					<div class="modal-row">
+						<div class="modal-label">Today's deployed</div>
+						<div class="modal-val" id="modal-today">$0.00 / $1.50</div>
+					</div>
+					<div class="modal-row">
+						<div class="modal-label">Kill switch</div>
+						<div class="modal-val" id="modal-kill">off</div>
+					</div>
+					<div class="modal-section">Last 5 trades (real + paper)</div>
+					<table class="tbl modal-tbl">
+						<tbody id="modal-trades-tbody">
+							<tr><td colspan="4" class="empty">no trades yet</td></tr>
+						</tbody>
+					</table>
+					<div class="modal-prompt">Type <code>LIVE</code> to confirm:</div>
+					<input type="text" id="modal-live-input" class="modal-input" placeholder="LIVE" autocomplete="off" />
+					<div class="modal-actions">
+						<button class="btn" id="modal-live-cancel">Cancel</button>
+						<button class="btn primary" id="modal-live-confirm" disabled>Go live (real money)</button>
+					</div>
+				</div>
+			</div>
+
+			<footer style="text-align: center; padding: 24px; color: var(--ink-faint); font-size: 11px; font-family: var(--font-mono);">
+				auto-refresh · last fetched <span id="last-fetched">—</span>
+			</footer>
+		</div>
+
+		<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+		<script src="app.js"></script>
+	</body>
+</html>

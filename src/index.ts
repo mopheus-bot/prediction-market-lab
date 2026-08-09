@@ -115,21 +115,64 @@ export default {
 			});
 		}
 
-		// ─── Dashboard: /pm/* → serve from public/ ──────────────────────
-		if (path === "/pm" || path === "/pm/" || path.startsWith("/pm/")) {
-			const assetPath =
-				path === "/pm" || path === "/pm/"
-					? "/index.html"
-					: path.replace(/^\/pm/, "") || "/index.html";
-			const assetUrl = new URL(assetPath, url);
-			const assetResp = await env.ASSETS.fetch(assetUrl);
+		// ─── Public marketing: / → landing page (chunk 11 SaaS refactor) ─
+		// The root is now a public marketing site (was: a JSON service
+		// banner). The dashboard moved to /app/*.
+		if (path === "/") {
+			return env.ASSETS.fetch(new URL("/index.html", url));
+		}
+
+		// ─── Login apex: /login → branded sign-in card → /app/ ─────────
+		// The actual auth is CF Access (email OTP). /login is a public
+		// marketing-style page that frames the sign-in flow with a
+		// branded card and a single "Continue with email" CTA.
+		if (path === "/login" || path === "/login/") {
+			return env.ASSETS.fetch(new URL("/login.html", url));
+		}
+
+		// ─── App: /app/* → 7 focused sub-pages (chunk 11 SaaS refactor) ─
+		// Replaces the old single-page /pm/ dashboard. The shell
+		// injects a top nav with 7 page links (Dashboard, Bot, Positions,
+		// Trades, Models, Cadence, Dev) and the active page is
+		// determined by the URL. Old /pm/* redirects to /app/* for
+		// backwards compat.
+		if (path === "/app" || path === "/app/" || path.startsWith("/app/")) {
+			let assetPath: string;
+			if (path === "/app" || path === "/app/") {
+				assetPath = "/app/index.html";
+			} else {
+				// /app/bot → /app/bot.html
+				const tail = path.replace(/^\/app\/?/, "") || "index";
+				assetPath = `/app/${tail}${tail.endsWith(".html") ? "" : ".html"}`;
+			}
+			const assetResp = await env.ASSETS.fetch(new URL(assetPath, url));
 			if (assetResp.status === 404) {
 				return jsonResponse(
-					{ ok: false, error: "not found", path },
+					{ ok: false, error: "not found", path, tried: assetPath },
 					404,
 				);
 			}
 			return assetResp;
+		}
+
+		// ─── Backwards compat: /pm/* → redirect to /app/* ──────────────
+		// Old single-page dashboard route. Redirects to the new app
+		// shell. Keep until 2026-12-31 to give any saved links time
+		// to update.
+		if (path === "/pm" || path === "/pm/" || path.startsWith("/pm/")) {
+			const newPath = path.replace(/^\/pm\/?/, "/app/") || "/app/";
+			return Response.redirect(newPath, 301);
+		}
+
+		// ─── Old static-asset fallback (chunk 0): direct file paths ────
+		// Pre-chunk-11 deployments served any file from public/ at
+		// `/<filename>`. The dashboard used to be at /index.html; now
+		// it's the landing page. Keep this fallback for any other
+		// static asset requests (favicons, robots.txt, etc.) — but
+		// guard against the old dashboard being served at the root.
+		if (path !== "/" && !path.startsWith("/api/")) {
+			const assetResp = await env.ASSETS.fetch(url);
+			if (assetResp.status !== 404) return assetResp;
 		}
 
 		// ─── API: /api/pm/bot/* → live bot DO (chunk 3) ─────────────────

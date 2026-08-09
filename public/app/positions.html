@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="color-scheme" content="dark" />
+		<title>Trader — Positions</title>
+		<meta name="description" content="Open positions · per-vertical PnL · manual close." />
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
+		<link rel="stylesheet" href="app.css" />
+	</head>
+	<body>
+		<div class="app-shell">
+			<div class="app-section-header">
+				<h2>Positions</h2>
+				<p>Open positions · per-vertical PnL · manual close</p>
+			</div>
+
+			<!-- Hero stats: total positions + total unrealized -->
+			<section class="grid hero-grid" style="margin-bottom: 24px;">
+				<div class="stat-card stat-large">
+					<div class="stat-label">Open positions</div>
+					<div class="stat-num mono" id="hero-pnl-total">0</div>
+					<div class="stat-sub">across 4 verticals</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-label">Unrealized PnL</div>
+					<div class="stat-num mono" id="hero-pnl-24h">$0.00</div>
+					<div class="stat-sub">marked to current mid</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-label">Per-vertical PnL (24h)</div>
+					<div class="stat-num mono" id="hero-fees">$0.00</div>
+					<div class="stat-sub">realized today</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-label">Lifetime PnL</div>
+					<div class="stat-num mono" id="hero-balance">$0.00</div>
+					<div class="stat-sub">all-time realized</div>
+				</div>
+			</section>
+
+			<!-- Open positions table -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Open positions</div>
+						<div class="card-blurb">Markets where the bot is currently holding a YES or NO position. Mark price = current mid-market. Unrealized PnL = (mark − entry) × size for YES, or (100 − entry − mark + 100) × size for NO, capped at the resolution value. Click <strong>close</strong> to exit at the current mark.</div>
+						<div id="positions-list" class="positions-list">
+							<div class="app-empty">
+								<div class="app-empty-icon">📈</div>
+								<div>no open positions</div>
+								<div class="app-empty-hint">positions appear when a signal turns into a fill</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Per-vertical PnL detail -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Per-vertical PnL</div>
+						<div class="card-blurb">24h + lifetime realized PnL per vertical. Weather + economic have the reversion model; politics + sports on the naive baseline.</div>
+						<table class="tbl" id="vertical-tbl">
+							<thead>
+								<tr>
+									<th>Vertical</th>
+									<th class="num">24h PnL</th>
+									<th class="num">Lifetime PnL</th>
+									<th class="num">Trades</th>
+									<th class="num">Open</th>
+								</tr>
+							</thead>
+							<tbody id="vertical-tbody">
+								<tr class="skel-row"><td><span class="skel-bar m"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td><td><span class="skel-bar s"></span></td></tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<div class="col-6">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Verticals — what's live, what strategy, how each is doing</div>
+						<div class="card-blurb">Toggle pauses signals on every ticker in that vertical. Strategy + ELI5 explain the rule the bot follows when a model fires.</div>
+						<div class="verticals-grid" id="verticals-grid">
+							<div class="vertical-card skel-card">
+								<div class="vertical-card-head">
+									<span class="vertical-emoji">·</span>
+									<span class="vertical-name skel-bar m"></span>
+									<span class="vertical-status skel-bar s"></span>
+								</div>
+								<div class="vertical-strategy skel-bar l"></div>
+								<div class="vertical-eli5 skel-bar l"></div>
+								<div class="vertical-stats">
+									<span class="skel-bar s"></span>
+									<span class="skel-bar s"></span>
+									<span class="skel-bar s"></span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<footer style="text-align: center; padding: 24px; color: var(--ink-faint); font-size: 11px; font-family: var(--font-mono);">
+				auto-refresh · last fetched <span id="last-fetched">—</span>
+			</footer>
+		</div>
+
+		<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+		<script src="app.js"></script>
+	</body>
+</html>

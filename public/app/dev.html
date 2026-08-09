@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="color-scheme" content="dark" />
+		<title>Trader — Dev</title>
+		<meta name="description" content="API endpoints · manual actions · raw state inspector." />
+		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
+		<link rel="stylesheet" href="app.css" />
+	</head>
+	<body>
+		<div class="app-shell">
+			<div class="app-section-header">
+				<h2>Dev</h2>
+				<p>API endpoints · manual actions · raw state · smoke tests</p>
+			</div>
+
+			<!-- Manual actions -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>Manual actions</div>
+						<div class="card-blurb">Side-effects that need a click. Each one fires a POST and shows the result in a toast. Use carefully — go-live places real orders, close-position exits at the current mark.</div>
+						<div class="dev-actions" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+							<button class="btn primary" data-action="/api/pm/bot/start">Start bot</button>
+							<button class="btn" data-action="/api/pm/bot/stop">Stop bot</button>
+							<button class="btn" data-action="/api/pm/bot/restart">Restart bot</button>
+							<button class="btn" data-action="/api/pm/bot/reload-models">Reload models</button>
+							<button class="btn" data-action="/api/pm/bot/auto-start">Auto-start</button>
+							<button class="btn" data-action="/api/pm/bot/telegram-test">Telegram test</button>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- API endpoints reference -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title"><span class="dot"></span>API endpoints</div>
+						<div class="card-blurb">Every endpoint exposed by the Worker. Read-only endpoints auto-refresh; write endpoints are above. Click a path to copy it.</div>
+						<div id="dev-endpoints">
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/status</span>
+								<span class="dev-endpoint-desc">Worker health (DB, R2, DO, asset binding)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/summary</span>
+								<span class="dev-endpoint-desc">Aggregate dashboard summary (counts, PnL, recap)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/bot/status</span>
+								<span class="dev-endpoint-desc">Live bot DO state (stage, config, risk)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/bot/stage</span>
+								<span class="dev-endpoint-desc">Just the stage panel data (fast)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/bot/balance</span>
+								<span class="dev-endpoint-desc">Live Kalshi account balance</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/trades</span>
+								<span class="dev-endpoint-desc">Recent trades (paginated, ?limit=N)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/signals</span>
+								<span class="dev-endpoint-desc">Recent signals (paginated, ?limit=N)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/scans</span>
+								<span class="dev-endpoint-desc">Latest scan results</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/cron-runs</span>
+								<span class="dev-endpoint-desc">Latest cron run results (last 10)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/cadence</span>
+								<span class="dev-endpoint-desc">Cadence panel (cron + model + WS + LLM)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/cf-analytics</span>
+								<span class="dev-endpoint-desc">CF Workers analytics (last 24h)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/cost</span>
+								<span class="dev-endpoint-desc">Cost estimate + monthly limits</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/verticals</span>
+								<span class="dev-endpoint-desc">Per-vertical PnL + open positions</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/models</span>
+								<span class="dev-endpoint-desc">List all models in registry</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method">GET</span>
+								<span class="dev-endpoint-path">/api/pm/models/active</span>
+								<span class="dev-endpoint-desc">Active model per vertical</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/start</span>
+								<span class="dev-endpoint-desc">Start the live bot</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/stop</span>
+								<span class="dev-endpoint-desc">Stop the live bot (WS disconnects)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/restart</span>
+								<span class="dev-endpoint-desc">Restart the live bot</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/reload-models</span>
+								<span class="dev-endpoint-desc">Reload model registry from R2</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/trading-mode</span>
+								<span class="dev-endpoint-desc">Set trading mode (paper/real/off)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/kill-switch</span>
+								<span class="dev-endpoint-desc">Toggle kill switch</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/place-test-order</span>
+								<span class="dev-endpoint-desc">Place a manual order (real money)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/close-position</span>
+								<span class="dev-endpoint-desc">Close an open position at current mark</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/cancel-order</span>
+								<span class="dev-endpoint-desc">Cancel a pending GTC order</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/auto-start</span>
+								<span class="dev-endpoint-desc">Idempotent start (no-op if already running)</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/bot/telegram-test</span>
+								<span class="dev-endpoint-desc">Send a test Telegram message</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/models/register</span>
+								<span class="dev-endpoint-desc">Register a new model version</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/models/promote</span>
+								<span class="dev-endpoint-desc">Promote a model to active</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/models/retire</span>
+								<span class="dev-endpoint-desc">Retire a model from active</span>
+							</div>
+							<div class="dev-endpoint">
+								<span class="dev-endpoint-method post">POST</span>
+								<span class="dev-endpoint-path">/api/pm/backtest/run</span>
+								<span class="dev-endpoint-desc">Run a backtest with current config</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Raw state inspector -->
+			<section class="grid" style="margin-bottom: 24px;">
+				<div class="col-12">
+					<div class="card">
+						<div class="card-title">
+							<span class="dot"></span>Raw state
+							<button class="btn small" id="dev-refresh" style="margin-left: auto;">Refresh all</button>
+						</div>
+						<div class="card-blurb">Live JSON for the read-only endpoints. Useful for debugging API issues without leaving the dashboard.</div>
+						<div class="dev-tabs" id="dev-tabs" style="display: flex; gap: 4px; flex-wrap: wrap; margin: 8px 0 12px;">
+							<button class="btn small active" data-target="dev-raw-status">status</button>
+							<button class="btn small" data-target="dev-raw-bot">bot/status</button>
+							<button class="btn small" data-target="dev-raw-stage">bot/stage</button>
+							<button class="btn small" data-target="dev-raw-balance">bot/balance</button>
+							<button class="btn small" data-target="dev-raw-verticals">verticals</button>
+							<button class="btn small" data-target="dev-raw-cron-runs">cron-runs</button>
+							<button class="btn small" data-target="dev-raw-cadence">cadence</button>
+						</div>
+						<pre class="dev-raw" id="dev-raw-status">loading…</pre>
+						<pre class="dev-raw" id="dev-raw-bot" style="display: none;">loading…</pre>
+						<pre class="dev-raw" id="dev-raw-stage" style="display: none;">loading…</pre>
+						<pre class="dev-raw" id="dev-raw-balance" style="display: none;">loading…</pre>
+						<pre class="dev-raw" id="dev-raw-verticals" style="display: none;">loading…</pre>
+						<pre class="dev-raw" id="dev-raw-cron-runs" style="display: none;">loading…</pre>
+						<pre class="dev-raw" id="dev-raw-cadence" style="display: none;">loading…</pre>
+					</div>
+				</div>
+			</section>
+
+			<footer style="text-align: center; padding: 24px; color: var(--ink-faint); font-size: 11px; font-family: var(--font-mono);">
+				auto-refresh · last fetched <span id="last-fetched">—</span>
+			</footer>
+		</div>
+
+		<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+		<script src="app.js"></script>
+		<script>
+			// Dev: focused refresh — just the read-only
+			// endpoints that feed the raw-state inspector.
+			// Manual actions are button-driven.
+			window.appPageInit = function devPageInit() {
+				const targets = {
+					"dev-raw-status": "/api/pm/status",
+					"dev-raw-bot": "/api/pm/bot/status",
+					"dev-raw-stage": "/api/pm/bot/stage",
+					"dev-raw-balance": "/api/pm/bot/balance",
+					"dev-raw-verticals": "/api/pm/verticals",
+					"dev-raw-cron-runs": "/api/pm/cron-runs?limit=10",
+					"dev-raw-cadence": "/api/pm/cadence",
+				};
+				async function refreshOne(id, path) {
+					const el = document.getElementById(id);
+					if (!el || el.classList.contains("__noop")) return;
+					try {
+						const r = await fetch(path, { credentials: "same-origin" });
+						const text = await r.text();
+						el.textContent = (r.ok ? JSON.stringify(JSON.parse(text), null, 2) : `HTTP ${r.status}\n${text}`);
+					} catch (e) {
+						el.textContent = `fetch failed: ${e.message}`;
+					}
+				}
+				async function refreshAll() {
+					for (const [id, path] of Object.entries(targets)) {
+						await refreshOne(id, path);
+					}
+					$("last-fetched").textContent = new Date().toLocaleTimeString();
+				}
+				// Tabs
+				document.getElementById("dev-tabs").addEventListener("click", (e) => {
+					const btn = e.target.closest("[data-target]");
+					if (!btn) return;
+					for (const t of document.querySelectorAll("#dev-tabs .btn")) t.classList.remove("active");
+					btn.classList.add("active");
+					for (const id of Object.keys(targets)) {
+						const el = document.getElementById(id);
+						if (el) el.style.display = id === btn.dataset.target ? "" : "none";
+					}
+				});
+				// Refresh button
+				$("dev-refresh").addEventListener("click", refreshAll);
+				// Manual action buttons
+				document.querySelectorAll("[data-action]").forEach((btn) => {
+					btn.addEventListener("click", async () => {
+						const path = btn.dataset.action;
+						btn.disabled = true;
+						const orig = btn.textContent;
+						btn.textContent = "...";
+						try {
+							const r = await fetch(path, { method: "POST", credentials: "same-origin" });
+							const text = await r.text();
+							toast(`${path} ${r.ok ? "✓" : "✗"}: ${text.slice(0, 200)}`, r.ok);
+						} catch (e) {
+							toast(`${path} failed: ${e.message}`, false);
+						} finally {
+							btn.disabled = false;
+							btn.textContent = orig;
+						}
+					});
+				});
+				// Endpoint paths: click to copy
+				document.querySelectorAll(".dev-endpoint-path").forEach((el) => {
+					el.style.cursor = "pointer";
+					el.title = "click to copy";
+					el.addEventListener("click", () => {
+						navigator.clipboard?.writeText(el.textContent);
+						toast(`copied: ${el.textContent}`);
+					});
+				});
+				// Initial + 10s refresh
+				refreshAll();
+				const t = setInterval(refreshAll, 10_000);
+				// Store timer for visibility-aware cleanup
+				window.__devTimer = t;
+			};
+			window.appPageOnVisible = function () {
+				document.getElementById("dev-refresh")?.click();
+				if (!window.__devTimer) {
+					window.__devTimer = setInterval(() => document.getElementById("dev-refresh")?.click(), 10_000);
+				}
+			};
+		</script>
+	</body>
+</html>
