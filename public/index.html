@@ -2900,7 +2900,7 @@
 					`${fmtNum(d.mmx.calls_24h)} calls · ${fmtNum(d.mmx.input_tokens_24h)} in / ${fmtNum(d.mmx.output_tokens_24h)} out tokens`;
 
 				// Chunk 10.5: monthly limits card.
-				renderMonthlyLimits(d.cf_monthly, d.fly_relay);
+				renderMonthlyLimits(d.cf_monthly, d.fly_relay, d.dashboard_url);
 
 				$("cost-cf-dashboard").href = d.dashboard_url;
 				const notesHtml = (d.notes || []).map((n) => `<li>${esc(n)}</li>`).join("");
@@ -2912,7 +2912,7 @@
 
 			// ─── Monthly limits (chunk 10.5) ───
 			// Two sections: CF (Workers Paid plan) + Fly.io (relay).
-			function renderMonthlyLimits(cf, fly) {
+			function renderMonthlyLimits(cf, fly, dashboardUrl) {
 				const container = $("monthly-limits");
 				if (!container) return;
 
@@ -2994,17 +2994,17 @@
 						<div class="monthly-bar-track">
 							<div class="monthly-bar-fill ${flyBarPct >= 90 ? "bar-err" : flyBarPct >= 70 ? "bar-warn" : "bar-ok"}" style="width: ${flyBarPct.toFixed(1)}%;"></div>
 						</div>
-						<div class="monthly-bar-detail">${fmtUsd(fly?.estimated_cost_month ?? 0)} / ${fmtUsd(fly?.price_per_month ?? 0)} this month · ${fly?.hours_this_month ?? 0}h</div>
+						<div class="monthly-bar-detail">$${(fly?.estimated_cost_month ?? 0).toFixed(2)} / $${(fly?.price_per_month ?? 0).toFixed(2)} this month · ${fly?.hours_this_month ?? 0}h</div>
 					</div>`;
 				const flyCreditBar = fly && (fly.free_credit_remaining_usd ?? 0) > 0
-					? `<div class="monthly-credit-row">${flyEmoji} status: <strong>${esc(flyStatusLabel[fly?.status] ?? "unknown")}</strong> · free credit remaining: <strong>${fmtUsd(fly.free_credit_remaining_usd)}</strong>${fly.notes?.length ? ` · <span class="muted">${esc(fly.notes[0])}</span>` : ""}</div>`
+					? `<div class="monthly-credit-row">${flyEmoji} status: <strong>${esc(flyStatusLabel[fly?.status] ?? "unknown")}</strong> · free credit remaining: <strong>$${fly.free_credit_remaining_usd.toFixed(2)}</strong>${fly.notes?.length ? ` · <span class="muted">${esc(fly.notes[0])}</span>` : ""}</div>`
 					: `<div class="monthly-credit-row">${flyEmoji} status: <strong>${esc(flyStatusLabel[fly?.status] ?? "unknown")}</strong>${fly.notes?.length ? ` · <span class="muted">${esc(fly.notes[0])}</span>` : ""}</div>`;
 
 				container.innerHTML = `
 					<div class="monthly-section">
 						<div class="monthly-section-head">
 							<span class="monthly-section-title">Cloudflare Workers Paid</span>
-							<a class="muted" href="${esc(d.dashboard_url ?? "#")}" target="_blank" rel="noopener">open CF dashboard ↗</a>
+							<a class="muted" href="${esc(dashboardUrl ?? "#")}" target="_blank" rel="noopener">open CF dashboard ↗</a>
 						</div>
 						${cfResetInfo}
 						<div class="monthly-bars">${cfBars}</div>
@@ -3012,7 +3012,7 @@
 					<div class="monthly-section">
 						<div class="monthly-section-head">
 							<span class="monthly-section-title">Fly.io relay</span>
-							<a class="muted" href="https://fly.io/dashboard/${esc(d.fly_relay?.plan ? "pm-bot-relay" : "")}" target="_blank" rel="noopener">open Fly.io dashboard ↗</a>
+							<a class="muted" href="https://fly.io/dashboard/${esc(fly ? "pm-bot-relay" : "")}" target="_blank" rel="noopener">open Fly.io dashboard ↗</a>
 						</div>
 						${flyBar}
 						${flyCreditBar}
