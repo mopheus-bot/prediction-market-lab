@@ -171,12 +171,15 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 			env.DB ? cronRunsDb.lastRun(env.DB, name, user_id).catch(() => null) : Promise.resolve(null),
 		),
 	);
-	const cronByName: Record<string, CronRunRow | null> = {
-		scan: cronRows[0] ?? null,
-		news: cronRows[1] ?? null,
-		daily: cronRows[2] ?? null,
-		train: cronRows[3] ?? null,
-	};
+	// Build cronByName dynamically so adding a new cron
+	// to cronJobs doesn't require a parallel edit here.
+	// (The previous hardcoded-by-index version broke when
+	// heartbeat was added — train was reading heartbeat's
+	// row and heartbeat showed 'never run'.)
+	const cronByName: Record<string, CronRunRow | null> = {};
+	for (let i = 0; i < cronJobs.length; i += 1) {
+		cronByName[cronJobs[i]] = cronRows[i] ?? null;
+	}
 
 	// Pull latest LLM call.
 	const latestLlm = env.DB
