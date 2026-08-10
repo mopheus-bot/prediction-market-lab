@@ -22,6 +22,15 @@ export const DEFAULT_DRAWDOWN_PAUSE_PCT = 0.10;
 export const DEFAULT_DRAWDOWN_PAUSE_TICKS = 86_400; // 24h @ 1 tick/s
 export const DEFAULT_LOSS_STREAK_LIMIT = 3;
 export const DEFAULT_LOSS_STREAK_COOLDOWN_TICKS = 3_600; // 1h @ 1 tick/s
+// 2026-08-10: per-trade notional cap (cents). Was previously
+// only enforced in the /place-test-order endpoint, not in
+// the risk engine. Without this, the signal-driven path
+// would size to bankroll_pct even when the cap was tighter
+// — the LLMOpinionSignal with cap=25c at price=78c would
+// be sized to 128 contracts (9984c notional), 400x the cap.
+// Now enforced in canOpenPosition: size is clamped to
+// floor(cap / entryPrice), so the cap wins.
+export const DEFAULT_MAX_NOTIONAL_CENTS_PER_TRADE = 25;
 
 export interface RiskConfig {
 	starting_bankroll_cents: number;
@@ -33,6 +42,11 @@ export interface RiskConfig {
 	loss_streak_limit: number;
 	loss_streak_cooldown_ticks: number;
 	max_contracts_per_trade: number | null;
+	/** 2026-08-10: hard cap on per-trade notional in cents.
+	 *  Size is clamped to floor(cap / entry_price). The /place-test-order
+	 *  endpoint enforces this against the operator-supplied
+	 *  size; the signal-driven path now does the same. */
+	max_notional_cents_per_trade: number;
 }
 
 export function defaultRiskConfig(): RiskConfig {
@@ -46,6 +60,7 @@ export function defaultRiskConfig(): RiskConfig {
 		loss_streak_limit: DEFAULT_LOSS_STREAK_LIMIT,
 		loss_streak_cooldown_ticks: DEFAULT_LOSS_STREAK_COOLDOWN_TICKS,
 		max_contracts_per_trade: null,
+		max_notional_cents_per_trade: DEFAULT_MAX_NOTIONAL_CENTS_PER_TRADE,
 	};
 }
 
@@ -95,6 +110,11 @@ export function validateRiskConfig(cfg: RiskConfig): void {
 	if (cfg.max_contracts_per_trade !== null && cfg.max_contracts_per_trade < 1) {
 		throw new Error(
 			`max_contracts_per_trade must be >= 1 when set, got ${cfg.max_contracts_per_trade}`,
+		);
+	}
+	if (cfg.max_notional_cents_per_trade < 1) {
+		throw new Error(
+			`max_notional_cents_per_trade must be >= 1, got ${cfg.max_notional_cents_per_trade}`,
 		);
 	}
 }

@@ -175,7 +175,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	// Filter to the bot's universe in the WHERE clause so
 	// tickers that haven't been written recently (and would
 	// otherwise fall off a limit=100 sort) still surface.
-	const placeholders = tickers.map((_, i) => `?${i + 3}`).join(",");
+	const placeholders = tickers.map((_, i) => `?${i + 2}`).join(",");
 	const latestRows = await env.DB
 		.prepare(
 			`SELECT * FROM (

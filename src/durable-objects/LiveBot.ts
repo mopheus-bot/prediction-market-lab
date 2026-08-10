@@ -500,9 +500,20 @@ export class LiveBot implements DurableObject {
 	}
 
 	private makeRiskEngine(state: LiveBotState): RiskEngine {
-		const cfg = this.env.RISK_CONFIG_OVERRIDE
+		// 2026-08-10: pull the per-trade notional cap from
+		// state.config so the engine enforces the operator's
+		// configured limit. Previously the cap was only on
+		// /place-test-order, so signal-driven trades ignored
+		// it. Now size is clamped to floor(cap / entryPrice)
+		// in computeSize, and the cap is sourced from the
+		// state — set via /start `max_notional_cents_per_trade`.
+		const base = this.env.RISK_CONFIG_OVERRIDE
 			? JSON.parse(this.env.RISK_CONFIG_OVERRIDE) as RiskConfig
 			: defaultRiskConfig();
+		const cfg: RiskConfig = {
+			...base,
+			max_notional_cents_per_trade: state.config.max_notional_cents_per_trade,
+		};
 		return new RiskEngine({ config: cfg, state: state.risk_state });
 	}
 

@@ -130,8 +130,20 @@ export class RiskEngine {
 		const capCents = Math.floor(
 			this._config.max_per_market_pct * this._state.bankroll_cents,
 		);
+		// 2026-08-10: per-trade notional cap. Was previously
+		// only enforced in /place-test-order. The signal-driven
+		// path used `bankroll_pct` alone, so the bot would
+		// size to the full bankroll% even when the per-trade
+		// cap was tighter. Now we clamp size to floor(cap/price)
+		// so the per-trade cap is the hard limit on a single
+		// fill's notional. With cap=25c and price=78c, the
+		// computed size is 0 (rejected) — the cap blocks all
+		// trades on markets priced above the cap. Operators
+		// bump the cap via /start `max_notional_cents_per_trade`.
+		const perTradeCapCents = this._config.max_notional_cents_per_trade;
+		const perTradeCapSize = Math.floor(perTradeCapCents / entryPrice);
 		const maxCents = Math.min(targetCents, capCents);
-		let size = Math.floor(maxCents / entryPrice);
+		let size = Math.min(Math.floor(maxCents / entryPrice), perTradeCapSize);
 		if (this._config.max_contracts_per_trade !== null) {
 			size = Math.min(size, this._config.max_contracts_per_trade);
 		}

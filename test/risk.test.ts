@@ -80,28 +80,50 @@ describe("RiskState", () => {
 
 describe("RiskEngine — sizing", () => {
 	it("1% of bankroll, capped at 5% per market", () => {
-		const eng = makeEngine();
+		// 2026-08-10: bump the per-trade cap above the
+		// bankroll% so this test exercises the bankroll%
+		// path (the per-trade cap is a separate, stricter
+		// limit; tested below).
+		const eng = makeEngine({ max_notional_cents_per_trade: 50_000 });
 		// 1% of 1,000,000 = 10,000c; at 50c entry = 200 contracts.
 		expect(eng.computeSize(50)).toBe(200);
 		// At 90c entry: 10,000 / 90 = 111 contracts.
 		expect(eng.computeSize(90)).toBe(111);
 	});
 
+	it("per-trade notional cap clamps size to floor(cap/price)", () => {
+		// 2026-08-10: the new per-trade cap is enforced
+		// in computeSize. With cap=25c and price=78c, the
+		// computed size is 0 (rejected). With cap=100c
+		// and price=78c, size = 1.
+		const tight = makeEngine({ max_notional_cents_per_trade: 25 });
+		expect(tight.computeSize(78)).toBe(0);
+		expect(tight.computeSize(99)).toBe(0);
+		const loose = makeEngine({ max_notional_cents_per_trade: 100 });
+		expect(loose.computeSize(78)).toBe(1);
+		expect(loose.computeSize(50)).toBe(2);
+		const wider = makeEngine({ max_notional_cents_per_trade: 1000 });
+		// 1000c cap at 78c = 12 contracts; bankroll% would
+		// allow 128 contracts; per-trade cap is the
+		// binding limit.
+		expect(wider.computeSize(78)).toBe(12);
+	});
+
 	it("size 0 for invalid prices", () => {
-		const eng = makeEngine();
+		const eng = makeEngine({ max_notional_cents_per_trade: 50_000 });
 		expect(eng.computeSize(0)).toBe(0);
 		expect(eng.computeSize(100)).toBe(0);
 		expect(eng.computeSize(101)).toBe(0);
 	});
 
 	it("size 0 when bankroll is zero", () => {
-		const eng = makeEngine();
+		const eng = makeEngine({ max_notional_cents_per_trade: 50_000 });
 		eng.state.bankroll_cents = 0;
 		expect(eng.computeSize(50)).toBe(0);
 	});
 
 	it("max_contracts_per_trade caps the size", () => {
-		const eng = makeEngine({ max_contracts_per_trade: 5 });
+		const eng = makeEngine({ max_contracts_per_trade: 5, max_notional_cents_per_trade: 50_000 });
 		// Without cap, would be 200 contracts at 50c on $10K.
 		expect(eng.computeSize(50)).toBe(5);
 	});
@@ -124,7 +146,9 @@ describe("RiskEngine — canOpenPosition", () => {
 	});
 
 	it("allows a fresh entry on a fresh market", () => {
-		const eng = makeEngine();
+		// 2026-08-10: bump the per-trade cap so size > 0
+		// at price=50c (default 25c cap → size=0).
+		const eng = makeEngine({ max_notional_cents_per_trade: 50_000 });
 		const d = eng.canOpenPosition("KXWARMING-50", 50, 0);
 		expect(d.allowed).toBe(true);
 		expect(d.size).toBeGreaterThan(0);
