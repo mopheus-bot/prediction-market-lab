@@ -562,6 +562,191 @@ export function checkUniverseHealth(
 	return { valid, expired };
 }
 
+// ─── Snapshot-backed scout (2026-08-10) ─────────────────────────
+
+/** 2026-08-10: leads-cron can use the research-cron's
+ *  `live_market_snapshots` table as its market-list source
+ *  instead of making its own Kalshi calls.
+ *
+ *  **Why:** the research-cron already polls Kalshi every 15 min,
+ *  GETs the real orderbook, and writes to D1. The leads-cron
+ *  was duplicating that work — separate Kalshi calls = another
+ *  rate-limit consumer (we hit 429s in production). Reading
+ *  from snapshots = single source of truth + zero extra Kalshi
+ *  calls.
+ *
+ *  **Tradeoff:** the snapshot only contains markets the
+ *  research-cron has *recently seen as live*. Dormant markets
+ *  (no bid/ask in the last 2h) won't show up. For lead
+ *  generation that's the right cut — we don't want to suggest
+ *  markets the bot can't trade.
+ *
+ *  **Format:** produces a ScoutResult-compatible object so
+ *  `formatScoutForPrompt` + `checkUniverseHealth` work without
+ *  any changes downstream.
+ *
+ *  The snapshot table doesn't have a `vertical` column;
+ *  we re-classify via `classifyByEventTicker` (the same
+ *  prefix rules `classifyVertical` uses for KalshiMarket,
+ *  split out for re-use).
+ *
+ *  Returns `{ ok: false }` if the snapshot table is empty or
+ *  stale; the caller should fall back to the live Kalshi path.
+ */
+export interface SnapshotScoutEnv {
+	db: D1Database;
+	user_id: string;
+	/** Max age of snapshot rows to consider, in ms. Default 2h
+	 *  (matches the research-cron's retention window). */
+	maxAgeMs?: number;
+	/** Cap on the LLM-facing list. Default 15. */
+	maxForLlm?: number;
+}
+
+interface SnapshotRow {
+	ticker: string;
+	event_ticker: string | null;
+	title: string | null;
+	yes_bid_cents: number;
+	yes_ask_cents: number;
+	last_price_cents: number | null;
+	volume_24h: number | null;
+	open_interest: number | null;
+	is_live: number;
+	close_time: string | null;
+	ts: number;
+}
+
+/** Public so tests can call it directly. */
+export function classifyByEventTicker(
+	eventTicker: string | null | undefined,
+	title: string | null | undefined,
+): Vertical | null {
+	const et = eventTicker ?? "";
+	if (CROSS_CATEGORY_RE.test(et)) return null;
+	for (const v of ["weather", "economic", "politics", "sports"] as const) {
+		for (const re of VERTICAL_PREFIXES[v]) {
+			if (re.test(et)) return v;
+		}
+	}
+	const t = title ?? "";
+	for (const v of ["weather", "economic", "politics", "sports"] as const) {
+		if (TITLE_FALLBACK[v].test(t)) return v;
+	}
+	return null;
+}
+
+export async function buildScoutFromSnapshots(
+	env: SnapshotScoutEnv,
+): Promise<ScoutResult> {
+	const maxAgeMs = env.maxAgeMs ?? 2 * 60 * 60 * 1000;
+	const maxForLlm = env.maxForLlm ?? 15;
+	const cutoff = Date.now() - maxAgeMs;
+
+	// Pull the latest snapshot per ticker from the last 2h.
+	// Window function trick so we don't have to do N+1 queries.
+	const rows = await env.db
+		.prepare(
+			`SELECT * FROM (
+			  SELECT *, ROW_NUMBER() OVER (
+			    PARTITION BY ticker ORDER BY ts DESC
+			  ) AS rn
+			  FROM live_market_snapshots
+			  WHERE user_id = ?1 AND ts >= ?2
+			) WHERE rn = 1`,
+		)
+		.bind(env.user_id, cutoff)
+		.all<SnapshotRow & { rn: number }>();
+
+	const results = rows.results ?? [];
+	if (results.length === 0) {
+		return {
+			markets: [],
+			markets_for_llm: [],
+			by_ticker: new Map(),
+			all_markets: [],
+			total_scanned: 0,
+			fetched_at: Date.now(),
+			ok: false,
+			error: "no snapshots in last 2h (research-cron hasn't run yet?)",
+		};
+	}
+
+	// Build ScoutedMarket objects + classify vertical.
+	const byVertical: Record<Vertical, ScoutedMarket[]> = {
+		weather: [],
+		economic: [],
+		politics: [],
+		sports: [],
+	};
+	for (const row of results) {
+		const vertical = classifyByEventTicker(row.event_ticker, row.title);
+		if (vertical === null) continue; // cross-category or unmatched
+		const scouted: ScoutedMarket = {
+			ticker: row.ticker,
+			event_ticker: row.event_ticker,
+			title: row.title ?? row.ticker,
+			vertical,
+			yes_bid_cents: row.yes_bid_cents,
+			yes_ask_cents: row.yes_ask_cents,
+			last_price_cents: row.last_price_cents ?? 0,
+			volume_24h: row.volume_24h ?? 0,
+			open_interest: row.open_interest ?? 0,
+			is_live: (row.is_live === 1 ? 1 : 0) as 0 | 1,
+			close_time: row.close_time,
+			expiration_time: null,
+		};
+		byVertical[vertical].push(scouted);
+	}
+
+	// Rank each vertical by liquidity (vol_24h + OI * 5) and
+	// take the top MAX_PER_VERTICAL.
+	const filtered: ScoutedMarket[] = [];
+	for (const v of ["weather", "economic", "politics", "sports"] as const) {
+		const sorted = byVertical[v].sort(
+			(a, b) =>
+				b.volume_24h + b.open_interest * 5 -
+				(a.volume_24h + a.open_interest * 5),
+		);
+		filtered.push(...sorted.slice(0, MAX_PER_VERTICAL));
+	}
+
+	// Build the LLM-facing subset (filter out parlays, cap at maxForLlm).
+	const PARLAY_RE = /^KX(MVESPORTS|MVECROSSCATEGORY)/i;
+	const nonParlay = filtered.filter(
+		(m) => !PARLAY_RE.test(m.event_ticker ?? ""),
+	);
+	nonParlay.sort(
+		(a, b) =>
+			b.volume_24h + b.open_interest * 5 -
+			(a.volume_24h + a.open_interest * 5),
+	);
+	const marketsForLlm = nonParlay.slice(0, maxForLlm);
+
+	// by_ticker map for O(1) verification in the LLM's output.
+	const byTicker = new Map<string, ScoutedMarket>();
+	for (const m of filtered) byTicker.set(m.ticker, m);
+
+	// For checkUniverseHealth's universe-health check, we ALSO
+	// need a `all_markets` array with at least {ticker} on each
+	// entry. The original Kalshi-based scout sets
+	// `all_markets: KalshiMarket[]`; the universe-health check
+	// only reads `.ticker` off those, so we can build a stub.
+	const allMarketsLike: Array<{ ticker: string }> = filtered.map(
+		(m) => ({ ticker: m.ticker }),
+	);
+
+	return {
+		markets: filtered,
+		markets_for_llm: marketsForLlm,
+		by_ticker: byTicker,
+		all_markets: allMarketsLike as unknown as KalshiMarket[],
+		total_scanned: results.length,
+		fetched_at: Date.now(),
+		ok: true,
+	};
+}
+
 // ─── Format helpers ─────────────────────────────────────────────
 
 /**

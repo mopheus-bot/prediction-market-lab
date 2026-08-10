@@ -55,10 +55,13 @@ export interface LLMOpinionForContext {
 }
 
 /** Confidence threshold below which the LLM verdict is ignored.
- *  0.5 means "the LLM has to be at least as confident as a
- *  coin flip" — below this, the signal is more likely to be
- *  noise than edge. Operators can tune per-vertical. */
-export const DEFAULT_MIN_CONFIDENCE = 0.5;
+ *  0.6 means "the LLM has to have a real lean, not just a
+ *  coin-flip slight" — at 0.5 the strategy was firing on
+ *  essentially any opinion, which produced a lot of marginal
+ *  trades that mostly got eaten by fees. Bumping to 0.6 cuts
+ *  the noise trades and lets the LLM's actual edges breathe.
+ *  Operators can tune per-vertical via LLMOpinionSignalOpts. */
+export const DEFAULT_MIN_CONFIDENCE = 0.6;
 
 /** Soft TTL for a verdict. Verdicts older than this are
  *  treated as stale and ignored. 1h is the default — the

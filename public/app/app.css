@@ -2138,6 +2138,12 @@ footer {
 .pos-hero[data-color="ok"] { border-color: rgba(16, 185, 129, 0.25); }
 .pos-hero[data-color="warn"] { border-color: rgba(245, 158, 11, 0.25); }
 .pos-hero[data-color="bad"] { border-color: rgba(239, 68, 68, 0.25); }
+/* 2026-08-10: live-mode tint on the dash hero. Mirrors the
+   banner's red treatment so the color story is consistent
+   across the dashboard. Off = muted. */
+.pos-hero[data-mode="real"] { border-color: rgba(239, 68, 68, 0.35); }
+.pos-hero[data-mode="real"] .kpi-card { border-color: rgba(239, 68, 68, 0.22); }
+.pos-hero[data-mode="off"] { opacity: 0.85; }
 
 .pos-hero-head {
   display: grid;

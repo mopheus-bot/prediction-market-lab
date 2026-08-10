@@ -418,13 +418,25 @@
 					summaryEl.textContent = "—";
 					return;
 				}
-				// Build cumulative PnL
-				const points = [];
-				let cum = 0;
-				for (const t of closed) {
-					cum += t.pnl_cents;
-					points.push({ ts: t.ts || 0, pnl: cum, trade: t });
-				}
+				// Build cumulative PnL — 2026-08-10: split by mode
+				// (paper vs real) so the chart shows two lines
+				// instead of one. Each line is its own cumulative
+				// sum, scaled to the shared y-axis. The combined
+				// total is still in the summary text below.
+				const paperTrades = closed.filter((t) => t.is_paper !== 0);
+				const realTrades = closed.filter((t) => t.is_paper === 0);
+				const cumulate = (ts) => {
+					const out = [];
+					let cum = 0;
+					for (const t of ts) {
+						cum += t.pnl_cents;
+						out.push({ ts: t.ts || 0, pnl: cum, trade: t });
+					}
+					return out;
+				};
+				const paperPoints = cumulate(paperTrades);
+				const realPoints = cumulate(realTrades);
+				const points = cumulate(closed); // combined for the y-scale
 				const minPnl = Math.min(0, ...points.map((p) => p.pnl));
 				const maxPnl = Math.max(0, ...points.map((p) => p.pnl));
 				const range = Math.max(1, maxPnl - minPnl);
@@ -436,17 +448,19 @@
 				const xOf = (ts) => PAD + ((ts - tMin) / tRange) * innerW;
 				const yOf = (pnl) => PAD + ((maxPnl - pnl) / range) * innerH;
 				const y0 = yOf(0);
-				// Build path
-				const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${xOf(p.ts).toFixed(1)},${yOf(p.pnl).toFixed(1)}`).join(" ");
-				const area = `${path} L${xOf(tMax).toFixed(1)},${y0.toFixed(1)} L${xOf(tMin).toFixed(1)},${y0.toFixed(1)} Z`;
+				// Helper: build a polyline path for a series.
+				const buildPath = (series) => series.map((p, i) => `${i === 0 ? "M" : "L"}${xOf(p.ts).toFixed(1)},${yOf(p.pnl).toFixed(1)}`).join(" ");
+				const paperPath = buildPath(paperPoints);
+				const realPath = buildPath(realPoints);
 				const finalPnl = points[points.length - 1].pnl;
+				const finalPaper = paperPoints.length > 0 ? paperPoints[paperPoints.length - 1].pnl : 0;
+				const finalReal = realPoints.length > 0 ? realPoints[realPoints.length - 1].pnl : 0;
 				const lineColor = finalPnl > 0 ? "var(--green)" : finalPnl < 0 ? "var(--red)" : "var(--ink-faint)";
-				const areaColor = finalPnl > 0 ? "rgba(16, 185, 129, 0.10)" : "rgba(239, 68, 68, 0.10)";
 
 				svg.innerHTML = `
 					<defs>
 						<linearGradient id="pnl-area-gradient" x1="0" y1="0" x2="0" y2="1">
-							<stop offset="0%" stop-color="${lineColor}" stop-opacity="0.3"/>
+							<stop offset="0%" stop-color="${lineColor}" stop-opacity="0.2"/>
 							<stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
 						</linearGradient>
 					</defs>
@@ -456,14 +470,37 @@
 					<text x="${PAD - 6}" y="${y0 + 3}" text-anchor="end" fill="var(--ink-faint)" font-size="10" font-family="ui-monospace, monospace">$0</text>
 					<text x="${PAD - 6}" y="${yOf(maxPnl) + 3}" text-anchor="end" fill="var(--green-soft, #34d399)" font-size="10" font-family="ui-monospace, monospace">+$${(maxPnl / 100).toFixed(0)}</text>
 					<text x="${PAD - 6}" y="${yOf(minPnl) + 3}" text-anchor="end" fill="var(--red-soft, #fca5a5)" font-size="10" font-family="ui-monospace, monospace">−$${(Math.abs(minPnl) / 100).toFixed(0)}</text>
-					<!-- Area fill -->
-					<path d="${area}" fill="url(#pnl-area-gradient)" />
-					<!-- Line -->
-					<path d="${path}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-					<!-- Points -->
-					${points.map((p) => `<circle cx="${xOf(p.ts).toFixed(1)}" cy="${yOf(p.pnl).toFixed(1)}" r="3" fill="${lineColor}" stroke="var(--bg-1)" stroke-width="1.5"><title>${escapeHtml(p.trade.ticker)} · ${fmtCents(p.pnl)}</title></circle>`).join("")}
+					<!-- Paper line (muted grey, thinner) — only draw if
+					     there are paper trades. -->
+					${paperPoints.length > 0 ? `
+						<path d="${paperPath}" fill="none" stroke="var(--ink-faint)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 3" opacity="0.7" />
+					` : ""}
+					<!-- Real line (red, solid, thicker) — only draw if
+					     there are real trades. The red is intentional:
+					     in live mode this is real money. -->
+					${realPoints.length > 0 ? `
+						<path d="${realPath}" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+					` : ""}
+					<!-- Per-mode points (small) for hover tooltips. -->
+					${paperPoints.map((p) => `<circle cx="${xOf(p.ts).toFixed(1)}" cy="${yOf(p.pnl).toFixed(1)}" r="2.5" fill="var(--ink-faint)" stroke="var(--bg-1)" stroke-width="1"><title>${escapeHtml(p.trade.ticker)} · paper · ${fmtCents(p.pnl)}</title></circle>`).join("")}
+					${realPoints.map((p) => `<circle cx="${xOf(p.ts).toFixed(1)}" cy="${yOf(p.pnl).toFixed(1)}" r="3" fill="var(--red)" stroke="var(--bg-1)" stroke-width="1.5"><title>${escapeHtml(p.trade.ticker)} · real · ${fmtCents(p.pnl)}</title></circle>`).join("")}
+					<!-- Legend in the top-right corner. -->
+					<g transform="translate(${W - PAD - 140}, ${PAD - 4})">
+						<rect x="0" y="-2" width="140" height="${realPoints.length > 0 && paperPoints.length > 0 ? 32 : 16}" rx="3" fill="var(--bg-1)" stroke="var(--card-border)" stroke-width="1" opacity="0.85"/>
+						${paperPoints.length > 0 ? `
+							<circle cx="10" cy="8" r="3" fill="var(--ink-faint)"/>
+							<text x="20" y="11" font-size="10" fill="var(--ink-muted)" font-family="ui-monospace, monospace">paper ${fmtCents(finalPaper)}</text>
+						` : ""}
+						${realPoints.length > 0 ? `
+							<circle cx="10" cy="24" r="3" fill="var(--red)"/>
+							<text x="20" y="27" font-size="10" fill="var(--ink-muted)" font-family="ui-monospace, monospace">real ${fmtCents(finalReal)}</text>
+						` : ""}
+					</g>
 				`;
-				summaryEl.textContent = `${closed.length} close${closed.length === 1 ? "" : "s"} · ${fmtCents(finalPnl)}`;
+				// Summary: combined total + the mode split so the
+				// operator can see paper vs real at a glance
+				// without hovering the chart.
+				summaryEl.textContent = `${closed.length} close${closed.length === 1 ? "" : "s"} · total ${fmtCents(finalPnl)} (paper ${fmtCents(finalPaper)}, real ${fmtCents(finalReal)})`;
 			}
 
 			// ─── Render: trade history table ───

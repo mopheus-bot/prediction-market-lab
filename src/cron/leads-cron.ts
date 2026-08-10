@@ -63,6 +63,7 @@ import { leadSuggestions as leadSuggestionsDb, llmCalls as llmCallsDb, signals a
 import { chat, DEFAULT_MODEL, type LLMEnv } from "../llm/index.js";
 import {
 	fetchAndFilterMarkets,
+	buildScoutFromSnapshots,
 	checkUniverseHealth,
 	formatScoutForPrompt,
 	type ScoutResult,
@@ -608,41 +609,78 @@ export async function runLeadsCron(env: LeadsCronEnv): Promise<CronResult> {
 	// key constraint for the LLM prompt — without it,
 	// the LLM hallucinates tickers (all 5 of the old
 	// prompt's suggestions were 404 on 2026-08-09).
+	//
+	// 2026-08-10: read from live_market_snapshots FIRST
+	// (the research-cron already polled Kalshi every 15min
+	// and wrote the data; no reason to duplicate the work).
+	// Fall back to a fresh Kalshi scan only if the snapshot
+	// table is empty / stale (research-cron hasn't run yet).
+	// This is the key rate-limit fix — leads-cron was a
+	// SECOND 6h Kalshi consumer on top of research-cron's
+	// 15min polls, and they kept hitting 429s together.
 	let scout: ScoutResult | null = null;
-	let kalshiClient: KalshiClient | null = null;
-	if (env.KALSHI_PROD_KEY_ID && env.KALSHI_PROD_PRIVATE_KEY) {
+	let scoutSource: "snapshots" | "kalshi" | "none" = "none";
+	if (env.DB) {
 		try {
-			const pk = await loadPrivateKey(env.KALSHI_PROD_PRIVATE_KEY);
-			const creds = new KalshiCredentials(env.KALSHI_PROD_KEY_ID, pk);
-			kalshiClient = new KalshiClient({
-				baseUrl: DEFAULT_PRODUCTION_BASE,
-				credentials: creds,
-				requestsPerSecond: 4,
+			const snap = await buildScoutFromSnapshots({
+				db: env.DB,
+				user_id: userId,
+				maxForLlm: 15,
 			});
+			if (snap.ok && snap.markets_for_llm.length > 0) {
+				scout = snap;
+				scoutSource = "snapshots";
+				console.log(
+					`[leads] scout from snapshots: ${snap.markets.length} vertical-matched, ${snap.markets_for_llm.length} for LLM`,
+				);
+			} else {
+				console.log(
+					`[leads] snapshot scout empty (${snap.error ?? "no markets"}); falling back to live Kalshi`,
+				);
+			}
 		} catch (e) {
-			console.warn("[leads] failed to load Kalshi prod creds, falling back to demo", e);
+			console.warn("[leads] snapshot scout threw; falling back to live Kalshi", e);
 		}
 	}
-	if (kalshiClient === null && env.KALSHI_DEMO_KEY_ID && env.KALSHI_DEMO_PRIVATE_KEY) {
-		try {
-			const pk = await loadPrivateKey(env.KALSHI_DEMO_PRIVATE_KEY);
-			const creds = new KalshiCredentials(env.KALSHI_DEMO_KEY_ID, pk);
-			kalshiClient = new KalshiClient({
-				baseUrl: "https://demo-api.kalshi.co/trade-api/v2",
-				credentials: creds,
-				requestsPerSecond: 4,
-			});
-		} catch (e) {
-			console.warn("[leads] failed to load Kalshi demo creds, scout disabled", e);
+	if (scout === null) {
+		let kalshiClient: KalshiClient | null = null;
+		if (env.KALSHI_PROD_KEY_ID && env.KALSHI_PROD_PRIVATE_KEY) {
+			try {
+				const pk = await loadPrivateKey(env.KALSHI_PROD_PRIVATE_KEY);
+				const creds = new KalshiCredentials(env.KALSHI_PROD_KEY_ID, pk);
+				kalshiClient = new KalshiClient({
+					baseUrl: DEFAULT_PRODUCTION_BASE,
+					credentials: creds,
+					requestsPerSecond: 4,
+				});
+			} catch (e) {
+				console.warn("[leads] failed to load Kalshi prod creds, falling back to demo", e);
+			}
 		}
-	}
-	if (kalshiClient !== null) {
-		scout = await fetchAndFilterMarkets({ kalshiClient });
-		if (!scout.ok) {
-			console.warn(`[leads] scout failed: ${scout.error}`);
+		if (kalshiClient === null && env.KALSHI_DEMO_KEY_ID && env.KALSHI_DEMO_PRIVATE_KEY) {
+			try {
+				const pk = await loadPrivateKey(env.KALSHI_DEMO_PRIVATE_KEY);
+				const creds = new KalshiCredentials(env.KALSHI_DEMO_KEY_ID, pk);
+				kalshiClient = new KalshiClient({
+					baseUrl: "https://demo-api.kalshi.co/trade-api/v2",
+					credentials: creds,
+					requestsPerSecond: 4,
+				});
+			} catch (e) {
+				console.warn("[leads] failed to load Kalshi demo creds, scout disabled", e);
+			}
 		}
-	} else {
-		console.warn("[leads] no Kalshi creds, scout disabled; LLM will run unfiltered");
+		if (kalshiClient !== null) {
+			const fetched = await fetchAndFilterMarkets({ kalshiClient });
+			if (fetched.ok) {
+				scout = fetched;
+				scoutSource = "kalshi";
+			} else {
+				console.warn(`[leads] Kalshi scout failed: ${fetched.error}`);
+			}
+		} else {
+			console.warn("[leads] no Kalshi creds and no snapshots, scout disabled; LLM will run unfiltered");
+		}
 	}
 
 	// 3. Build prompt.
@@ -808,6 +846,7 @@ export async function runLeadsCron(env: LeadsCronEnv): Promise<CronResult> {
 			unverified,
 			warnings,
 			scout_ok: scout?.ok ?? false,
+			scout_source: scoutSource, // "snapshots" | "kalshi" | "none"
 			scout_total_scanned: scout?.total_scanned ?? 0,
 			scout_filtered: scout?.markets.length ?? 0,
 			scout_error: scout && !scout.ok ? scout.error : null,

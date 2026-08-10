@@ -456,6 +456,46 @@ export const cronRuns = {
 			.bind(cron_name, user_id)
 			.first<CronRunRow>();
 	},
+
+	/** 2026-08-10: most recent ERROR run for a cron (optionally
+	 *  filtered to error messages matching a substring, e.g. "429"
+	 *  to ignore unrelated failures). Used by the scan-cron 429
+	 *  backoff so a successful "skipped" run doesn't reset the
+	 *  backoff clock — that was the bug where the backoff fired
+	 *  once, then the next attempt saw a successful row and
+	 *  re-tried Kalshi immediately.
+	 *
+	 *  Trace from the live data on 2026-08-10:
+	 *    id 397  13:46  error 429  (first 429)
+	 *    id 402  14:01  success "skipped: recent_429"  ← backoff worked
+	 *    id 406  14:16  error 429  ← BUG: lastRun was 402 (success), backoff bypassed
+	 *    id 411  14:31  success "skipped: recent_429"  ← backoff worked
+	 *    id 415  14:46  error 429  ← BUG: same
+	 *
+	 *  Fix: query `status='error'` rows specifically, not just the
+	 *  most recent run. */
+	async lastErrorRun(
+		db: D1Database,
+		cron_name: string,
+		user_id: string,
+		errorMessageContains?: string,
+	): Promise<CronRunRow | null> {
+		const sql = errorMessageContains
+			? `SELECT * FROM cron_runs
+				 WHERE cron_name = ?1 AND user_id = ?2
+				   AND status = 'error'
+				   AND error_message LIKE ?3
+				 ORDER BY ts DESC LIMIT 1`
+			: `SELECT * FROM cron_runs
+				 WHERE cron_name = ?1 AND user_id = ?2
+				   AND status = 'error'
+				 ORDER BY ts DESC LIMIT 1`;
+		const stmt = db.prepare(sql);
+		const res = errorMessageContains
+			? await stmt.bind(cron_name, user_id, `%${errorMessageContains}%`).first<CronRunRow>()
+			: await stmt.bind(cron_name, user_id).first<CronRunRow>();
+		return res ?? null;
+	},
 };
 
 // ─── llm_calls ──────────────────────────────────────────────────────────

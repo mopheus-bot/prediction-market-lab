@@ -31,16 +31,16 @@
 			<!-- ============================================ -->
 			<!-- FINANCIAL HERO                              -->
 			<!-- ============================================ -->
-			<section class="card pos-hero" id="dash-hero" data-color="ok" style="margin-bottom: 20px;">
+			<section class="card pos-hero" id="dash-hero" data-color="ok" data-mode="paper" style="margin-bottom: 20px;">
 				<div class="pos-hero-head">
 					<div class="pos-hero-pnl">
-						<div class="pos-hero-label">Realized PnL (today)</div>
+						<div class="pos-hero-label" id="dash-pnl-label">P/L today</div>
 						<div class="pos-hero-num mono" id="dash-pnl-today">$0.00</div>
 						<div class="pos-hero-sub" id="dash-pnl-today-sub">loading…</div>
 					</div>
 					<div class="pos-hero-kpis">
 						<div class="kpi-card">
-							<div class="kpi-label">Bankroll</div>
+							<div class="kpi-label" data-dash-kpi="bankroll-label">Bankroll</div>
 							<div class="kpi-num mono" id="dash-bankroll">—</div>
 							<div class="kpi-sub" id="dash-bankroll-sub">on Kalshi</div>
 						</div>
@@ -50,14 +50,14 @@
 							<div class="kpi-sub" id="dash-open-sub">unrealized PnL —</div>
 						</div>
 						<div class="kpi-card">
-							<div class="kpi-label">24h PnL</div>
+							<div class="kpi-label" data-dash-kpi="pnl-24h-label">24h PnL</div>
 							<div class="kpi-num mono" id="dash-pnl-24h">$0.00</div>
 							<div class="kpi-sub" id="dash-pnl-24h-sub">—</div>
 						</div>
 						<div class="kpi-card">
-							<div class="kpi-label">Fees paid</div>
+							<div class="kpi-label" data-dash-kpi="fees-label">Fees paid</div>
 							<div class="kpi-num mono" id="dash-fees">$0.00</div>
-							<div class="kpi-sub">Kalshi taker fees</div>
+							<div class="kpi-sub" id="dash-fees-sub">Kalshi taker fees</div>
 						</div>
 					</div>
 				</div>
@@ -274,7 +274,91 @@
 			}
 
 			// ─── Render: financial hero ───
-			function renderDashHero(d) {
+			// 2026-08-10 (v2): mode-aware. The 4 KPIs and the big
+			// PnL number all flip their labels per trading_mode so
+			// the operator never confuses paper with real money.
+			// Same KPI_COPY pattern as bot.html. PnL values are
+			// split paper/real on the spot from the trades we
+			// already fetch for the activity log.
+			// Mode copy table — must stay in sync with bot.html's
+			// KPI_COPY so the two pages read identically.
+			const DASH_KPI_COPY = {
+				bankroll: {
+					paper: { label: "Paper bankroll",   sub: "simulated capital" },
+					real:  { label: "Real bankroll",    sub: "real money on Kalshi" },
+					off:   { label: "Bankroll",         sub: "paused · no new trades" },
+				},
+				"pnl-24h": {
+					paper: { label: "Paper 24h PnL",    sub: "0 trades" },
+					real:  { label: "Real 24h PnL",     sub: "0 trades" },
+					off:   { label: "24h PnL",          sub: "paused" },
+				},
+				fees: {
+					paper: { label: "Paper fees paid",  sub: "simulated Kalshi fees" },
+					real:  { label: "Real fees paid",   sub: "Kalshi taker fees" },
+					off:   { label: "Fees paid",        sub: "paused" },
+				},
+				pnlToday: {
+					paper: "Paper P/L today",
+					real:  "Real P/L today",
+					off:   "P/L today (paused)",
+				},
+			};
+			// Cached trades for the hero's PnL split. 5s TTL.
+			let _dashTradesCache = { data: null, ts: 0 };
+			async function fetchDashTrades() {
+				const now = Date.now();
+				if (_dashTradesCache.data && now - _dashTradesCache.ts < 5_000) {
+					return _dashTradesCache.data;
+				}
+				try {
+					const r = await fetch("/api/pm/trades?limit=200", { credentials: "same-origin" });
+					if (!r.ok) return _dashTradesCache.data || [];
+					const d = await r.json();
+					_dashTradesCache = { data: d.trades || [], ts: now };
+					return _dashTradesCache.data;
+				} catch (_e) { return _dashTradesCache.data || []; }
+			}
+			function todayPnlByMode(trades, mode) {
+				// Sum of today's realized PnL for the current mode.
+				// "Today" = UTC midnight. Includes both paper and
+				// real; the split is the headline.
+				const isPaper = mode !== "real";
+				const dayStart = new Date();
+				dayStart.setUTCHours(0, 0, 0, 0);
+				const dayStartMs = dayStart.getTime();
+				let realized = 0;
+				let n = 0;
+				for (const t of trades) {
+					if ((t.is_paper === 0) === isPaper) continue;
+					if ((t.ts || 0) < dayStartMs) continue;
+					if (t.pnl_cents != null) {
+						realized += t.pnl_cents;
+						n += 1;
+					}
+				}
+				return { realized, n };
+			}
+			function applyDashModeCopy(mode) {
+				// Set the kpi-label text per mode. Sub-text is
+				// handled inline (it includes dynamic values like
+				// trade counts and portfolio dollars).
+				const set = (key, label) => {
+					const el = document.querySelector(`[data-dash-kpi="${key}-label"]`);
+					if (el) el.textContent = label;
+				};
+				set("bankroll", DASH_KPI_COPY.bankroll[mode].label);
+				set("pnl-24h", DASH_KPI_COPY["pnl-24h"][mode].label);
+				set("fees", DASH_KPI_COPY.fees[mode].label);
+				const pnlLabel = document.getElementById("dash-pnl-label");
+				if (pnlLabel) pnlLabel.textContent = DASH_KPI_COPY.pnlToday[mode];
+				// Tint the hero the same way bot.html's hero is
+				// tinted — live = red, paper = default, off = muted.
+				const heroEl = $("dash-hero");
+				if (heroEl) heroEl.setAttribute("data-mode", mode);
+			}
+
+			async function renderDashHero(d) {
 				const heroEl = $("dash-hero");
 				const pnlEl = $("dash-pnl-today");
 				const pnlSubEl = $("dash-pnl-today-sub");
@@ -285,52 +369,78 @@
 				const pnl24El = $("dash-pnl-24h");
 				const pnl24SubEl = $("dash-pnl-24h-sub");
 				const feesEl = $("dash-fees");
+				const feesSubEl = $("dash-fees-sub");
 
 				const status = d.status;
 				const summary = d.summary;
 				const balance = d.balance;
+				const mode = status?.config?.trading_mode || "paper";
 
-				// Today's PnL = realized (closed) + unrealized (open)
-				const realized = summary?.recap?.realized_cents ?? 0;
+				// Mode-aware labels FIRST, before the value writes.
+				applyDashModeCopy(mode);
+
+				// Fetch trades for the PnL split (cached 5s).
+				const trades = await fetchDashTrades();
+				const { realized: todayPaper, n: nPaperCloses } = todayPnlByMode(trades, "paper");
+				const { realized: todayReal, n: nRealCloses } = todayPnlByMode(trades, "real");
+				// Headline: the mode the bot is in.
+				const todayRealized = mode === "real" ? todayReal : todayPaper;
+				const todayCloses = mode === "real" ? nRealCloses : nPaperCloses;
+				const otherRealized = mode === "real" ? todayPaper : todayReal;
+
+				// Today's PnL = realized (closed) + unrealized (open).
+				// Unrealized is global (all open positions in the
+				// current mode); we treat it the same in both modes
+				// because there's no separate "paper unrealized" —
+				// positions are paper-or-real based on when they
+				// were opened, not what's in flight.
 				const unrealized = status?.risk?.total_unrealized_pnl_cents ?? 0;
-				const todayPnl = realized + unrealized;
+				const todayPnl = todayRealized + unrealized;
 				const pnlCls = todayPnl > 0 ? "ok" : todayPnl < 0 ? "bad" : "muted";
 				heroEl.setAttribute("data-color", pnlCls === "muted" ? "ok" : pnlCls);
 				pnlEl.textContent = fmtCents(todayPnl);
 				pnlEl.className = `pos-hero-num mono ${pnlCls === "muted" ? "" : pnlCls}`;
-				const nTrades = summary?.recap?.n_trades_24h ?? 0;
-				const nCloses = summary?.recap?.trades?.n_closes ?? 0;
-				pnlSubEl.textContent = nCloses > 0
-					? `${nCloses} closed · ${status?.risk?.open_positions?.length ?? 0} open · ${nTrades} trades 24h`
-					: `${status?.risk?.open_positions?.length ?? 0} open · ${nTrades} trades 24h`;
+				const nTrades24 = summary?.recap?.n_trades_24h ?? 0;
+				const nOpen = status?.risk?.open_positions?.length ?? 0;
+				// Sub: include the other mode's realized so the
+				// operator can see paper vs real at a glance,
+				// plus the open count and 24h trade count.
+				const otherPart = otherRealized === 0
+					? ""
+					: ` · other mode ${fmtCents(otherRealized)}`;
+				pnlSubEl.textContent = `${todayCloses} closed${otherPart} · ${nOpen} open · ${nTrades24} trades 24h`;
 
-				// Bankroll
+				// Bankroll — same field per mode; label/sub already
+				// flipped by applyDashModeCopy.
 				if (balance && balance.ok && balance.balance_dollars != null) {
 					bankrollEl.textContent = `$${balance.balance_dollars}`;
 					bankrollSubEl.textContent = balance.portfolio_value_dollars != null
 						? `portfolio $${balance.portfolio_value_dollars} on Kalshi`
-						: "on Kalshi";
+						: (mode === "paper" ? "simulated capital" : "on Kalshi");
 				} else {
 					bankrollEl.textContent = "—";
-					bankrollSubEl.textContent = "loading balance…";
+					bankrollSubEl.textContent = DASH_KPI_COPY.bankroll[mode].sub;
 				}
 
-				// Open positions
-				const openPositions = status?.risk?.open_positions ?? [];
-				openEl.textContent = String(openPositions.length);
-				openSubEl.textContent = openPositions.length === 0
-					? "none"
-					: `unrealized ${fmtCents(unrealized)}`;
+				// Open positions — no mode split (unrealized is global).
+				openEl.textContent = String(nOpen);
+				openSubEl.textContent = nOpen === 0 ? "none" : `unrealized ${fmtCents(unrealized)}`;
 
-				// 24h PnL
+				// 24h PnL — same field; sub flips per mode.
 				const pnl24 = summary?.recap?.last_24h_cents ?? 0;
 				pnl24El.textContent = fmtCents(pnl24);
 				pnl24El.className = `kpi-num mono ${pnl24 > 0 ? "ok" : pnl24 < 0 ? "bad" : ""}`;
-				pnl24SubEl.textContent = `${nTrades} trades`;
+				pnl24SubEl.textContent = `${nTrades24} trade${nTrades24 === 1 ? "" : "s"}`;
 
-				// Fees
+				// Fees — total_fees_cents is global. We don't
+				// currently split fees by mode in D1, so the
+				// number shown is "fees from the mode the bot
+				// is currently in" which is a fair approximation
+				// since the bot only generates fees in its
+				// current mode.
 				const feesCents = status?.counts?.total_fees_cents ?? 0;
 				feesEl.textContent = fmtCents(feesCents);
+				feesSubEl.textContent = DASH_KPI_COPY.fees[mode].sub;
 			}
 
 			// ─── Render: last 5 trades ───

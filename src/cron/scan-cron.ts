@@ -95,31 +95,35 @@ async function checkScanCache(
 	if (!db) return null;
 	const now = Date.now();
 
-	// Throttle check: was the most recent scan a 429 in the
-	// last backoffSec? If so, skip — Kalshi is already
-	// throttling us, more calls won't help.
+	// Throttle check: was there a 429 in the last backoffSec?
+	// If so, skip — Kalshi is already throttling us, more
+	// calls won't help.
 	//
-	// 2026-08-10: bug fix. The old code read `art.ok` and
-	// `art.error_message` from the artifacts_json blob, but
-	// the scan-cron's failure path returns
-	// `{ ok: false, error_message: "..." }` at the TOP
-	// level — `artifacts_json` is null on failure, so the
-	// check never fired and we 429'd on every run for
-	// hours. The fix: read status + error_message off the
-	// cron_runs row directly.
+	// 2026-08-10: bug fix. The original code looked at the
+	// MOST RECENT cron_run for `scan` — but a successful
+	// "skipped" run has status='success', so the next attempt
+	// saw a success row, the 429 check didn't fire, and the
+	// scan proceeded straight into a fresh 429. The pattern
+	// (every 15 min: 429 → skip → 429 → skip → 429) was the
+	// backoff clock resetting on every successful skip.
+	//
+	// Fix: query the MOST RECENT ERROR run specifically
+	// (cronRunsDb.lastErrorRun) so a success in between
+	// doesn't reset the backoff. The "throttle" persists
+	// until 1h after the actual last 429.
 	if (backoffSec > 0) {
-		const lastRun = await cronRunsDb.lastRun(db, "scan", DEFAULT_USER_ID);
-		if (lastRun && now - lastRun.ts < backoffSec * 1000) {
-			if (
-				lastRun.status === "error" &&
-				/429/.test(lastRun.error_message ?? "")
-			) {
-				return {
-					row: {},
-					candidates: [],
-					reason: `recent_429_within_${backoffSec}s`,
-				};
-			}
+		const lastError = await cronRunsDb.lastErrorRun(
+			db,
+			"scan",
+			DEFAULT_USER_ID,
+			"429",
+		);
+		if (lastError && now - lastError.ts < backoffSec * 1000) {
+			return {
+				row: {},
+				candidates: [],
+				reason: `recent_429_within_${backoffSec}s`,
+			};
 		}
 	}
 
