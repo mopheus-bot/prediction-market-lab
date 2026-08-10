@@ -68,6 +68,15 @@ export interface VerticalStrategyRouterOpts {
 	 *  are lower-vol than synthetic, so weather and sports
 	 *  routinely need 2% instead of 5% to fire at all. */
 	fade_thresholds?: Partial<Record<Vertical, number>>;
+	/** Per-vertical minimum absolute price move (cents) to
+	 *  fire the signal. Combined with `fade_thresholds` via
+	 *  OR: the signal fires when EITHER the percentage OR
+	 *  the absolute threshold is exceeded. Used for stable
+	 *  markets (e.g. KXWARMING-50 at 78¢) where a 1¢ move
+	 *  is meaningful absolute edge but well below any
+	 *  reasonable percentage threshold. 2026-08-10: lets
+	 *  the bot actually fire on KXWARMING-50's micro-moves. */
+	min_absolute_move_cents?: Partial<Record<Vertical, number>>;
 }
 
 /**
@@ -78,13 +87,15 @@ function defaultProfiles(
 	dev_min: number,
 	p_min: number,
 	fadeThresholds: Partial<Record<Vertical, number>> | undefined,
+	minAbs: Partial<Record<Vertical, number>> | undefined,
 ): Record<Vertical, VerticalProfile> {
 	const ft = (v: Vertical): number => fadeThresholds?.[v] ?? 0.05;
+	const ma = (v: Vertical): number => minAbs?.[v] ?? 0;
 	const profiles: Record<Vertical, VerticalProfile> = {
-		weather: [new NaiveSignal({ name: "naive_weather", fade_threshold: ft("weather") })],
-		economic: [new NaiveSignal({ name: "naive_economic", fade_threshold: ft("economic") })],
-		politics: [new NaiveSignal({ name: "naive_politics", fade_threshold: ft("politics") })],
-		sports: [new NaiveSignal({ name: "naive_sports", fade_threshold: ft("sports") })],
+		weather: [new NaiveSignal({ name: "naive_weather", fade_threshold: ft("weather"), min_absolute_move_cents: ma("weather") })],
+		economic: [new NaiveSignal({ name: "naive_economic", fade_threshold: ft("economic"), min_absolute_move_cents: ma("economic") })],
+		politics: [new NaiveSignal({ name: "naive_politics", fade_threshold: ft("politics"), min_absolute_move_cents: ma("politics") })],
+		sports: [new NaiveSignal({ name: "naive_sports", fade_threshold: ft("sports"), min_absolute_move_cents: ma("sports") })],
 	};
 	if (models?.reversion?.weather) {
 		profiles.weather = [
@@ -117,7 +128,13 @@ export class VerticalStrategyRouter implements SignalStrategy {
 	constructor(opts: VerticalStrategyRouterOpts = {}) {
 		const dev_min = opts.dev_min ?? 1.5;
 		const p_min = opts.p_min ?? 0.30;
-		const defaults = defaultProfiles(opts.models, dev_min, p_min, opts.fade_thresholds);
+		const defaults = defaultProfiles(
+			opts.models,
+			dev_min,
+			p_min,
+			opts.fade_thresholds,
+			opts.min_absolute_move_cents,
+		);
 		const merged: Record<string, VerticalProfile> = { ...defaults };
 		if (opts.profiles) {
 			for (const [vertical, profile] of Object.entries(opts.profiles)) {

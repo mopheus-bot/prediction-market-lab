@@ -111,6 +111,61 @@ describe("NaiveSignal", () => {
 		expect(wBig).not.toBeNull();
 		expect(sBig).not.toBeNull();
 	});
+
+	// 2026-08-10: min absolute move (cents). Lets the bot
+	// fire on stable markets where a 1¢ move is meaningful
+	// edge but well below any reasonable percentage threshold.
+	// KXWARMING-50 at 78¢ rarely moves 2% in 60 polls; a
+	// 1¢ move is the kind of micro-inefficiency the bot
+	// is designed to find.
+	it("fires on 1¢ absolute move when min_absolute_move_cents=1", () => {
+		const s = new NaiveSignal({ min_absolute_move_cents: 1 });
+		// 78c -> 79c = 1.3% move (above 1¢ absolute, below
+		// default 5% percentage). Should fire on absolute.
+		const sig = s.__call(ctx([78, 79]));
+		expect(sig).not.toBeNull();
+		expect(sig?.side).toBe("no");
+		expect(sig?.rationale).toContain("abs_up");
+	});
+
+	it("does NOT fire on sub-1¢ move at default thresholds", () => {
+		const s = new NaiveSignal({ min_absolute_move_cents: 1 });
+		expect(s.__call(ctx([78, 78]))).toBeNull();
+	});
+
+	it("rejects min_absolute_move_cents outside [0, 99]", () => {
+		expect(() => new NaiveSignal({ min_absolute_move_cents: -1 })).toThrow();
+		expect(() => new NaiveSignal({ min_absolute_move_cents: 100 })).toThrow();
+	});
+
+	it("OR-combines percentage and absolute thresholds", () => {
+		// 4% move (above 3% pct threshold) fires on pct.
+		const s1 = new NaiveSignal({ fade_threshold: 0.03, min_absolute_move_cents: 1 });
+		const sig1 = s1.__call(ctx([50, 52]));
+		expect(sig1).not.toBeNull();
+		expect(sig1?.rationale).toContain("fade");
+		// 1¢ move at 78¢ (1.3%, above 1¢ abs) fires on abs.
+		const s2 = new NaiveSignal({ fade_threshold: 0.05, min_absolute_move_cents: 1 });
+		const sig2 = s2.__call(ctx([78, 79]));
+		expect(sig2).not.toBeNull();
+		expect(sig2?.rationale).toContain("abs");
+		// 0.5¢ move (below both) does NOT fire.
+		const s3 = new NaiveSignal({ fade_threshold: 0.05, min_absolute_move_cents: 1 });
+		expect(s3.__call(ctx([78, 78]))).toBeNull();
+	});
+
+	it("per-vertical min_absolute_move_cents on the router", () => {
+		const router = new VerticalStrategyRouter({
+			fade_thresholds: { weather: 0.05, sports: 0.05 },
+			min_absolute_move_cents: { weather: 1, sports: 0 },
+		});
+		// 78c -> 79c fires on weather (1¢ abs) but not sports
+		// (no abs override; 1.3% is below 5% pct).
+		const wSig = router.__call(ctx([78, 79], "weather"));
+		expect(wSig).not.toBeNull();
+		const sSig = router.__call(ctx([78, 79], "sports"));
+		expect(sSig).toBeNull();
+	});
 });
 
 describe("VerticalStrategyRouter", () => {

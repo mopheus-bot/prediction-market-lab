@@ -43,23 +43,38 @@ export interface NaiveSignalOpts {
 	 *  the strategy would never fire. Pass a fraction (0.02
 	 *  = 2%, not 2 cents). */
 	fade_threshold?: number;
+	/** Minimum absolute price move (in cents) to fire on.
+	 *  The signal fires when EITHER the percentage threshold
+	 *  OR this absolute threshold is exceeded. Useful for
+	 *  stable markets (e.g. KXWARMING-50 at 78¢) where a 1¢
+	 *  move is 1.3% — both meaningful in absolute terms
+	 *  (entry edge) and would never hit a 5% percentage
+	 *  threshold. Pass 0 to disable (percentage only). */
+	min_absolute_move_cents?: number;
 }
 
 export class NaiveSignal implements SignalStrategy {
 	readonly name: string;
 	readonly size: number;
 	private readonly fade_threshold: number;
+	private readonly min_absolute_move_cents: number;
 
 	constructor(opts: NaiveSignalOpts = {}) {
 		this.size = opts.size ?? 1;
 		this.name = opts.name ?? "naive";
 		this.fade_threshold = opts.fade_threshold ?? FADE_THRESHOLD;
+		this.min_absolute_move_cents = opts.min_absolute_move_cents ?? 0;
 		if (this.size < 1) {
 			throw new Error(`size must be >= 1, got ${this.size}`);
 		}
 		if (this.fade_threshold <= 0 || this.fade_threshold > 1) {
 			throw new Error(
 				`fade_threshold must be in (0, 1], got ${this.fade_threshold}`,
+			);
+		}
+		if (this.min_absolute_move_cents < 0 || this.min_absolute_move_cents > 99) {
+			throw new Error(
+				`min_absolute_move_cents must be in [0, 99], got ${this.min_absolute_move_cents}`,
 			);
 		}
 	}
@@ -71,26 +86,41 @@ export class NaiveSignal implements SignalStrategy {
 		if (oldPrice <= 0) return null;
 
 		const movePct = (newPrice - oldPrice) / oldPrice;
+		const moveCents = Math.abs(newPrice - oldPrice);
 
-		if (Math.abs(movePct) > this.fade_threshold) {
-			// Big move — fade (overreaction hypothesis).
-			if (movePct > 0) {
-				return {
-					side: "no",
-					price: Math.round(newPrice),
-					size: this.size,
-					rationale: `${this.name}_fade_up`,
-					p: 0.55, // Naive signal has no model confidence; default 0.55.
-				};
-			}
+		// Fire if EITHER threshold is exceeded. The
+		// percentage threshold is the "high-vol fade" path
+		// (5% on a 50¢ market = 2.5¢ — meaningful).
+		// The absolute threshold is the "stable-market
+		// micro-move" path (1¢ on a 78¢ market = 1.3% —
+		// meaningful in absolute edge, below percentage
+		// thresholds). The bot uses both for low-vol
+		// verticals.
+		const exceedsPct = Math.abs(movePct) > this.fade_threshold;
+		const exceedsAbs =
+			this.min_absolute_move_cents > 0 &&
+			moveCents >= this.min_absolute_move_cents;
+		if (!exceedsPct && !exceedsAbs) return null;
+
+		// Tag the rationale with which threshold fired so
+		// the operator can tell the two paths apart in
+		// the signals log.
+		const trigger = exceedsPct ? "fade" : "abs";
+		if (movePct > 0) {
 			return {
-				side: "yes",
+				side: "no",
 				price: Math.round(newPrice),
 				size: this.size,
-				rationale: `${this.name}_fade_down`,
+				rationale: `${this.name}_${trigger}_up`,
 				p: 0.55,
 			};
 		}
-		return null;
+		return {
+			side: "yes",
+			price: Math.round(newPrice),
+			size: this.size,
+			rationale: `${this.name}_${trigger}_down`,
+			p: 0.55,
+		};
 	}
 }

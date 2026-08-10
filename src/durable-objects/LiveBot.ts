@@ -158,6 +158,14 @@ export interface LiveBotState {
 	 *  threshold fraction (0.02 = 2%). Missing verticals fall
 	 *  back to the default 5%. Set via /start config. */
 	per_vertical_fade_threshold?: Record<string, number> | null;
+	/** 2026-08-10: per-vertical min absolute move (cents).
+	 *  Combined with `per_vertical_fade_threshold` via OR:
+	 *  the signal fires when EITHER the percentage OR the
+	 *  absolute threshold is exceeded. Use this for stable
+	 *  markets (KXWARMING-50 at 78¢) where a 1¢ move is
+	 *  meaningful edge but below any reasonable percentage
+	 *  threshold. Map of vertical to cents (1 = 1¢). */
+	per_vertical_min_absolute_move_cents?: Record<string, number> | null;
 };
 	/** The most recent risk reject reason (per-ticker, for /status). */
 	last_reject: { ts_ms: number; ticker: string; code: string; message: string } | null;
@@ -234,6 +242,12 @@ export interface LiveBotConfig {
 	 * for verticals where the bot has data but the default
 	 * threshold is too tight. Missing verticals fall back to 5%. */
 	per_vertical_fade_threshold?: Record<string, number> | null;
+	/** 2026-08-10: per-vertical min absolute move (cents).
+	 *  OR-combined with `per_vertical_fade_threshold`. The
+	 *  signal fires if EITHER threshold is exceeded. Use
+	 *  this for stable markets (KXWARMING-50) where 1¢
+	 *  moves are meaningful edge. Map of vertical to cents. */
+	per_vertical_min_absolute_move_cents?: Record<string, number> | null;
 }
 
 // ─── Env (subset we need) ─────────────────────────────────────────────
@@ -374,6 +388,8 @@ export class LiveBot implements DurableObject {
 				state.config.per_vertical_max_notional_cents ?? null,
 			per_vertical_fade_threshold:
 				state.config.per_vertical_fade_threshold ?? null,
+			per_vertical_min_absolute_move_cents:
+				state.config.per_vertical_min_absolute_move_cents ?? null,
 			ticker_verticals: state.config.ticker_verticals ?? null,
 			trading_mode: state.config.trading_mode,
 			bankroll_cents: state.config.bankroll_cents,
@@ -464,6 +480,12 @@ export class LiveBot implements DurableObject {
 				// vertical with real data right now). Other
 				// verticals stay at 5% until they get real data.
 				per_vertical_fade_threshold: { weather: 0.02 },
+				// 2026-08-10: default to 1¢ absolute move for
+				// weather. KXWARMING-50 sits at 78¢ and
+				// rarely moves 2% in 60 polls; a 1¢ move is
+				// 1.3% — meaningful absolute edge. Other
+				// verticals stay at 0 (percentage only).
+				per_vertical_min_absolute_move_cents: { weather: 1 },
 			},
 			last_reject: null,
 		};
@@ -636,6 +658,13 @@ export class LiveBot implements DurableObject {
 								vertical: ts.vertical,
 								has_book: ts.book !== null,
 								price_history_len: ts.price_history.length,
+								// 2026-08-10: expose first/last/current
+								// so the operator can see what the
+								// strategy is actually working with
+								// (the movePct math needs all three).
+								price_history_first_cents: ts.price_history[0] ?? null,
+								price_history_last_cents:
+									ts.price_history[ts.price_history.length - 1] ?? null,
 								last_trade_price_cents: ts.last_trade_price_cents,
 								trade_count: ts.trade_count,
 								position: ts.position,
@@ -1330,6 +1359,13 @@ export class LiveBot implements DurableObject {
 				config.per_vertical_fade_threshold !== undefined
 					? config.per_vertical_fade_threshold
 					: state.config.per_vertical_fade_threshold,
+			// 2026-08-10: per-vertical min absolute move (cents).
+			// OR-combined with the fade threshold above. Same null/
+			// undefined semantics — explicit clear vs leave alone.
+			per_vertical_min_absolute_move_cents:
+				config.per_vertical_min_absolute_move_cents !== undefined
+					? config.per_vertical_min_absolute_move_cents
+					: state.config.per_vertical_min_absolute_move_cents,
 			started_ts_ms: Date.now(),
 		};
 		if (config.user_id) state.user_id = config.user_id;
@@ -1652,6 +1688,11 @@ export class LiveBot implements DurableObject {
 			// (missing entry) is 5% — operators tune this from
 			// /start config.per_vertical_fade_threshold.
 			fade_thresholds: state.config.per_vertical_fade_threshold ?? undefined,
+			// 2026-08-10: per-vertical min absolute move (cents).
+			// OR-combined with the percentage threshold. Default
+			// 0 (disabled). Operators set this for stable markets
+			// (KXWARMING-50) where 1¢ moves are real edge.
+			min_absolute_move_cents: state.config.per_vertical_min_absolute_move_cents ?? undefined,
 		});
 		for (const [ticker, t] of Object.entries(state.tickers)) {
 			if (t.price_history.length < 2) continue;
