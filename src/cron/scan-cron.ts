@@ -98,20 +98,22 @@ async function checkScanCache(
 	// Throttle check: was the most recent scan a 429 in the
 	// last backoffSec? If so, skip — Kalshi is already
 	// throttling us, more calls won't help.
+	//
+	// 2026-08-10: bug fix. The old code read `art.ok` and
+	// `art.error_message` from the artifacts_json blob, but
+	// the scan-cron's failure path returns
+	// `{ ok: false, error_message: "..." }` at the TOP
+	// level — `artifacts_json` is null on failure, so the
+	// check never fired and we 429'd on every run for
+	// hours. The fix: read status + error_message off the
+	// cron_runs row directly.
 	if (backoffSec > 0) {
 		const lastRun = await cronRunsDb.lastRun(db, "scan", DEFAULT_USER_ID);
 		if (lastRun && now - lastRun.ts < backoffSec * 1000) {
-			const art = (() => {
-				try {
-					return JSON.parse(lastRun.artifacts_json ?? "{}") as {
-						error_message?: string;
-						ok?: boolean;
-					};
-				} catch {
-					return {};
-				}
-			})();
-			if (art.ok === false && /429/.test(art.error_message ?? "")) {
+			if (
+				lastRun.status === "error" &&
+				/429/.test(lastRun.error_message ?? "")
+			) {
 				return {
 					row: {},
 					candidates: [],
