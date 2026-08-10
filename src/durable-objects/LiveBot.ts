@@ -45,8 +45,13 @@
  */
 
 import {
+	bestYesBidCents,
+	bestNoBidCents,
+	noAskCents,
 	orderbookMidCents,
 	parseOrderbook,
+	yesAskCents,
+	type KalshiOrderbook,
 	type KalshiOrderbookLevel,
 } from "../kalshi/models.js";
 import { isStructurallyUnprofitable, kalshiTakerFeeCents } from "../lib/fees.js";
@@ -60,6 +65,8 @@ import { sendMessage as sendTelegramMessage } from "../telegram/index.js";
 import { RiskEngine } from "../risk/engine.js";
 import { defaultRiskConfig, type RiskConfig } from "../risk/config.js";
 import type { Side, Vertical } from "../lib/types.js";
+import { DEFAULT_USER_ID } from "../lib/types.js";
+import { liveMarketSnapshots } from "../lib/db.js";
 import {
 	type Signal,
 	type SignalContext,
@@ -1409,11 +1416,48 @@ export class LiveBot implements DurableObject {
 		// git history but is no longer called.
 		await this.startPolling(state);
 
+		// 2026-08-10: when the universe changes (or on
+		// first start), write an immediate snapshot for
+		// each ticker so the dashboard's "live markets"
+		// view reflects the new universe within seconds
+		// instead of waiting for the first poll cycle +
+		// debounce. The pollTick will keep these fresh
+		// on the normal cadence after.
+		await this.writeInitialSnapshots(state);
+
 		// Load the reversion models from R2 (chunk 4). Failure to
 		// load is non-fatal — we fall back to NaiveSignal for the
 		// affected vertical. The model_version defaults to "v1" and
 		// can be overridden via /start config.
 		await this.loadModels(state.config.model_version ?? this._modelVersion);
+	}
+
+	/** 2026-08-10: write a snapshot for every ticker in the
+	 *  universe immediately on /start. Each ticker is
+	 *  fetched once via the SDK client (re-using the
+	 *  polling client) and upserted to D1. Failures are
+	 *  non-fatal — the pollTick will catch up on the
+	 *  next 1.5s tick. */
+	private async writeInitialSnapshots(state: LiveBotState): Promise<void> {
+		if (!this.env.DB) return;
+		if (!this._sdkClient) return; // no creds / not initialized
+		const now = Date.now();
+		for (const ticker of state.config.tickers) {
+			try {
+				const wire = (await this._sdkClient.getOrderbook(ticker)) as Record<
+					string,
+					unknown
+				>;
+				const ob = parseOrderbook(ticker, wire);
+				await this.maybeWriteLiveSnapshot(state, ticker, ob, orderbookMidCents(ob));
+			} catch (e) {
+				console.warn(
+					"[live-bot] initial snapshot failed for",
+					ticker,
+					e instanceof Error ? e.message : String(e),
+				);
+			}
+		}
 	}
 
 	async stop(): Promise<void> {
@@ -1629,6 +1673,22 @@ export class LiveBot implements DurableObject {
 				this._nPolls += 1;
 				this._lastPollMs = Date.now() - pollStart;
 				this._lastPollError = null;
+				// 2026-08-10: write the orderbook to D1 so the
+				// dashboard's "live markets" view reflects what
+				// the bot is actually polling in <SNAPSHOT_DEBOUNCE_MS
+				// (default 3s). Without this, the research-cron
+				// is the only writer and it fires every 15 min —
+				// the operator sees a 15-min lag between bot
+				// state changes and the dashboard. With this,
+				// the lag drops to 3-5s for any ticker the bot
+				// is polling. Debounce so a 1.5s poll cadence
+				// doesn't hammer D1 (writes are cheap but
+				// unnecessary when nothing changed).
+				//
+				// We also force-write on a meaningful price move
+				// (≥1¢) regardless of debounce — the operator
+				// should see a real move reflected immediately.
+				await this.maybeWriteLiveSnapshot(state, ticker, ob, mid);
 				// Profit target / stop loss (mark-based, same
 				// as the WS trade handler).
 				if (t.position !== null && mid !== null) {
@@ -1675,6 +1735,100 @@ export class LiveBot implements DurableObject {
 		}
 	}
 
+
+	// ─── Live snapshot writer (2026-08-10) ─────────────────────
+	//
+	// Writes the per-ticker orderbook to D1 so the
+	// dashboard's "live markets" view reflects what the
+	// bot is actually polling. Without this, the only
+	// writer is the research-cron (every 15 min) and the
+	// operator sees a 15-min lag between bot state and
+	// the dashboard. With this, the lag is the debounce
+	// (3s default) for any ticker in the bot's universe.
+	//
+	// Debounce: skip the write if the last write for
+	// this ticker was within SNAPSHOT_DEBOUNCE_MS AND
+	// the price hasn't moved by ≥PRICE_MOVE_TRIGGER_CENTS.
+	// The "force write on big move" path ensures the
+	// dashboard reflects real activity immediately, while
+	// routine stable markets stay quiet (don't hammer D1
+	// when the bot is polling a flat market every 1.5s).
+	//
+	// Per-ticker state for the debounce lives in DO
+	// storage so it survives idle evictions. The fields
+	// are kept under a single key (`snapshot_meta`) to
+	// avoid storage bloat — at most 1 row per ticker.
+	private static readonly SNAPSHOT_DEBOUNCE_MS = 3_000;
+	private static readonly PRICE_MOVE_TRIGGER_CENTS = 1;
+
+	private async maybeWriteLiveSnapshot(
+		state: LiveBotState,
+		ticker: string,
+		ob: KalshiOrderbook,
+		mid: number | null,
+	): Promise<void> {
+		if (!this.env.DB) return;
+		const now = Date.now();
+		// Read the per-ticker snapshot metadata. Built
+		// lazily on first use so we don't pay the storage
+		// read cost when the snapshot writer is disabled.
+		const meta = (await this.ctx.storage.get<Record<
+			string,
+			{ last_ts_ms: number; last_mid: number | null }
+		>>("snapshot_meta")) ?? {};
+		const last = meta[ticker];
+
+		// Compute the current best bid/ask/mid from the
+		// orderbook. If we don't have a real two-sided
+		// quote, write a snapshot with is_live=0 so the
+		// dashboard still shows the ticker (so the operator
+		// can see "we're polling this but it's not live").
+		const yb = bestYesBidCents(ob);
+		const ya = yesAskCents(ob);
+		const nb = bestNoBidCents(ob);
+		const na = noAskCents(ob);
+		const is_live = yb !== null && ya !== null && yb > 0 && ya > 0 && ya > yb ? 1 : 0;
+
+		// Debounce check: skip if we wrote recently AND
+		// the price hasn't moved enough to force-write.
+		const moved =
+			last?.last_mid !== undefined && last?.last_mid !== null && mid !== null
+				? Math.abs(mid - last.last_mid) >= LiveBot.PRICE_MOVE_TRIGGER_CENTS
+				: true; // first write OR no prior mid → write
+		if (last && now - last.last_ts_ms < LiveBot.SNAPSHOT_DEBOUNCE_MS && !moved) {
+			return;
+		}
+
+		const t = state.tickers[ticker];
+		try {
+			await liveMarketSnapshots.upsert(this.env.DB, DEFAULT_USER_ID, {
+				user_id: DEFAULT_USER_ID,
+				ts: now,
+				ticker,
+				event_ticker: t?.event_ticker || null,
+				title: t?.title || null,
+				yes_bid_cents: yb ?? 0,
+				yes_ask_cents: ya ?? 0,
+				no_bid_cents: nb ?? 0,
+				no_ask_cents: na ?? 0,
+				last_price_cents: mid ?? 0,
+				volume_24h: null,
+				open_interest: null,
+				is_live,
+				close_time: t?.book ? null : null,
+			});
+			// Update the debounce metadata.
+			meta[ticker] = { last_ts_ms: now, last_mid: mid };
+			await this.ctx.storage.put("snapshot_meta", meta);
+		} catch (e) {
+			// Non-fatal: snapshot write failure should
+			// never break the polling loop. Log and move on.
+			console.warn(
+				"[live-bot] snapshot write failed (non-fatal):",
+				e instanceof Error ? e.message : String(e),
+			);
+		}
+	}
 
 	// ─── Trade recording ────────────────────────────────────────
 
