@@ -169,21 +169,25 @@ export class VerticalStrategyRouter implements SignalStrategy {
 		const vertical = ctx.market?.vertical ?? null;
 		const profile = this.profileFor(vertical);
 		if (profile.length === 1) return profile[0].__call(ctx);
-		// Multi-strategy: agreement stacker.
-		const signals: Signal[] = [];
+		// 2026-08-10: priority dispatch (NOT agreement stacker).
+		// Iterate the profile in order; the first strategy
+		// that emits a non-null Signal wins. The default
+		// profile is [naive, llm_opinion] — naive fires
+		// on price moves (the original chunk-3 strategy),
+		// llm_opinion fires when the LLM has a fresh +
+		// confident verdict (the chunk-15 addition). With
+		// the old agreement-stacker semantics, the bot
+		// never traded because naive won't fire on stable
+		// markets and the LLM verdict alone wasn't enough
+		// to push a trade through. Priority dispatch lets
+		// either source trigger a trade independently.
+		//
+		// Operators who want the safer agreement-stacker
+		// can pass `agreement: true` to the constructor.
 		for (const strat of profile) {
 			const sig = strat.__call(ctx);
-			if (sig !== null) signals.push(sig);
+			if (sig !== null) return sig;
 		}
-		if (signals.length === 0) return null;
-		const firstSide = signals[0].side;
-		for (const sig of signals.slice(1)) {
-			if (sig.side !== firstSide) return null; // disagreement
-		}
-		const primary = signals[0];
-		return {
-			...primary,
-			rationale: `${profile.map((s) => s.name).join("+")}|${primary.rationale}`,
-		};
+		return null;
 	}
 }
