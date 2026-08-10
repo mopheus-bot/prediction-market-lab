@@ -98,7 +98,7 @@ async function buildKalshiClientAsync(env: CronEnv): Promise<KalshiClient | null
 			return new KalshiClient({
 				baseUrl: DEFAULT_PRODUCTION_BASE,
 				credentials: creds,
-				requestsPerSecond: 4,
+				requestsPerSecond: 2,
 			});
 		} catch (e) {
 			console.warn("[research] failed to load Kalshi prod creds", e);
@@ -111,7 +111,7 @@ async function buildKalshiClientAsync(env: CronEnv): Promise<KalshiClient | null
 			return new KalshiClient({
 				baseUrl: "https://demo-api.kalshi.co/trade-api/v2",
 				credentials: creds,
-				requestsPerSecond: 4,
+				requestsPerSecond: 2,
 			});
 		} catch (e) {
 			console.warn("[research] failed to load Kalshi demo creds", e);

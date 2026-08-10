@@ -141,6 +141,19 @@ const POLITICS_TITLE_RE =
 const SPORTS_TITLE_RE =
 	/\b(nba|nfl|mlb|nhl|ufc|soccer|football(?! field)|baseball|basketball|tennis|champion|playoff|super bowl|world series|premier league|la liga|serie a|bundesliga|ligue 1|champions league)\b/i;
 
+/** True if the snapshot has a real two-sided quote (yes_bid > 0
+ *  AND yes_ask > 0 AND yes_ask > yes_bid). Used by filterForLlm
+ *  to surface only the markets that are actually tradeable. */
+export function computeIsLive(
+	yes_bid_cents: number,
+	yes_ask_cents: number,
+): 0 | 1 {
+	if (yes_bid_cents > 0 && yes_ask_cents > 0 && yes_ask_cents > yes_bid_cents) {
+		return 1;
+	}
+	return 0;
+}
+
 const TITLE_FALLBACK: Record<Vertical, RegExp> = {
 	weather: WEATHER_TITLE_RE,
 	economic: ECONOMIC_TITLE_RE,
@@ -179,17 +192,30 @@ const PAGE_SIZE = 200;
 
 export interface ScoutedMarket {
 	ticker: string;
+	event_ticker: string | null;
 	title: string;
 	vertical: Vertical;
+	yes_bid_cents: number;
+	yes_ask_cents: number;
+	last_price_cents: number;
 	volume_24h: number;
 	open_interest: number;
+	is_live: 0 | 1;
 	close_time: string | null;
 	expiration_time: string | null;
 }
 
 export interface ScoutResult {
-	/** All markets that matched a vertical regex, capped per vertical. */
+	/** All markets that matched a vertical regex, capped per vertical.
+	 *  Includes parlays. Used for the universe-health check
+	 *  (which needs to see everything to know what's expired). */
 	markets: ScoutedMarket[];
+	/** The LLM-facing subset: top ~15 across all verticals, with
+	 *  real bid/ask data, parlays and cross-category filtered out
+	 *  (no strategy for them yet). This is what the LLM prompt
+	 *  should use. Distinct from `markets` so the universe-health
+	 *  check still sees everything. */
+	markets_for_llm: ScoutedMarket[];
 	/** Per-vertical map of ticker → ScoutedMarket for fast lookup. */
 	by_ticker: Map<string, ScoutedMarket>;
 	/** All markets from the snapshot (unfiltered), so the LLM has
@@ -236,6 +262,10 @@ export interface ScoutEnv {
 	/** Optional signal to abort — checked between pages so a long
 	 *  scan doesn't run past a Workers' CPU budget. */
 	shouldAbort?: () => boolean;
+	/** Cap on the LLM-facing list (markets_for_llm). Defaults to 15.
+	 *  Keep this low — the LLM prompt is the bottleneck, not the
+	 *  catalog. */
+	maxForLlm?: number;
 }
 
 // ─── Core API ───────────────────────────────────────────────────
@@ -268,6 +298,7 @@ export async function fetchAndFilterMarkets(env: ScoutEnv): Promise<ScoutResult>
 			if (env.shouldAbort?.()) {
 				return {
 					markets: [],
+					markets_for_llm: [],
 					by_ticker: new Map(),
 					all_markets,
 					total_scanned: totalScanned,
@@ -280,6 +311,7 @@ export async function fetchAndFilterMarkets(env: ScoutEnv): Promise<ScoutResult>
 	} catch (e) {
 		return {
 			markets: [],
+			markets_for_llm: [],
 			by_ticker: new Map(),
 			all_markets: [],
 			total_scanned: totalScanned,
@@ -296,8 +328,18 @@ export async function fetchAndFilterMarkets(env: ScoutEnv): Promise<ScoutResult>
 	const byTicker = new Map<string, ScoutedMarket>();
 	for (const m of filtered) byTicker.set(m.ticker, m);
 
+	// The LLM-facing subset: top ~15 single-event markets with
+	// real bid/ask data. Excludes parlays (KXMVESPORTS*,
+	// KXMVECROSSCATEGORY*) since the bot has no parlay strategy
+	// yet. Includes single-game markets (KXMLBSPREAD, KXNBASPREAD,
+	// etc.) — the LLM should see them as candidates.
+	const marketsForLlm = filterForLlm(filtered, all_markets, {
+		maxTotal: env.maxForLlm ?? 15,
+	});
+
 	return {
 		markets: filtered,
+		markets_for_llm: marketsForLlm,
 		by_ticker: byTicker,
 		all_markets,
 		total_scanned: totalScanned,
@@ -354,10 +396,15 @@ function filterAndRank(
 		if (!liquid) continue;
 		byVertical[v].push({
 			ticker: m.ticker,
+			event_ticker: (m as unknown as { event_ticker?: string }).event_ticker ?? null,
 			title,
 			vertical: v,
+			yes_bid_cents: m.yes_bid_cents,
+			yes_ask_cents: m.yes_ask_cents,
+			last_price_cents: m.last_price_cents,
 			volume_24h: m.volume_24h ?? 0,
 			open_interest: m.open_interest ?? 0,
+			is_live: computeIsLive(m.yes_bid_cents, m.yes_ask_cents),
 			close_time: m.close_time ?? null,
 			expiration_time: m.expiration_time ?? null,
 		});
@@ -378,6 +425,86 @@ function filterAndRank(
 		ranked.push(...sorted.slice(0, opts.maxPerVertical));
 	}
 	return ranked;
+}
+
+/**
+ * Build the LLM-facing market list. Filters out parlays and
+ * cross-category markets (no strategy for them yet), prioritizes
+ * by liquidity, caps at `maxTotal`. Designed to give the LLM
+ * a tight 10-20 list of real, tradeable candidates instead of
+ * the full vertical-bucketed catalog (which can have 100+ markets,
+ * most of which the bot can't actually trade).
+ *
+ * The filter is strict on parlays (KXMVESPORTS*, KXMVECROSSCATEGORY*)
+ * and loose on everything else. If Kalshi adds new single-event
+ * categories in the future, they'll show up here automatically.
+ *
+ * If `scouted` is empty (no vertical matches), we fall back to
+ * looking at `all_markets` for any non-parlay market with real
+ * bid/ask data — Kalshi's product is fluid and we don't want
+ * to miss new market types just because the vertical regex
+ * doesn't cover them yet.
+ */
+function filterForLlm(
+	scouted: ScoutedMarket[],
+	all_markets: KalshiMarket[],
+	opts: { maxTotal: number },
+): ScoutedMarket[] {
+	// 1. Filter out parlays from the scouted list.
+	const PARLAY_RE = /^KX(MVESPORTS|MVECROSSCATEGORY)/i;
+	const nonParlay = scouted.filter((m) => !PARLAY_RE.test(m.event_ticker ?? ""));
+
+	// 2. Sort by liquidity: vol_24h + OI * 5.
+	nonParlay.sort((a, b) => {
+		const scoreA = a.volume_24h + a.open_interest * 5;
+		const scoreB = b.volume_24h + b.open_interest * 5;
+		return scoreB - scoreA;
+	});
+
+	// 3. Cap at maxTotal. If we have enough non-parlay scouted
+	//    markets, use them. Otherwise, fall back to all_markets.
+	if (nonParlay.length >= opts.maxTotal) {
+		return nonParlay.slice(0, opts.maxTotal);
+	}
+
+	// 4. Fallback: scan all_markets for any non-parlay, non-empty
+	//    market. We only know about market_type / event_ticker /
+	//    title here, not real bid/ask (those are only in scouted
+	//    which is itself derived from GET). So we're checking
+	//    "is this not a parlay prefix" only.
+	const knownTickers = new Set(nonParlay.map((m) => m.ticker));
+	const fallback: ScoutedMarket[] = [];
+	for (const m of all_markets) {
+		if (fallback.length + nonParlay.length >= opts.maxTotal) break;
+		if (knownTickers.has(m.ticker)) continue;
+		const et = (m as unknown as { event_ticker?: string }).event_ticker ?? "";
+		if (PARLAY_RE.test(et)) continue;
+		// Re-classify vertical for display.
+		const v = classifyVerticalPublic(m) ?? "unknown";
+		fallback.push({
+			ticker: m.ticker,
+			event_ticker: et || null,
+			title: m.title ?? "",
+			vertical: v as Vertical,
+			yes_bid_cents: m.yes_bid_cents,
+			yes_ask_cents: m.yes_ask_cents,
+			last_price_cents: m.last_price_cents,
+			volume_24h: m.volume_24h ?? 0,
+			open_interest: m.open_interest ?? 0,
+			is_live: computeIsLive(m.yes_bid_cents, m.yes_ask_cents),
+			close_time: m.close_time ?? null,
+			expiration_time: m.expiration_time ?? null,
+		});
+	}
+	const combined = [...nonParlay, ...fallback];
+	return combined.slice(0, opts.maxTotal);
+}
+
+/** Public alias for classifyVertical so filterForLlm can use it. */
+function classifyVerticalPublic(
+	market: KalshiMarket,
+): Vertical | null {
+	return classifyVertical(market);
 }
 
 // ─── Universe health ────────────────────────────────────────────
@@ -438,20 +565,33 @@ export function formatScoutForPrompt(
 		politics: [],
 		sports: [],
 	};
-	for (const m of scout.markets) grouped[m.vertical].push(m);
+	// Use `markets_for_llm` (parlays filtered out, capped at ~15,
+	// bid/ask populated) instead of `markets` (full vertical
+	// catalog with parlays, capped at 30/vertical). The LLM
+	// gets a tight, actionable list.
+	const list = scout.markets_for_llm ?? scout.markets;
+	for (const m of list) {
+		const v = (m.vertical ?? "weather") as Vertical;
+		if (grouped[v]) grouped[v].push(m);
+	}
 	for (const v of ["weather", "economic", "politics", "sports"] as const) {
-		const list = grouped[v];
-		if (list.length === 0) {
-			lines.push(`[${v}]: (no markets matched)`);
+		const sub = grouped[v];
+		if (sub.length === 0) {
+			lines.push(`[${v}]: (no real markets — skip)`);
 			continue;
 		}
-		lines.push(`[${v}] (${list.length}):`);
-		for (const m of list) {
+		lines.push(`[${v}] (${sub.length}):`);
+		for (const m of sub) {
 			const title = m.title.length > maxTitle
 				? m.title.slice(0, maxTitle - 1) + "…"
 				: m.title;
-			const liq = `vol24h=${m.volume_24h} OI=${m.open_interest}`;
-			lines.push(`  ${m.ticker}  ${liq}  — ${title}`);
+			const live = m.is_live === 1 ? "LIVE" : "1-sided";
+			const book = m.yes_bid_cents > 0
+				? `${m.yes_bid_cents}/${m.yes_ask_cents}¢`
+				: "—";
+			lines.push(
+				`  ${m.ticker}  [${live} ${book}]  vol24h=${m.volume_24h}  OI=${m.open_interest}  — ${title}`,
+			);
 		}
 	}
 	return lines.join("\n");
