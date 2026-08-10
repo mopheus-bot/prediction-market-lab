@@ -40,26 +40,37 @@
 						<div class="bot-hero-action" id="stage-panel-action"></div>
 					</div>
 				</div>
+				<!-- 2026-08-10: big paper / live mode banner so the
+				     operator always knows what's real money and
+				     what's simulated. Lives in the hero so it's
+				     visible at a glance before reading any number. -->
+				<div class="mode-banner" id="mode-banner" data-mode="paper">
+					<div class="mode-banner-icon" aria-hidden="true">●</div>
+					<div class="mode-banner-text">
+						<div class="mode-banner-label" id="mode-banner-label">PAPER MODE</div>
+						<div class="mode-banner-sub" id="mode-banner-sub">All numbers below are simulated fills — no real money is being traded.</div>
+					</div>
+				</div>
 				<div class="bot-hero-kpis">
 					<div class="kpi-card kpi-large">
-						<div class="kpi-label">Account balance</div>
+						<div class="kpi-label">Real Kalshi balance</div>
 						<div class="kpi-num mono" id="hero-balance">$—</div>
-						<div class="kpi-sub" id="hero-balance-sub">real money on Kalshi</div>
+						<div class="kpi-sub" id="hero-balance-sub">only matters in live mode</div>
 					</div>
 					<div class="kpi-card">
-						<div class="kpi-label">Bankroll</div>
+						<div class="kpi-label">Paper bankroll</div>
 						<div class="kpi-num mono" id="bot-bankroll">$—</div>
-						<div class="kpi-sub">paper trading capital</div>
+						<div class="kpi-sub" id="bot-bankroll-sub">paper trading capital</div>
 					</div>
 					<div class="kpi-card">
-						<div class="kpi-label">Deployed today</div>
+						<div class="kpi-label">Paper deployed today</div>
 						<div class="kpi-num mono" id="bot-deployed">$—</div>
 						<div class="kpi-sub" id="bot-deployed-sub">vs cap</div>
 					</div>
 					<div class="kpi-card">
-						<div class="kpi-label">Signals</div>
+						<div class="kpi-label">Paper signals fired</div>
 						<div class="kpi-num mono" id="bot-signals">—</div>
-						<div class="kpi-sub" id="bot-signals-sub">model fires</div>
+						<div class="kpi-sub" id="bot-signals-sub">model fires (paper only)</div>
 					</div>
 				</div>
 			</section>
@@ -374,6 +385,27 @@
 			function renderBotHeroExtras() {
 				const s = window._lastBotStatus;
 				if (!s) return;
+				// 2026-08-10: big paper/live banner. Drives the
+				// hero's color treatment + a clear "all numbers
+				// below are simulated" sub so the operator
+				// never confuses paper positions with real money.
+				const mode = s.config?.trading_mode || "paper";
+				const banner = document.getElementById("mode-banner");
+				const bannerLabel = document.getElementById("mode-banner-label");
+				const bannerSub = document.getElementById("mode-banner-sub");
+				if (banner) banner.setAttribute("data-mode", mode);
+				if (bannerLabel) {
+					bannerLabel.textContent =
+						mode === "real" ? "LIVE MODE — REAL MONEY"
+						: mode === "off" ? "PAUSED"
+						: "PAPER MODE";
+				}
+				if (bannerSub) {
+					bannerSub.textContent =
+						mode === "real" ? "Real orders are being placed on Kalshi. Bankroll and PnL below are real money."
+						: mode === "off" ? "Bot is paused — no new trades. Open positions (if any) are still tracked."
+						: "All numbers below are simulated fills — no real money is being traded.";
+				}
 				// Frames
 				const fEl = document.getElementById("bot-frames");
 				if (fEl) fEl.textContent = fmtCount(s.counts?.n_frames);
