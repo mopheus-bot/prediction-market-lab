@@ -172,14 +172,28 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 
 	// For each ticker: read the latest snapshot (gives us
 	// title + current bid/ask), ask the LLM, upsert verdict.
-	// Pre-fetch ALL latest snapshots in one call (limit=100
-	// covers up to 100 tickers — the bot's universe is
-	// typically <10). Doing this per-ticker would issue
-	// one D1 roundtrip per ticker; the bulk fetch is a
-	// single roundtrip total.
-	const allLatest = await liveMarketSnapshotsDb.latestPerTicker(env.DB, userId, { limit: 100 });
-	const snapByTicker = new Map<string, typeof allLatest[number]>();
-	for (const row of allLatest) snapByTicker.set(row.ticker, row);
+	// Filter to the bot's universe in the WHERE clause so
+	// tickers that haven't been written recently (and would
+	// otherwise fall off a limit=100 sort) still surface.
+	const placeholders = tickers.map((_, i) => `?${i + 3}`).join(",");
+	const latestRows = await env.DB
+		.prepare(
+			`SELECT * FROM (
+			  SELECT *, ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ts DESC) AS rn
+			  FROM live_market_snapshots
+			  WHERE user_id = ?1 AND ticker IN (${placeholders})
+			) WHERE rn = 1`,
+		)
+		.bind(userId, ...tickers)
+		.all<{
+			ticker: string;
+			title: string | null;
+			yes_bid_cents: number;
+			yes_ask_cents: number;
+			last_price_cents: number | null;
+		} & { rn: number }>();
+	const snapByTicker = new Map<string, (typeof latestRows.results)[number]>();
+	for (const row of latestRows.results ?? []) snapByTicker.set(row.ticker, row);
 
 	for (const ticker of tickers) {
 		try {
