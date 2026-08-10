@@ -222,7 +222,41 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	for (const row of liveRows.results ?? []) {
 		if (row.ticker) botUniverse.add(row.ticker);
 	}
-	const allTickers = Array.from(botUniverse);
+	let allTickers = Array.from(botUniverse);
+
+	// 2026-08-10 19:48: cap the LLM loop. Kalshi's open catalog
+	// is ~2250 markets (almost all parlays). Calling the LLM on
+	// every one of them per 30-min cron = ~2.5 hours of LLM
+	// work — way past the Worker wall-clock limit. Cap at 50
+	// per run, prioritising (a) bot's actual universe first,
+	// (b) markets with real volume, (c) markets with real OI.
+	// The auto-promote pipeline still surfaces the long tail:
+	// a different ticker's turn comes around every ~30 runs.
+	const LLM_LOOP_CAP = 50;
+	if (allTickers.length > LLM_LOOP_CAP) {
+		// Look up volume + OI for all candidates in one query.
+		const rankedRows = await env.DB
+			.prepare(
+				`SELECT ticker, MAX(volume_24h) as vol, MAX(open_interest) as oi
+				 FROM live_market_snapshots
+				 WHERE user_id = ?1 AND ts >= ?2 AND ticker IN (${allTickers
+					.map((_, i) => `?${i + 3}`)
+					.join(",")})
+				 GROUP BY ticker
+				 ORDER BY vol DESC, oi DESC`,
+			)
+			.bind(userId, now - 60 * 60 * 1000, ...allTickers)
+			.all<{ ticker: string; vol: number | null; oi: number | null }>();
+		// Bot universe first (always), then top LLM_LOOP_CAP - universe
+		// by volume/OI. Stable across runs (deterministic ordering).
+		const universe = new Set(tickers);
+		const universeFirst = allTickers.filter((t) => universe.has(t));
+		const others = (rankedRows.results ?? []).map((r) => r.ticker);
+		allTickers = [
+			...universeFirst,
+			...others.filter((t) => !universe.has(t)).slice(0, Math.max(0, LLM_LOOP_CAP - universeFirst.length)),
+		];
+	}
 
 	const errors: Array<{ ticker: string; message: string }> = [];
 	const updated: string[] = [];
