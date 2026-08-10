@@ -43,6 +43,7 @@ import { DEFAULT_USER_ID, type LLMOpinionRow } from "../lib/types.js";
 import { cronRuns as cronRunsDb, llmCalls as llmCallsDb, llmOpinions as llmOpinionsDb, liveMarketSnapshots as liveMarketSnapshotsDb } from "../lib/db.js";
 import { loadPrivateKey, KalshiCredentials } from "../kalshi/auth.js";
 import { chat, DEFAULT_MODEL, type LLMEnv } from "../llm/index.js";
+import { classifyByEventTicker } from "../kalshi/leads-scout.js";
 import type { CronEnv, CronResult } from "./dispatcher.js";
 import type { LiveBotState, LiveBotConfig } from "../durable-objects/LiveBot.js";
 
@@ -258,6 +259,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 		.bind(userId, ...allTickers)
 		.all<{
 			ticker: string;
+			event_ticker: string | null;
 			title: string | null;
 			yes_bid_cents: number;
 			yes_ask_cents: number;
@@ -287,7 +289,29 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 				continue;
 			}
 			const title = snap.title ?? ticker;
-			const vertical = (snap as unknown as { vertical?: string }).vertical ?? "unknown";
+			// 2026-08-10 19:48: fix vertical inference. The
+			// snapshot table has no `vertical` column, so the
+			// old `(snap as any).vertical ?? "unknown"` always
+			// returned "unknown" — which the auto-promote gate
+			// rejected. Use the same prefix-based classifier
+			// the leads-scout uses. Cross-category and
+			// multigame-extended parlays return null there
+			// (bot has no parlay strategy), so we map them
+			// to "sports" as a paper-mode fallback — the
+			// LLMOpinionSignal + NaiveSignal strategies are
+			// vertical-agnostic and will run on any market
+			// with a price. If the LLM says "hold" because
+			// it doesn't understand parlays, fine; if it
+			// gives a real opinion, we get to trade it.
+			const classified = classifyByEventTicker(
+				snap.event_ticker,
+				snap.title,
+			);
+			const vertical = classified ?? (
+				/^KXMVECROSSCATEGORY|^KXMVESPORTSMULTIGAME/i.test(snap.event_ticker ?? "")
+					? "sports"
+					: "unknown"
+			);
 			const llm = await askLLMForOpinion(env, ticker, title, midCents);
 			totalInputTokens += llm.input_tokens ?? 0;
 			totalOutputTokens += llm.output_tokens ?? 0;
