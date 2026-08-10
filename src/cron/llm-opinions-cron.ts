@@ -473,22 +473,52 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	}
 
 	// Record the cron run.
+	//
+	// 2026-08-10: status logic fix. The previous "any error = error"
+	// rule was too strict — a single ticker failing (e.g. stale
+	// snapshot, LLM rate-limit on one of N parallel calls) made the
+	// heartbeat count the whole run as failed even when 5+ opinions
+	// were successfully written. The heartbeat's "3+ consecutive
+	// errors" check then started firing Telegram alerts for a cron
+	// that was functionally fine.
+	//
+	// New rule:
+	//   - 0 errors                              → success
+	//   - 1+ opinions written + 1+ errors       → success (partial — details
+	//                                              in artifacts_json)
+	//   - 0 opinions written + 1+ errors        → error  (true failure)
+	//
+	// The error_message field gets a real string summary (not a
+	// comma-separated list of ticker names — the heartbeat was reading
+	// those as error text and reporting them as cryptic identifiers).
+	// Per-ticker details go into artifacts_json for the cadence panel.
+	const cronStatus =
+		errors.length === 0
+			? "success"
+			: updated.length > 0
+				? "success"
+				: "error";
+	const errorMessage =
+		errors.length > 0
+			? `${errors.length}/${allTickers.length} tickers failed (e.g. ${errors[0]?.message?.slice(0, 80) ?? "unknown"})`
+			: null;
 	try {
 		await cronRunsDb.insert(env.DB, {
 			user_id: userId,
 			cron_name: "llm_opinions",
 			ts: now,
 			duration_ms: Date.now() - startMs,
-			status: errors.length === 0 ? "success" : "error",
-			error_message: errors.length > 0 ? errors.map((e) => e.ticker).join(",") : null,
-			artifacts_json: null,
+			status: cronStatus,
+			error_message: errorMessage,
+			artifacts_json:
+				errors.length > 0 ? JSON.stringify({ errors: errors.slice(0, 10) }) : null,
 		});
 	} catch (e) {
 		console.warn("[llm-opinions] failed to record cron run", e);
 	}
 
 	return {
-		ok: errors.length === 0,
+		ok: cronStatus === "success",
 		cron_name: "llm_opinions",
 		duration_ms: Date.now() - startMs,
 		artifacts: {
