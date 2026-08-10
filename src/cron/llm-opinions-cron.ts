@@ -164,6 +164,37 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 		};
 	}
 
+	// 2026-08-10: expand the universe to ALL live markets,
+	// not just the bot's tickers. The research-cron's
+	// catalog sweep surfaces every market with a real
+	// two-sided quote; the LLM gives us an opinionated
+	// verdict on each one (yes/no/hold + confidence +
+	// reasoning). The bot's strategy still only fires on
+	// the universe tickers, but the operator can see all
+	// LLM verdicts in the dashboard and promote
+	// high-confidence candidates to the universe via
+	// /api/pm/bot/start.
+	//
+	// Cost: ~336 calls/day at 5 markets, well under the
+	// $50/mo strategy budget.
+	//
+	// We UNION the bot's universe with the latest live
+	// markets from live_market_snapshots. The UNION is
+	// cheap (a single D1 query, no per-ticker roundtrips).
+	const botUniverse = new Set(tickers);
+	const liveRows = await env.DB
+		.prepare(
+			`SELECT DISTINCT ticker FROM live_market_snapshots
+			 WHERE user_id = ?1 AND is_live = 1
+			   AND ts >= ?2`,
+		)
+		.bind(userId, now - 60 * 60 * 1000) // last 1h of snapshots
+		.all<{ ticker: string }>();
+	for (const row of liveRows.results ?? []) {
+		if (row.ticker) botUniverse.add(row.ticker);
+	}
+	const allTickers = Array.from(botUniverse);
+
 	const errors: Array<{ ticker: string; message: string }> = [];
 	const updated: string[] = [];
 	const skipped: string[] = [];
@@ -172,10 +203,10 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 
 	// For each ticker: read the latest snapshot (gives us
 	// title + current bid/ask), ask the LLM, upsert verdict.
-	// Filter to the bot's universe in the WHERE clause so
-	// tickers that haven't been written recently (and would
-	// otherwise fall off a limit=100 sort) still surface.
-	const placeholders = tickers.map((_, i) => `?${i + 2}`).join(",");
+	// Filter to the union of (bot universe ∪ live markets) so
+	// the LLM gets verdicts on every tradeable market, not
+	// just the bot's current tickers.
+	const placeholders = allTickers.map((_, i) => `?${i + 2}`).join(",");
 	const latestRows = await env.DB
 		.prepare(
 			`SELECT * FROM (
@@ -184,7 +215,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 			  WHERE user_id = ?1 AND ticker IN (${placeholders})
 			) WHERE rn = 1`,
 		)
-		.bind(userId, ...tickers)
+		.bind(userId, ...allTickers)
 		.all<{
 			ticker: string;
 			title: string | null;
@@ -195,7 +226,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	const snapByTicker = new Map<string, (typeof latestRows.results)[number]>();
 	for (const row of latestRows.results ?? []) snapByTicker.set(row.ticker, row);
 
-	for (const ticker of tickers) {
+	for (const ticker of allTickers) {
 		try {
 			const snap = snapByTicker.get(ticker) ?? null;
 			if (!snap) {
@@ -284,7 +315,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 		cron_name: "llm_opinions",
 		duration_ms: Date.now() - startMs,
 		artifacts: {
-			n_tickers: tickers.length,
+			n_tickers: allTickers.length,
 			n_updated: updated.length,
 			n_skipped: skipped.length,
 			n_errors: errors.length,

@@ -2026,14 +2026,32 @@ export class LiveBot implements DurableObject {
 			if (blockFlip) return;
 		}
 
-		// Flip-filter (the 2026-08-06 logic): if the new signal is
-		// opposite the open position, and the position is in profit,
-		// and the new signal is NOT significantly more confident, keep
-		// the open position. The Python engine has full knobs; we keep
-		// the conservative defaults (5c profit floor + 1.5x ratio).
+		// Flip-filter (the 2026-08-06 logic, tightened 2026-08-10):
+		// if the new signal is opposite the open position, and the
+		// position is in profit, and the new signal is NOT
+		// significantly more confident, keep the open position.
+		//
+		// 2026-08-10: tightened the flip threshold (5c profit floor
+		// unchanged, ratio 1.5x → 2.5x, + 6h minimum hold). The
+		// user wants the bot to hold through LLM re-judgments
+		// instead of churning on every verdict refresh. 2.5x
+		// confidence multiple means the new opposing signal needs
+		// to be substantially more confident than the entry
+		// before the bot exits a winning position. The 6h
+		// minimum hold blocks ANY flip in the first 6h of a
+		// position's life, regardless of how confident the new
+		// signal is — gives the entry thesis time to play out.
 		if (pos !== null) {
 			const minFlipProfitCents = 5;
-			const minFlipSignalRatio = 1.5;
+			const minFlipSignalRatio = 2.5;
+			const minHoldMs = 6 * 60 * 60 * 1000; // 6h
+			const holdMs = Date.now() - pos.entry_ts_ms;
+			if (holdMs < minHoldMs) {
+				// Position is too young to flip. The entry thesis
+				// needs time to play out. Skip the flip regardless
+				// of how confident the new signal is.
+				return;
+			}
 			if (t.book) {
 				const mark = orderbookMidCents({
 					ticker,
