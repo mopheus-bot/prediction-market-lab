@@ -53,20 +53,22 @@ const MIN_CONFIDENCE = 0.0; // 0 = store everything; the strategy filters at run
 // want to have to promote anything" — so when the LLM gives
 // us a high-confidence verdict on a market the bot isn't
 // already watching, we add it to the universe automatically.
-// Conservative defaults: only weather + economic verticals
-// (LLM is more reliable on those), only at conf >= 0.7
-// (clearly above the 0.6 strategy filter), capped at 2
-// promotions per run so a misbehaving LLM can't bloat the
-// universe. Operator can always remove via the existing
-// blocklist or by manually setting the universe via /start.
-const AUTO_PROMOTE_THRESHOLD = 0.7;
-const AUTO_PROMOTE_MAX_PER_RUN = 2;
+//
+// 2026-08-10 19:45 (paper-mode expansion): the user wants to
+// aggressively expand the universe in paper mode to gather
+// data on how the bot handles more markets/verticals. Knobs
+// pushed wide: threshold dropped 0.7 → 0.5, max-per-run 2 → 5,
+// all 4 verticals included (sports + politics added). Risk:
+// a misbehaving LLM could bloat the universe fast — the 5/run
+// cap is the backstop. The blocklist + /start with explicit
+// tickers is the manual override.
+const AUTO_PROMOTE_THRESHOLD = 0.5;
+const AUTO_PROMOTE_MAX_PER_RUN = 5;
 const AUTO_PROMOTE_VERTICALS: ReadonlySet<string> = new Set([
 	"weather",
 	"economic",
-	// politics + sports deliberately excluded — too sparse
-	// and the LLM's track record is thinner. Promote those
-	// manually via the Dev page until we have more data.
+	"politics",
+	"sports",
 ]);
 
 interface LLMParsedOpinion {
