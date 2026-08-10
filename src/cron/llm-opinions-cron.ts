@@ -49,6 +49,26 @@ import type { LiveBotState, LiveBotConfig } from "../durable-objects/LiveBot.js"
 const TTL_MS = 60 * 60 * 1000; // 1h soft TTL
 const MIN_CONFIDENCE = 0.0; // 0 = store everything; the strategy filters at runtime
 
+// 2026-08-10: auto-promote thresholds. The user said "I don't
+// want to have to promote anything" — so when the LLM gives
+// us a high-confidence verdict on a market the bot isn't
+// already watching, we add it to the universe automatically.
+// Conservative defaults: only weather + economic verticals
+// (LLM is more reliable on those), only at conf >= 0.7
+// (clearly above the 0.6 strategy filter), capped at 2
+// promotions per run so a misbehaving LLM can't bloat the
+// universe. Operator can always remove via the existing
+// blocklist or by manually setting the universe via /start.
+const AUTO_PROMOTE_THRESHOLD = 0.7;
+const AUTO_PROMOTE_MAX_PER_RUN = 2;
+const AUTO_PROMOTE_VERTICALS: ReadonlySet<string> = new Set([
+	"weather",
+	"economic",
+	// politics + sports deliberately excluded — too sparse
+	// and the LLM's track record is thinner. Promote those
+	// manually via the Dev page until we have more data.
+]);
+
 interface LLMParsedOpinion {
 	side: "yes" | "no" | "hold";
 	confidence: number;
@@ -155,6 +175,12 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	}
 
 	const tickers = await readBotUniverse(env);
+	// 2026-08-10: track the bot's ACTUAL universe (not the
+	// union with live markets) so the auto-promote logic
+	// can correctly identify tickers that aren't already
+	// being watched. `botUniverse` below is the union; the
+	// LLM gets verdicts for every market in that union.
+	const botUniverseOnly = new Set(tickers);
 	if (tickers.length === 0) {
 		return {
 			ok: true,
@@ -198,6 +224,18 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	const errors: Array<{ ticker: string; message: string }> = [];
 	const updated: string[] = [];
 	const skipped: string[] = [];
+	// 2026-08-10: auto-promote candidates collected during
+	// the LLM loop. Each entry is `(ticker, vertical, conf,
+	// reasoning)` for a non-universe ticker that the LLM
+	// gave a high-confidence verdict on. The actual DO call
+	// + lead_suggestion write happens after the loop so we
+	// can sort by confidence and cap at AUTO_PROMOTE_MAX_PER_RUN.
+	const autoPromoteCandidates: Array<{
+		ticker: string;
+		vertical: string;
+		confidence: number;
+		reasoning: string;
+	}> = [];
 	let totalInputTokens = 0;
 	let totalOutputTokens = 0;
 
@@ -290,9 +328,148 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 				expires_at: now + TTL_MS,
 			});
 			updated.push(`${ticker}=${llm.parsed.side}@${llm.parsed.confidence.toFixed(2)}`);
+			// 2026-08-10: auto-promote candidate. The LLM
+			// verdict is fresh + parsed; we still need to
+			// gate on (a) confidence above the auto
+			// threshold, (b) vertical is in the auto-
+			// promote whitelist, (c) ticker is NOT in
+			// the bot's actual universe. The actual DO
+			// call + lead_suggestion write happens after
+			// the main loop (so we can sort by confidence
+			// and cap at AUTO_PROMOTE_MAX_PER_RUN).
+			if (
+				llm.parsed.confidence >= AUTO_PROMOTE_THRESHOLD &&
+				AUTO_PROMOTE_VERTICALS.has(vertical) &&
+				!botUniverseOnly.has(ticker)
+			) {
+				autoPromoteCandidates.push({
+					ticker,
+					vertical,
+					confidence: llm.parsed.confidence,
+					reasoning: llm.parsed.reasoning,
+				});
+			}
 		} catch (e) {
 			errors.push({ ticker, message: e instanceof Error ? e.message : String(e) });
 		}
+	}
+
+	// 2026-08-10: auto-promote the top-N high-confidence
+	// non-universe tickers. Sort by confidence DESC so
+	// the strongest signals get promoted first, cap at
+	// AUTO_PROMOTE_MAX_PER_RUN to bound the impact of a
+	// misbehaving LLM (each promote is irreversible until
+	// the operator explicitly removes the ticker).
+	//
+	// For each candidate: (a) call DO /auto-promote to
+	// add the ticker to the bot's universe atomically,
+	// (b) write a lead_suggestion row with status=auto_promoted
+	// for the operator's audit trail (the Dev page can show
+	// these as "auto" pills so the operator knows what the
+	// bot added on its own).
+	const autoPromoted: Array<{ ticker: string; vertical: string; confidence: number; ok: boolean; error?: string }> = [];
+	if (env.LIVE_BOT && autoPromoteCandidates.length > 0) {
+		// Sort by confidence DESC, dedupe by ticker (just
+		// in case two candidates share a ticker — the union
+		// of bot universe + live markets can produce dupes).
+		const seen = new Set<string>();
+		const sorted = [...autoPromoteCandidates]
+			.sort((a, b) => b.confidence - a.confidence)
+			.filter((c) => {
+				if (seen.has(c.ticker)) return false;
+				seen.add(c.ticker);
+				return true;
+			})
+			.slice(0, AUTO_PROMOTE_MAX_PER_RUN);
+
+		const id = env.LIVE_BOT.idFromName(`user:${userId}`);
+		const stub = env.LIVE_BOT.get(id);
+		for (const cand of sorted) {
+			try {
+				const resp = await stub.fetch("https://bot.local/auto-promote", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						ticker: cand.ticker,
+						vertical: cand.vertical,
+						confidence: cand.confidence,
+						reasoning: cand.reasoning,
+					}),
+				});
+				if (!resp.ok) {
+					autoPromoted.push({
+						ticker: cand.ticker,
+						vertical: cand.vertical,
+						confidence: cand.confidence,
+						ok: false,
+						error: `http_${resp.status}`,
+					});
+					continue;
+				}
+				const data = (await resp.json().catch(() => ({}))) as {
+					ok?: boolean;
+					added?: boolean;
+					already_in_universe?: boolean;
+				};
+				if (!data.ok) {
+					autoPromoted.push({
+						ticker: cand.ticker,
+						vertical: cand.vertical,
+						confidence: cand.confidence,
+						ok: false,
+						error: "do_returned_not_ok",
+					});
+					continue;
+				}
+				autoPromoted.push({
+					ticker: cand.ticker,
+					vertical: cand.vertical,
+					confidence: cand.confidence,
+					ok: true,
+				});
+				// Audit row: lead_suggestions with
+				// status='auto_promoted'. The existing
+				// 'decided_at' column is set to the
+				// auto-promote timestamp so the Dev
+				// page can render the action time
+				// without a separate column.
+				try {
+					await env.DB
+						.prepare(
+							`INSERT INTO lead_suggestions
+							 (user_id, cron_run_id, kind, ticker, vertical, reasoning, raw_text,
+							  status, created_at, decided_at, expires_at, applied_at)
+							 VALUES (?1, NULL, 'add', ?2, ?3, ?4, ?5, 'auto_promoted', ?6, ?6, ?7, ?6)`,
+						)
+						.bind(
+							userId,
+							cand.ticker,
+							cand.vertical,
+							`auto-promoted by llm_opinions_cron at conf ${cand.confidence.toFixed(2)}: ${cand.reasoning}`.slice(0, 1000),
+							`confidence=${cand.confidence.toFixed(2)}; vertical=${cand.vertical}`,
+							now,
+							now + 30 * 24 * 60 * 60 * 1000, // 30d expiry on the audit row
+						)
+						.run();
+				} catch (e) {
+					console.warn(
+						`[llm-opinions] auto-promote audit row failed for ${cand.ticker}:`,
+						e instanceof Error ? e.message : String(e),
+					);
+				}
+			} catch (e) {
+				autoPromoted.push({
+					ticker: cand.ticker,
+					vertical: cand.vertical,
+					confidence: cand.confidence,
+					ok: false,
+					error: e instanceof Error ? e.message : String(e),
+				});
+			}
+		}
+		console.log(
+			`[llm-opinions] auto-promoted ${autoPromoted.filter((a) => a.ok).length}/${sorted.length} candidates`,
+		);
 	}
 
 	// Record the cron run.
@@ -322,6 +499,13 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 			updated,
 			skipped,
 			errors: errors.slice(0, 10),
+			// 2026-08-10: auto-promote audit. Each entry is
+			// one LLM verdict that triggered (or tried to
+			// trigger) an auto-add to the bot's universe.
+			// ok=true means the DO accepted the promotion;
+			// ok=false means the call failed (logged with
+			// an error string the cadence panel can surface).
+			auto_promoted: autoPromoted,
 			total_input_tokens: totalInputTokens,
 			total_output_tokens: totalOutputTokens,
 		},

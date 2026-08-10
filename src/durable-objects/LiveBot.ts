@@ -858,6 +858,122 @@ export class LiveBot implements DurableObject {
 				});
 			}
 
+			case "/auto-promote": {
+				// 2026-08-10: atomic ticker add to the bot's
+				// universe, called by the llm-opinions-cron
+				// when it sees a high-confidence LLM verdict
+				// on a market the bot isn't already watching.
+				// The user explicitly asked for full-auto
+				// ("i don't want to have to promote anything")
+				// — this endpoint is the path that makes the
+				// "auto" part real.
+				//
+				// Body: { "ticker": "KX...", "vertical":
+				//   "weather" | ..., "confidence": 0.0-1.0,
+				//   "reasoning": "short string" }
+				//
+				// Safety:
+				//  - Idempotent: already-in-universe returns
+				//    { ok: true, already_in_universe: true }.
+				//  - Whitelist: only "weather" | "economic" |
+				//    "politics" | "sports" verticals accepted
+				//    (matches the strategy router's allowed
+				//    values; anything else is a no-op).
+				//  - No restart needed: state.config.tickers
+				//    is read by the polling alarm on every
+				//    tick, so the new ticker gets picked up
+				//    on the next poll (≤1.5s).
+				//  - Mirror to D1 so the verticals endpoint
+				//    sees the new ticker without a round-trip
+				//    to the DO.
+				const body = (await request.json().catch(() => ({}))) as {
+					ticker?: string;
+					vertical?: string;
+					confidence?: number;
+					reasoning?: string;
+				};
+				const ticker = String(body.ticker ?? "").trim();
+				const vertical = String(body.vertical ?? "").trim();
+				const confidence = Number(body.confidence ?? 0);
+				const reasoning = String(body.reasoning ?? "").slice(0, 500);
+				if (!ticker || !vertical) {
+					return Response.json(
+						{ ok: false, error: "missing_fields", message: "ticker and vertical are required" },
+						{ status: 400 },
+					);
+				}
+				if (!["weather", "economic", "politics", "sports"].includes(vertical)) {
+					return Response.json(
+						{
+							ok: false,
+							error: "invalid_vertical",
+							message: `vertical must be one of weather|economic|politics|sports, got ${vertical}`,
+						},
+						{ status: 400 },
+					);
+				}
+				const s = await this.ensureState();
+				// Idempotency: if the ticker is already in
+				// the universe, just return success without
+				// touching state.
+				if (s.config.tickers.includes(ticker)) {
+					return Response.json({
+						ok: true,
+						added: false,
+						already_in_universe: true,
+						ticker,
+						vertical,
+						universe_size: s.config.tickers.length,
+					});
+				}
+				// Append to the universe + record the vertical
+				// mapping + initialise the per-ticker state
+				// so the polling feed has somewhere to write
+				// the price history. `ticker_verticals` is
+				// { ticker: vertical } per the type signature
+				// (NOT { vertical: [ticker] } — verified
+				// against LiveBotConfig).
+				s.config.tickers = [...s.config.tickers, ticker];
+				s.config.ticker_verticals = {
+					...(s.config.ticker_verticals ?? {}),
+					[ticker]: vertical,
+				};
+				// Initialise the per-ticker state. Mirror the
+				// shape of an existing ticker in state.tickers
+				// so the polling feed doesn't have to handle
+				// the "no state yet" case. event_ticker + title
+				// are filled in by the polling feed's first
+				// successful GET (the research-cron also
+				// snapshots them via live_market_snapshots).
+				if (!s.tickers[ticker]) {
+					s.tickers[ticker] = {
+						vertical,
+						event_ticker: "",
+						title: "",
+						book: null,
+						price_history: [],
+						last_trade_price_cents: null,
+						trade_count: 0,
+						position: null,
+					};
+				}
+				await this.saveState(s);
+				await this.mirrorConfigToD1(s);
+				console.log(
+					`[live-bot:promote] auto-promoted ${ticker} (${vertical}) @ conf ${confidence.toFixed(2)} — universe now ${s.config.tickers.length} tickers`,
+				);
+				return Response.json({
+					ok: true,
+					added: true,
+					already_in_universe: false,
+					ticker,
+					vertical,
+					confidence,
+					reasoning,
+					universe_size: s.config.tickers.length,
+				});
+			}
+
 			case "/place-test-order": {
 				// Chunk 9: manual operator trigger to place a
 				// real order. Use this to verify the real-money

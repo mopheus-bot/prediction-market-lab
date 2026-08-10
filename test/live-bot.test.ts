@@ -238,6 +238,106 @@ describe("LiveBot Durable Object", () => {
 		expect(body.error).toBe("per_trade_cap_exceeded");
 	});
 
+	// ─── 2026-08-10: /auto-promote (full-auto universe expansion) ───
+
+	it("/auto-promote adds a ticker to the universe atomically", async () => {
+		const stub = botStub();
+		// 1. Confirm the starting universe (default config =
+		//    KXWARMING-50 + KXMVECROSSCATEGORY-...; both already
+		//    in the universe per the chunk-9 fixture).
+		const before = await stub.fetch("https://bot/status");
+		const beforeBody = (await before.json()) as {
+			config: { tickers: string[]; ticker_verticals: Record<string, string> };
+		};
+		const initialSize = beforeBody.config.tickers.length;
+
+		// 2. Promote a brand-new ticker.
+		const r = await stub.fetch("https://bot/auto-promote", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				ticker: "KXTEMP-AUTOTEST-50",
+				vertical: "weather",
+				confidence: 0.85,
+				reasoning: "test: LLM says this is a 85% edge",
+			}),
+		});
+		expect(r.status).toBe(200);
+		const body = (await r.json()) as Record<string, unknown>;
+		expect(body.ok).toBe(true);
+		expect(body.added).toBe(true);
+		expect(body.already_in_universe).toBe(false);
+		expect(body.ticker).toBe("KXTEMP-AUTOTEST-50");
+		expect(body.vertical).toBe("weather");
+		expect(body.universe_size).toBe(initialSize + 1);
+
+		// 3. The new ticker shows up in /status with the right vertical.
+		const after = await stub.fetch("https://bot/status");
+		const afterBody = (await after.json()) as {
+			config: { tickers: string[]; ticker_verticals: Record<string, string> };
+		};
+		expect(afterBody.config.tickers).toContain("KXTEMP-AUTOTEST-50");
+		expect(afterBody.config.ticker_verticals["KXTEMP-AUTOTEST-50"]).toBe("weather");
+	});
+
+	it("/auto-promote is idempotent — second call reports already_in_universe", async () => {
+		const stub = botStub();
+		// First add.
+		await stub.fetch("https://bot/auto-promote", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				ticker: "KXGDP-AUTOTEST-Q3",
+				vertical: "economic",
+				confidence: 0.75,
+				reasoning: "first call",
+			}),
+		});
+		// Second add of the same ticker.
+		const r = await stub.fetch("https://bot/auto-promote", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				ticker: "KXGDP-AUTOTEST-Q3",
+				vertical: "economic",
+				confidence: 0.80,
+				reasoning: "second call",
+			}),
+		});
+		const body = (await r.json()) as Record<string, unknown>;
+		expect(body.ok).toBe(true);
+		expect(body.added).toBe(false);
+		expect(body.already_in_universe).toBe(true);
+	});
+
+	it("/auto-promote rejects unknown verticals with 400", async () => {
+		const stub = botStub();
+		const r = await stub.fetch("https://bot/auto-promote", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				ticker: "KXFOO-BAR",
+				vertical: "esoteric",
+				confidence: 0.9,
+			}),
+		});
+		expect(r.status).toBe(400);
+		const body = (await r.json()) as Record<string, unknown>;
+		expect(body.error).toBe("invalid_vertical");
+	});
+
+	it("/auto-promote rejects missing fields with 400", async () => {
+		const stub = botStub();
+		const r = await stub.fetch("https://bot/auto-promote", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ ticker: "KXFOO" }), // missing vertical
+		});
+		expect(r.status).toBe(400);
+		const body = (await r.json()) as Record<string, unknown>;
+		expect(body.error).toBe("missing_fields");
+	});
+
 	it("/place-test-order refuses when kill switch is on", async () => {
 		const stub = botStub();
 		// Turn kill switch on first.
