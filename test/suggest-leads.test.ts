@@ -6,6 +6,11 @@
  * tests cover the two pure functions that drive correctness:
  *   - `parseTickerList`: extracts the JSON object from the
  *     LLM's text (defends against partial / wrapped output).
+ *     2026-08-09: shape changed from {tickers: string[],
+ *     reasoning: string} to {tickers: {ticker, reasoning}[],
+ *     overall_reasoning: string} to give the operator per-
+ *     ticker fit/edge/risk reasoning. The parser still
+ *     accepts the old flat-string shape for backward compat.
  *   - `validateTickerSuggestions`: dedupes + format-checks
  *     + filters against the operator's "exclude" list + the
  *     bot's current universe.
@@ -18,27 +23,49 @@ import { describe, it, expect } from "vitest";
 import { parseTickerList, validateTickerSuggestions } from "../src/api/suggest-leads";
 
 describe("parseTickerList", () => {
-	it("parses a clean JSON object", () => {
+	it("parses a clean JSON object (new per-ticker-reasoning shape)", () => {
+		const out = parseTickerList(
+			`{"tickers":[{"ticker":"KXGDP-Q4","reasoning":"economic fit"},{"ticker":"KXWARMING-60","reasoning":"weather fit"}],"overall_reasoning":"add two"}`,
+			4,
+		);
+		expect(out.tickers).toEqual([
+			{ ticker: "KXGDP-Q4", reasoning: "economic fit" },
+			{ ticker: "KXWARMING-60", reasoning: "weather fit" },
+		]);
+		expect(out.overall_reasoning).toBe("add two");
+	});
+
+	it("accepts the legacy flat-string shape for backward compat", () => {
+		// 2026-08-09: M3 may still return the old shape
+		// from cache or from a fresh prompt that didn't
+		// include the new shape instructions. The parser
+		// degrades gracefully — empty reasoning.
 		const out = parseTickerList(
 			`{"tickers":["KXGDP-Q4","KXWARMING-60"],"reasoning":"add two"}`,
 			4,
 		);
-		expect(out.tickers).toEqual(["KXGDP-Q4", "KXWARMING-60"]);
-		expect(out.reasoning).toBe("add two");
+		expect(out.tickers).toEqual([
+			{ ticker: "KXGDP-Q4", reasoning: "" },
+			{ ticker: "KXWARMING-60", reasoning: "" },
+		]);
+		// The old `reasoning` field is mapped to
+		// overall_reasoning as a fallback (single
+		// sentence summary).
+		expect(out.overall_reasoning).toBe("add two");
 	});
 
 	it("extracts JSON from a text wrapper", () => {
 		const out = parseTickerList(
-			`Here are my picks: {"tickers":["KXGDP-Q4"],"reasoning":"ok"}`,
+			`Here are my picks: {"tickers":[{"ticker":"KXGDP-Q4","reasoning":"ok"}],"overall_reasoning":"ok"}`,
 			4,
 		);
-		expect(out.tickers).toEqual(["KXGDP-Q4"]);
+		expect(out.tickers).toEqual([{ ticker: "KXGDP-Q4", reasoning: "ok" }]);
 	});
 
 	it("returns empty when no JSON object is present", () => {
 		const out = parseTickerList("nothing useful", 4);
 		expect(out.tickers).toEqual([]);
-		expect(out.reasoning).toMatch(/no JSON/);
+		expect(out.overall_reasoning).toMatch(/no JSON/);
 	});
 
 	it("returns empty on malformed JSON (has braces but unparseable)", () => {
@@ -50,23 +77,29 @@ describe("parseTickerList", () => {
 		// indexOf('{') succeeds but lastIndexOf('}') returns -1.
 		const out = parseTickerList('{"tickers": [{"a": 1}', 4);
 		expect(out.tickers).toEqual([]);
-		expect(out.reasoning).toMatch(/malformed/);
+		expect(out.overall_reasoning).toMatch(/malformed/);
 	});
 
 	it("caps at requested count", () => {
 		const out = parseTickerList(
-			`{"tickers":["KXA-1","KXB-2","KXC-3","KXD-4","KXE-5"],"reasoning":""}`,
+			`{"tickers":[{"ticker":"KXA-1"},{"ticker":"KXB-2"},{"ticker":"KXC-3"},{"ticker":"KXD-4"},{"ticker":"KXE-5"}],"overall_reasoning":""}`,
 			3,
 		);
 		expect(out.tickers).toHaveLength(3);
 	});
 
 	it("filters non-string entries from the tickers array", () => {
+		// 2026-08-09: now handles a mix of string entries
+		// (legacy) and object entries (new). Non-string /
+		// non-object entries (numbers, null) are dropped.
 		const out = parseTickerList(
-			`{"tickers":["KXA-1",42,null,"KXB-2"],"reasoning":""}`,
+			`{"tickers":[{"ticker":"KXA-1","reasoning":"x"},42,null,{"ticker":"KXB-2","reasoning":"y"}],"overall_reasoning":""}`,
 			4,
 		);
-		expect(out.tickers).toEqual(["KXA-1", "KXB-2"]);
+		expect(out.tickers).toEqual([
+			{ ticker: "KXA-1", reasoning: "x" },
+			{ ticker: "KXB-2", reasoning: "y" },
+		]);
 	});
 });
 

@@ -1,8 +1,9 @@
 /**
  * pm-bot — leads API (chunk 11+).
  *
- * The frontend for the leads-cron. The cron (daily 02:00 UTC)
- * writes LLM-generated add+drop suggestions to the
+ * The frontend for the leads-cron. The cron (every 6h +30min,
+ * 00:30/06:30/12:30/18:30 UTC) writes LLM-generated add+drop
+ * suggestions to the
  * `lead_suggestions` table; the operator reviews them on the
  * Dev page and clicks Approve / Reject.
  *

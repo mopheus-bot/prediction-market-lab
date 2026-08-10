@@ -127,12 +127,22 @@ const SERVICE_CATALOGUE: Array<{
 		details_from: "cron",
 	},
 	{
+		id: "research",
+		name: "Market research",
+		description: "Polls Kalshi's open markets, GETs the real orderbook for active-looking ones, and snapshots them to D1. Surfaces the live 'what is actually tradeable right now' view on the Dev page. Per-ticker orderbook data is only available via GET (the LIST endpoint returns 0 for bid/ask), so this cron is the operator's window into Kalshi's actual liquidity.",
+		category: "cron",
+		interval_ms: 15 * 60 * 1000,
+		interval_label: "every 15 min (5 min after scan)",
+		icon: "🔬",
+		details_from: "cron",
+	},
+	{
 		id: "leads",
 		name: "Lead suggestions",
-		description: "Asks the LLM which Kalshi tickers to add or drop from the bot's universe. Writes suggestions to the lead_suggestions table; operator approves or rejects on the Dev page.",
+		description: "Asks the LLM which Kalshi tickers to add or drop from the bot's universe. Writes 4-6 add + 0-2 drop suggestions to the lead_suggestions table; operator approves or rejects on the Dev page.",
 		category: "cron",
-		interval_ms: 24 * 60 * 60 * 1000,
-		interval_label: "daily at 02:00 UTC",
+		interval_ms: 6 * 60 * 60 * 1000,
+		interval_label: "every 6 hours +30min (00:30/06:30/12:30/18:30 UTC)",
 		icon: "🎯",
 		details_from: "cron",
 	},
@@ -175,7 +185,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 	const user_id = DEFAULT_USER_ID;
 
 	// Pull the per-cron last-runs in parallel.
-	const cronJobs = ["scan", "news", "daily", "heartbeat", "leads", "train"] as const;
+	const cronJobs = ["scan", "research", "news", "daily", "heartbeat", "leads", "train"] as const;
 	const cronRows = await Promise.all(
 		cronJobs.map((name) =>
 			env.DB ? cronRunsDb.lastRun(env.DB, name, user_id).catch(() => null) : Promise.resolve(null),

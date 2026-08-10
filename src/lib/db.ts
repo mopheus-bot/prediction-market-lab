@@ -674,3 +674,140 @@ export const leadSuggestions = {
 		return row?.one === 1;
 	},
 };
+
+// ─── live_market_snapshots (research-cron) ──────────────────────────────
+//
+// The research-cron (every 15 min) writes a snapshot of any
+// Kalshi market that LOOKS active (last_price > 0 OR OI > 0).
+// The Dev page renders the latest snapshot per market in a
+// "live now" panel; the history is the training set for
+// Phase 2 (parlay strategy backtest).
+//
+// **Why not just use market_snapshots?** the existing table
+// is keyed to the bot's own positions (vertical is required,
+// per-position). live_market_snapshots is per-market across
+// the full Kalshi catalog (vertical is nullable, includes
+// event_ticker + title for the Dev page UI).
+//
+// **Insert pattern:** one row per (ts, ticker) — the cron
+// uses an upsert (INSERT OR REPLACE) so a re-poll of the
+// same market in the same second doesn't dup.
+
+export interface LiveMarketSnapshotRow {
+	id: number;
+	user_id: string;
+	ts: number;
+	ticker: string;
+	event_ticker: string | null;
+	title: string | null;
+	yes_bid_cents: number;
+	yes_ask_cents: number;
+	no_bid_cents: number | null;
+	no_ask_cents: number | null;
+	last_price_cents: number | null;
+	volume_24h: number | null;
+	open_interest: number | null;
+	is_live: 0 | 1;
+	close_time: string | null;
+}
+
+export type NewLiveMarketSnapshot = Omit<LiveMarketSnapshotRow, "id">;
+
+export const liveMarketSnapshots = {
+	async upsert(db: D1Database, user_id: string, s: NewLiveMarketSnapshot): Promise<void> {
+		await db
+			.prepare(
+				`INSERT OR REPLACE INTO live_market_snapshots
+				 (user_id, ts, ticker, event_ticker, title, yes_bid_cents,
+				  yes_ask_cents, no_bid_cents, no_ask_cents, last_price_cents,
+				  volume_24h, open_interest, is_live, close_time)
+				 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`,
+			)
+			.bind(
+				user_id,
+				s.ts,
+				s.ticker,
+				s.event_ticker,
+				s.title,
+				s.yes_bid_cents,
+				s.yes_ask_cents,
+				s.no_bid_cents,
+				s.no_ask_cents,
+				s.last_price_cents,
+				s.volume_24h,
+				s.open_interest,
+				s.is_live,
+				s.close_time,
+			)
+			.run();
+	},
+
+	/** Latest snapshot per ticker (the "live now" view). */
+	async latestPerTicker(
+		db: D1Database,
+		user_id: string,
+		opts: { onlyLive?: boolean; limit?: number } = {},
+	): Promise<LiveMarketSnapshotRow[]> {
+		const where = ["user_id = ?1"];
+		const params: unknown[] = [user_id];
+		if (opts.onlyLive) {
+			where.push("is_live = 1");
+		}
+		// Latest per ticker: use a window function. D1 supports
+		// SQLite 3.39+, so ROW_NUMBER() OVER (...) is available.
+		const sql = `
+			SELECT * FROM (
+			  SELECT *, ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ts DESC) AS rn
+			  FROM live_market_snapshots
+			  WHERE ${where.join(" AND ")}
+			) WHERE rn = 1
+			ORDER BY ts DESC
+			LIMIT ?`;
+		params.push(opts.limit ?? 100);
+		const res = await db.prepare(sql).bind(...params).all<LiveMarketSnapshotRow & { rn: number }>();
+		return (res.results ?? []).map((r) => {
+			const { rn: _rn, ...rest } = r;
+			return rest as LiveMarketSnapshotRow;
+		});
+	},
+
+	/** History for one ticker, time range. */
+	async history(
+		db: D1Database,
+		user_id: string,
+		ticker: string,
+		opts: { since_ts?: number; until_ts?: number; limit?: number } = {},
+	): Promise<LiveMarketSnapshotRow[]> {
+		const where = ["user_id = ?1", "ticker = ?2"];
+		const params: unknown[] = [user_id, ticker];
+		if (opts.since_ts !== undefined) {
+			where.push("ts >= ?");
+			params.push(opts.since_ts);
+		}
+		if (opts.until_ts !== undefined) {
+			where.push("ts <= ?");
+			params.push(opts.until_ts);
+		}
+		const sql = `SELECT * FROM live_market_snapshots WHERE ${where.join(" AND ")} ORDER BY ts ASC LIMIT ?`;
+		params.push(opts.limit ?? 1000);
+		const res = await db.prepare(sql).bind(...params).all<LiveMarketSnapshotRow>();
+		return res.results ?? [];
+	},
+
+	/** Number of distinct "is_live" tickers in the last N ms.
+	 *  Used by the cadence panel ("X markets live right now"). */
+	async liveCountSince(
+		db: D1Database,
+		user_id: string,
+		since_ts: number,
+	): Promise<number> {
+		const row = await db
+			.prepare(
+				`SELECT COUNT(DISTINCT ticker) as c FROM live_market_snapshots
+				 WHERE user_id = ?1 AND is_live = 1 AND ts >= ?2`,
+			)
+			.bind(user_id, since_ts)
+			.first<{ c: number }>();
+		return row?.c ?? 0;
+	},
+};

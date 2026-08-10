@@ -41,10 +41,10 @@ describe("TRIGGERABLE_CRONS", () => {
 		}
 	});
 
-	it("includes the leads cron at 0 2 * * *", () => {
+	it("includes the leads cron at 30 */6 * * *", () => {
 		const leads = TRIGGERABLE_CRONS.find((c) => c.name === "leads");
 		expect(leads).toBeDefined();
-		expect(leads?.cronExpression).toBe("0 2 * * *");
+		expect(leads?.cronExpression).toBe("30 */6 * * *");
 	});
 });
 

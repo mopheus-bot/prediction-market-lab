@@ -44,18 +44,20 @@ import { runBacktestCron } from "./backtest-cron.js";
 import { runAutoPilotCron } from "./auto-pilot-cron.js";
 import { runHeartbeatCron } from "./heartbeat-cron.js";
 import { runLeadsCron } from "./leads-cron.js";
+import { runResearchCron } from "./research-cron.js";
 import type { LLMEnv } from "../llm/index.js";
 import type { TelegramEnv } from "../telegram/index.js";
 
 // ─── Cron schedule (must match wrangler.jsonc) ──────────────────────
 
 export const CRON_TABLE = {
-	scan: "*/15 * * * *",     // every 15 min
-	news: "0 */6 * * *",      // every 6 hours
+	scan: "*/15 * * * *",     // every 15 min (0,15,30,45)
+	research: "5,20,35,50 * * * *", // every 15 min, offset 5 min from scan (5,20,35,50). 2026-08-10: chunk 14.1, polls Kalshi live markets. Unique expression so jobForCron dispatch works.
+	news: "0 */6 * * *",      // every 6 hours (00/06/12/18 UTC)
 	daily: "0 6 * * *",       // 06:00 UTC daily
 	auto_pilot: "30 5 * * *", // 05:30 UTC daily (before daily recap)
 	heartbeat: "0 7 * * *",   // 07:00 UTC daily (after daily recap; passive health check)
-	leads: "0 2 * * *",      // 02:00 UTC daily (after Sunday backtest, before auto-pilot)
+	leads: "30 */6 * * *",    // every 6 hours +30min (00:30/06:30/12:30/18:30 UTC). 2026-08-09: tightened from daily 02:00 UTC to 6h. Offset by 30min from news so the LLM has fresh news data; unique expression so jobForCron can dispatch correctly.
 	train: "0 0 * * SUN",     // 00:00 UTC Sunday (day-of-week as name, not 0)
 	backtest: "0 1 * * SUN",  // 01:00 UTC Sunday (after train)
 } as const;
@@ -151,6 +153,7 @@ export type JobFn = (env: CronEnv) => Promise<CronResult>;
 
 export const JOBS: Record<CronName, JobFn> = {
 	scan: runScanCron,
+	research: runResearchCron,
 	news: runNewsCron,
 	daily: runDailyCron,
 	auto_pilot: runAutoPilotCron,

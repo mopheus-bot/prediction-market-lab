@@ -54,7 +54,7 @@
 							<button class="btn" data-cron-trigger="news">News (every 6h)</button>
 							<button class="btn" data-cron-trigger="daily">Daily recap (06:00 UTC)</button>
 							<button class="btn" data-cron-trigger="heartbeat">Heartbeat (07:00 UTC)</button>
-							<button class="btn" data-cron-trigger="leads">Leads (02:00 UTC)</button>
+							<button class="btn" data-cron-trigger="leads">Leads (every 6h)</button>
 							<button class="btn" data-cron-trigger="train">Train (Sun 00:00 UTC)</button>
 							<button class="btn" data-cron-trigger="auto_pilot">Auto-pilot (05:30 UTC)</button>
 							<button class="btn" data-cron-trigger="backtest">Backtest (Sun 01:00 UTC)</button>
@@ -66,9 +66,10 @@
 			<!-- ============================================ -->
 			<!-- LEAD SUGGESTIONS — LLM-driven add+drop      -->
 			<!-- pipeline. Operator approves / rejects each  -->
-			<!-- suggestion. The cron runs daily 02:00 UTC;  -->
-			<!-- undecided rows are quietly replaced the     -->
-			<!-- next run (24h TTL).                        -->
+			<!-- suggestion. The cron runs every 6h +30min   -->
+			<!-- (00:30/06:30/12:30/18:30 UTC); undecided    -->
+			<!-- rows are quietly replaced the next run      -->
+			<!-- (24h TTL).                                 -->
 			<!-- ============================================ -->
 			<section class="grid" style="margin-bottom: 24px;">
 				<div class="col-12">
@@ -80,10 +81,10 @@
 							<button class="btn small" id="dev-leads-suggest-now" style="margin-left: 8px;" title="Run the leads-cron now (uses M3, ~$0.001 per run)">Suggest now</button>
 							<button class="btn small" id="dev-leads-history-toggle" aria-expanded="false" aria-controls="dev-leads-history" style="margin-left: 8px;">History</button>
 						</div>
-						<div class="card-blurb">LLM-driven add + drop suggestions for the bot's ticker universe. The leads-cron runs daily 02:00 UTC. Each pending card is one LLM suggestion with reasoning. Approve to apply (bot restarts); reject so the LLM won't re-suggest this ticker for 30 days. Undecided cards are quietly replaced on the next run.</div>
+						<div class="card-blurb">LLM-driven add + drop suggestions for the bot's ticker universe. The leads-cron runs every 6 hours +30min (00:30/06:30/12:30/18:30 UTC). Each pending card is one LLM suggestion with fit / edge / risk reasoning. Approve to apply (bot restarts); reject so the LLM won't re-suggest this ticker for 30 days. Undecided cards are quietly replaced on the next run.</div>
 						<div class="lead-summary" id="dev-leads-summary">loading…</div>
 						<div class="lead-list" id="dev-leads-pending">
-							<div class="empty">no pending suggestions — runs daily 02:00 UTC, or click "Suggest now"</div>
+							<div class="empty">no pending suggestions — runs every 6 hours, or click "Suggest now"</div>
 						</div>
 						<div class="lead-list" id="dev-leads-history" hidden>
 							<div class="empty">no history yet</div>
@@ -1063,16 +1064,16 @@
 
 					// Summary line (visible even with 0 pending).
 					if (pending.length === 0) {
-						leadsSummaryEl.innerHTML = `<span class="muted">No pending suggestions. The cron runs daily 02:00 UTC and writes here; undecided rows get replaced on the next run.</span>`;
+						leadsSummaryEl.innerHTML = `<span class="muted">No pending suggestions. The cron runs every 6 hours and writes here; undecided rows get replaced on the next run.</span>`;
 					} else {
 						const nAdd = pending.filter((s) => s.kind === "add").length;
 						const nDrop = pending.filter((s) => s.kind === "drop").length;
-						leadsSummaryEl.innerHTML = `<strong>${pending.length} pending</strong> · ${nAdd} add · ${nDrop} drop · review before next cron at 02:00 UTC`;
+						leadsSummaryEl.innerHTML = `<strong>${pending.length} pending</strong> · ${nAdd} add · ${nDrop} drop · review before next cron (every 6h)`;
 					}
 
 					// Pending list.
 					if (pending.length === 0) {
-						leadsPendingEl.innerHTML = '<div class="empty">no pending suggestions — runs daily 02:00 UTC, or click "Suggest now"</div>';
+						leadsPendingEl.innerHTML = '<div class="empty">no pending suggestions — runs every 6 hours, or click "Suggest now"</div>';
 					} else {
 						leadsPendingEl.innerHTML = pending.map(renderLeadsCard).join("");
 					}

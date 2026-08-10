@@ -1,9 +1,16 @@
 -- pm-bot — chunk 11+ — lead_suggestions table.
 --
--- The leads-cron (daily 02:00 UTC) asks the LLM to suggest
--- which Kalshi tickers to ADD to the bot's universe and which
--- to DROP. Suggestions are written here; the operator reviews
--- them on the Dev page and clicks Approve / Reject.
+-- The leads-cron (every 6 hours +30min, 00:30/06:30/12:30/18:30 UTC)
+-- asks the LLM to suggest which Kalshi tickers to ADD to the
+-- bot's universe and which to DROP. Suggestions are written
+-- here; the operator reviews them on the Dev page and clicks
+-- Approve / Reject.
+--
+-- 2026-08-09: tightened from daily 02:00 UTC to 6h cadence
+-- to give fresh suggestions 4x/day; offset 30min from the
+-- news-cron so the LLM has fresh news data to weigh against.
+-- The 24h TTL still works because each new run supersedes
+-- the prior `pending` rows before inserting the new batch.
 --
 -- **Lifecycle (single table, status transitions):**
 --   pending   → operator hasn't decided yet

@@ -61,6 +61,13 @@ export default defineConfig({
 						// chunk 11+: leads pipeline
 						"test/leads-cron.test.ts",
 						"test/suggest-leads.test.ts",
+						"test/leads-scout.test.ts",
+						// chunk 13+: dry-run preview (uses live LLM if MMX_API_KEY is in env)
+						"test/leads-dry-run.test.ts",
+						// chunk 14.1: research-cron unit tests
+						"test/research-cron.test.ts",
+						// 2026-08-09 one-off ticker verification (Kalshi demo API)
+						"test/verify-tickers-now.test.ts",
 					],
 					environment: "node",
 				},

@@ -41,10 +41,12 @@ export type CronStatus = "success" | "error" | "skipped";
 /** LLM call outcome. */
 export type LlmStatus = "success" | "error";
 
-/** Suggestion kind. The leads-cron (daily 02:00 UTC) asks
+/** Suggestion kind. The leads-cron (every 6 hours +30min, 00:30/06:30/12:30/18:30 UTC) asks
  * the LLM for both kinds. `add` means "consider adding this
  * ticker to the universe"; `drop` means "consider removing
- * this ticker from the universe". */
+ * this ticker from the universe". 2026-08-09: tightened from
+ * daily 02:00 UTC to 6h cadence to give fresh suggestions
+ * 4x/day; offset 30min from news so the LLM has fresh news data. */
 export type LeadKind = "add" | "drop";
 
 /** Lifecycle status. See migrations/0004_lead_suggestions.sql

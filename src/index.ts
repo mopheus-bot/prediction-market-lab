@@ -46,6 +46,7 @@ import { handleCronTrigger, TRIGGERABLE_CRONS } from "./api/cron-trigger.js";
 import { handleSmokeTest } from "./api/smoke-test.js";
 import { handleSuggestLeads } from "./api/suggest-leads.js";
 import { handleGetLeads, handleApproveLead, handleRejectLead } from "./api/leads.js";
+import { handleGetLiveMarkets, handleGetLiveMarketHistory } from "./api/research.js";
 import {
 	handleGetActiveModels,
 	handleGetModel,
@@ -304,6 +305,24 @@ export default {
 				return jsonResponse({ ok: false, error: "bad_id", message: `id must be a positive integer, got: ${idStr}` }, 400);
 			}
 			return handleRejectLead(env, id);
+		}
+		// 2026-08-10: Research API (chunk 14.1).
+		// GET /api/pm/research/live-markets — current "live" view.
+		// GET /api/pm/research/live-markets/:ticker — history for one ticker.
+		if (path === "/api/pm/research/live-markets" && request.method === "GET") {
+			return handleGetLiveMarkets(env, url);
+		}
+		if (
+			path.startsWith("/api/pm/research/live-markets/") &&
+			request.method === "GET"
+		) {
+			const ticker = decodeURIComponent(
+				path.slice("/api/pm/research/live-markets/".length),
+			);
+			if (!ticker) {
+				return jsonResponse({ ok: false, error: "missing_ticker" }, 400);
+			}
+			return handleGetLiveMarketHistory(env, ticker, url);
 		}
 		// 2026-08-09: Manual cron trigger. POST
 		// /api/pm/cron/{name}/run triggers the named cron

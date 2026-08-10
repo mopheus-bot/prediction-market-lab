@@ -1,8 +1,9 @@
 /**
  * pm-bot — leads-cron unit tests (chunk 11+).
  *
- * The leads-cron runs daily 02:00 UTC, asks M3 to suggest
- * add+drop for the bot's ticker universe, and writes pending
+ * The leads-cron runs every 6 hours +30min (00:30/06:30/12:30/18:30 UTC),
+ * asks M3 to suggest add+drop for the bot's ticker universe,
+ * and writes pending
  * suggestions to the `lead_suggestions` table. The
  * operator approves or rejects each on the Dev page.
  *

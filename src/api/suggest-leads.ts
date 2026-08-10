@@ -70,14 +70,30 @@ export interface SuggestLeadsBody {
 	trading_mode?: string;
 }
 
-const DEFAULT_COUNT = 4;
+const DEFAULT_COUNT = 6;
+const HARD_MAX_COUNT = 8;
 
 // Kalshi ticker format: KX followed by 2-12 uppercase
 // letters / digits / hyphens. Matches the live KXWARMING-50,
 // KXGDP-Q3, KXPRES-26 shape.
 const KALSHI_TICKER_RE = /^KX[A-Z0-9][A-Z0-9-]{1,14}$/;
 
-const SYSTEM_PROMPT = `You are advising a Kalshi trading bot. You suggest new markets (tickers) the bot should add to its watch list. You output STRICT JSON only — no prose, no markdown fences, no commentary. Your suggestions must be real Kalshi tickers in the format KX followed by 2-12 uppercase letters, digits, or hyphens (e.g. KXWARMING-50, KXGDP-Q3, KXPRES-26). Do not invent tickers — if you are not sure a ticker exists, do not include it. Prefer markets from the bot's configured verticals. Match the market to the strategy: reversion strategies need liquid markets with mean-reverting price history; naive strategies (>=0.99 or <=0.01) need high-confidence near-certainty events.`;
+const SYSTEM_PROMPT = `You are the scout for a Kalshi trading bot. The operator has hit a "Suggest now" button on the Dev page; they want a fresh batch of LLM-picked tickers, not a re-suggestion of what's already in the bot's universe.
+
+Your job: actively look for *new* markets — categories the bot does not currently cover, timeframes that have launched recently, events that have come to Kalshi in the last few days. For each candidate, weigh it across fit, edge, and risk so the operator can decide in five seconds.
+
+The bot runs mean-reversion strategies on weather + economic markets, and naive (high-confidence, near-certainty) strategies on politics + sports. It has a small bankroll and a per-trade notional cap, so we cannot take a hundred markets — every suggestion needs a real reason to be there.
+
+Output STRICT JSON only — no prose, no markdown fences, no commentary, no preamble. Every suggestion must be a real, currently-open Kalshi ticker in the format KX followed by 2-12 uppercase letters, digits, or hyphens (e.g. KXWARMING-50, KXGDP-Q3, KXPRES-26, KXNBA-CHAMP). If you are not confident a ticker exists and is currently open, do not include it. Honest empty arrays > hallucinated tickers.
+
+For each candidate, weigh it out across three dimensions and put the result in the 'reasoning' field:
+  1. **Fit** — does it match the bot's strategy for that vertical? Reversion needs liquid, mean-reverting markets. Naive needs near-certainty events (>=0.99 or <=0.01).
+  2. **Edge** — what is the expected trading opportunity? Volume, open interest, time-to-resolution, recent price action.
+  3. **Risk** — known thin markets, ambiguous resolution criteria, very long-dated markets, or markets dominated by a single news event.
+
+Spread across all four verticals. Aim for at least one suggestion per vertical unless a vertical truly has nothing open right now.
+
+Prefer markets with non-trivial volume + open interest (liquidity matters for both entry and exit).`;
 
 function buildUserPrompt(body: SuggestLeadsBody): string {
 	const verticals = body.verticals ?? [];
@@ -98,34 +114,74 @@ function buildUserPrompt(body: SuggestLeadsBody): string {
 		}
 	}
 	lines.push("");
-	lines.push(`Suggest ${body.count ?? DEFAULT_COUNT} new Kalshi tickers the bot should add to its universe.`);
+	lines.push(`Suggest ${body.count ?? DEFAULT_COUNT} new Kalshi tickers the bot should add to its universe (hard cap ${HARD_MAX_COUNT}). Spread across all four verticals.`);
 	if (body.exclude && body.exclude.length > 0) {
 		lines.push(`Exclude these (already considered or operator-rejected): ${body.exclude.join(", ")}`);
 	}
 	lines.push("");
 	lines.push("Return JSON with this exact shape:");
-	lines.push(`{"tickers": ["KXWARMING-60", "KXGDP-Q3", ...], "reasoning": "2-3 sentences on why these markets fit the bot's profile."}`);
+	lines.push(`{"tickers": [{"ticker": "KXWARMING-60", "reasoning": "Fit: reversion-friendly. Edge: 24h vol ~$50k. Risk: thin OI."}], "overall_reasoning": "1-2 sentences on the day's thesis."}`);
+	lines.push("");
+	lines.push("Rules:");
+	lines.push("- Each ticker needs a non-empty 'reasoning' (1-3 sentences) covering fit / edge / risk");
+	lines.push("- Do NOT include any ticker already in the current universe or in the exclude list");
+	lines.push("- If you're not sure a ticker exists, omit it. Honest empty arrays > hallucinated tickers.");
 	return lines.join("\n");
 }
 
-export function parseTickerList(rawText: string, requestedCount: number): { tickers: string[]; reasoning: string } {
+export function parseTickerList(rawText: string, requestedCount: number): {
+	tickers: Array<{ ticker: string; reasoning: string }>;
+	overall_reasoning: string;
+} {
 	// M3 wraps output in <think>...</think> (we strip that in
 	// the chat() client). The remaining text should be JSON.
 	// Be defensive: find the first { and the matching }.
 	const jStart = rawText.indexOf("{");
 	const jEnd = rawText.lastIndexOf("}");
 	if (jStart === -1 || jEnd === -1 || jEnd < jStart) {
-		return { tickers: [], reasoning: "(llm returned no JSON object)" };
+		return { tickers: [], overall_reasoning: "(llm returned no JSON object)" };
 	}
 	try {
-		const obj = JSON.parse(rawText.slice(jStart, jEnd + 1)) as { tickers?: unknown; reasoning?: unknown };
-		const tickers = Array.isArray(obj.tickers)
-			? obj.tickers.filter((t): t is string => typeof t === "string").slice(0, requestedCount)
-			: [];
-		const reasoning = typeof obj.reasoning === "string" ? obj.reasoning : "";
-		return { tickers, reasoning };
+		const obj = JSON.parse(rawText.slice(jStart, jEnd + 1)) as {
+			tickers?: unknown;
+			overall_reasoning?: unknown;
+		};
+		// New shape: per-ticker reasoning. The Dev page
+		// shows this inline next to each suggestion card.
+		const rawList: unknown = obj.tickers;
+		const tickers: Array<{ ticker: string; reasoning: string }> = [];
+		if (Array.isArray(rawList)) {
+			for (const item of rawList) {
+				if (typeof item === "string") {
+					// Backward-compat: if the LLM returns the
+					// old flat string-list shape, accept it
+					// with empty reasoning.
+					tickers.push({ ticker: item, reasoning: "" });
+				} else if (
+					item &&
+					typeof item === "object" &&
+					typeof (item as { ticker?: unknown }).ticker === "string"
+				) {
+					const o = item as { ticker: string; reasoning?: unknown };
+					tickers.push({
+						ticker: o.ticker,
+						reasoning: typeof o.reasoning === "string" ? o.reasoning : "",
+					});
+				}
+			}
+		}
+		const overall_reasoning =
+			typeof obj.overall_reasoning === "string"
+				? obj.overall_reasoning
+				: typeof (obj as { reasoning?: unknown }).reasoning === "string"
+					? ((obj as { reasoning: string }).reasoning)
+					: "";
+		return {
+			tickers: tickers.slice(0, requestedCount),
+			overall_reasoning,
+		};
 	} catch {
-		return { tickers: [], reasoning: "(llm returned malformed JSON)" };
+		return { tickers: [], overall_reasoning: "(llm returned malformed JSON)" };
 	}
 }
 
@@ -193,17 +249,22 @@ export async function handleSuggestLeads(
 		];
 	}
 
-	const count = body.count ?? DEFAULT_COUNT;
+	const requested = body.count ?? DEFAULT_COUNT;
+	// Hard cap so a caller asking for 50 doesn't 50x the
+	// LLM cost. Anything past the cap is silently
+	// truncated in parseTickerList.
+	const count = Math.min(requested, HARD_MAX_COUNT);
 
 	// 1. Build the prompt.
 	const userPrompt = buildUserPrompt({ ...body, count });
 
 	// 2. Ask the LLM. M3 is a reasoning model that
 	// wraps its output in <think>...</think>, so we
-	// need a generous max_tokens budget — 1500 lets the
-	// think block + the JSON response both fit. 600 was
-	// truncating right at the JSON.
-	const result = await chat(env, SYSTEM_PROMPT, userPrompt, { max_tokens: 1500 });
+	// need a generous max_tokens budget — bumped from
+	// 1500 to 2500 to fit per-ticker reasoning across
+	// up to 8 tickers. 1500 was truncating the JSON
+	// for the new heavier shape.
+	const result = await chat(env, SYSTEM_PROMPT, userPrompt, { max_tokens: 2500 });
 
 	if (!result.ok) {
 		return Response.json(
@@ -221,17 +282,28 @@ export async function handleSuggestLeads(
 	const parsed = parseTickerList(result.text, count);
 
 	// 4. Validate format + dedupe + filter against excludes.
-	const validation = validateTickerSuggestions(parsed.tickers, {
-		exclude: [...(body.exclude ?? []), ...(body.current_tickers ?? [])],
-		limit: count,
-	});
+	// The validator only operates on ticker strings; we
+	// re-attach per-ticker reasoning from the parsed list
+	// by ticker, so the operator's Dev page can show the
+	// reasoning inline.
+	const validation = validateTickerSuggestions(
+		parsed.tickers.map((t) => t.ticker),
+		{
+			exclude: [...(body.exclude ?? []), ...(body.current_tickers ?? [])],
+			limit: count,
+		},
+	);
 	const { accepted, rejected } = validation;
+	const acceptedSet = new Set(accepted);
+	const tickers = parsed.tickers
+		.filter((t) => acceptedSet.has(t.ticker.toUpperCase()))
+		.map((t) => ({ ticker: t.ticker.toUpperCase(), reasoning: t.reasoning }));
 
 	return Response.json(
 		{
 			ok: true,
-			tickers: accepted,
-			reasoning: parsed.reasoning,
+			tickers,
+			overall_reasoning: parsed.overall_reasoning,
 			excluded: rejected,
 			raw_text: result.text,
 			// Stripped text is what survived the think-block

@@ -14,7 +14,7 @@ LLM call pattern, or the data feed strategy.
 | Daily recap    | daily at 06:00 UTC   | Aggregate 24h of trades + PnL, write R2, post Telegram | `src/cron/daily-cron.ts`          |
 | **Auto-pilot** | daily 05:30 UTC      | If Sharpe is past threshold, flip paper→real. Default off. | `src/cron/auto-pilot-cron.ts`|
 | **Heartbeat**  | daily 07:00 UTC      | Passive LLM + Telegram health check; Telegrams on failure only | `src/cron/heartbeat-cron.ts` |
-| **Leads suggestions** | daily 02:00 UTC | LLM-driven add+drop suggestions for the ticker universe; operator approves/rejects on the Dev page | `src/cron/leads-cron.ts`     |
+| **Leads suggestions** | every 6 hours +30min (00:30/06:30/12:30/18:30 UTC) | LLM-driven add+drop suggestions for the ticker universe; operator approves/rejects on the Dev page. Uses the Kalshi scout (real market snapshot, event_ticker prefix classification, per-ticker verify, universe-health auto-drops for tickers no longer in Kalshi's open list). See [`STRATEGY-PARLAYS.md`](./STRATEGY-PARLAYS.md) for the broader strategy refresh context. | `src/cron/leads-cron.ts`     |
 | Model retrain  | Sunday 00:00 UTC     | Poll R2 for new model artifacts, register in registry  | `src/cron/train-cron.ts`          |
 | Backtest       | Sunday 01:00 UTC     | Run the backtest retrospective on the latest trade ledger | `src/cron/backtest-cron.ts`    |
 | Model registry | on every /start      | Read active model_version from D1 per vertical         | `src/durable-objects/LiveBot.ts`  |
@@ -26,9 +26,9 @@ LLM call pattern, or the data feed strategy.
 
 ```
 */15 * * * *  → scan         (every 15 min)
-0 */6 * * *   → news         (every 6 hours)
+0 */6 * * *   → news         (every 6 hours, 00/06/12/18 UTC)
+30 */6 * * *  → leads        (every 6 hours +30min, 00:30/06:30/12:30/18:30 UTC; 2026-08-09 tightened from daily 02:00 UTC)
 30 5 * * *    → auto_pilot   (daily 05:30 UTC, default off)
-0 2 * * *     → leads        (daily 02:00 UTC)
 0 6 * * *     → daily        (daily 06:00 UTC)
 0 7 * * *     → heartbeat    (daily 07:00 UTC)
 0 0 * * SUN   → train        (Sunday 00:00 UTC)
@@ -62,7 +62,7 @@ The `llm_calls` D1 table records every LLM call with a `purpose` column so the c
 | --------------- | -------------------------------- | -------------------------- | ------------------- |
 | `news_verdict`  | news-cron (chunk 6)              | every 6h, per open position | 4h per ticker       |
 | `daily_recap`   | daily-cron (chunk 6)             | 1/day at 06:00 UTC         | 24h                 |
-| `leads_cron`    | leads-cron (chunk 11+)           | 1/day at 02:00 UTC         | 24h (next run supersedes) |
+| `leads_cron`    | leads-cron (chunk 11+)           | every 6h                  | 24h (next run supersedes) |
 | `llm_test`      | `/api/pm/bot/llm-test`           | manual (operator)          | none                |
 | `smoke_test`    | `/api/pm/bot/smoke-test`         | manual (operator) + heartbeat-cron (passive) | none |
 
