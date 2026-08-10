@@ -154,6 +154,7 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 	let nLookedActive = 0;
 	let nSnapshotsWritten = 0;
 	let nLive = 0;
+	let nUniverseSnapshotted = 0;
 	const liveTickers: string[] = [];
 	const errors: Array<{ ticker: string; message: string }> = [];
 
@@ -171,6 +172,7 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 			open_interest: number;
 			volume_24h: number;
 			close_time: string | null;
+			source: "list" | "bot_universe";
 		}> = [];
 		for await (const m of client.iterMarkets({
 			status: "open",
@@ -187,9 +189,62 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 				open_interest: m.open_interest ?? 0,
 				volume_24h: m.volume_24h ?? 0,
 				close_time: m.close_time ?? null,
+				source: "list",
 			});
 		}
 		nLookedActive = looksActiveMarkets.length;
+
+		// 3b. 2026-08-10: also pull the bot's current ticker
+		//     universe from the LiveBot DO and add those to
+		//     the snapshot list — bypassing the looksActive
+		//     filter. KXWARMING-50 (the only live single-event
+		//     market right now) sometimes fails the LIST-side
+		//     filter (last_price=0 / OI=0 in the directory
+		//     view) even though the bot's polling feed has
+		//     23k+ trades on it. Without this step, the
+		//     dashboard shows 0 markets even though the bot
+		//     is actively trading on the ticker. De-dup
+		//     against the list-sourced entries.
+		//
+		//     We do this AFTER the list pass so a market that's
+		//     already in `looksActiveMarkets` (with a
+		//     list-sourced event_ticker / title) keeps the
+		//     better metadata. Universe-only entries get
+		//     empty event_ticker / title until the GET fills
+		//     them in.
+		if (env.LIVE_BOT) {
+			try {
+				const id = env.LIVE_BOT.idFromName(`user:${DEFAULT_USER_ID}`);
+				const stub = env.LIVE_BOT.get(id);
+				const resp = await stub.fetch("https://bot.local/status");
+				if (resp.ok) {
+					const data = (await resp.json()) as {
+						config?: { tickers?: string[] };
+					};
+					const universeTickers = data.config?.tickers ?? [];
+					const known = new Set(looksActiveMarkets.map((m) => m.ticker));
+					for (const t of universeTickers) {
+						if (!t || known.has(t)) continue;
+						looksActiveMarkets.push({
+							ticker: t,
+							event_ticker: "",
+							title: "",
+							last_price_cents: 0,
+							open_interest: 0,
+							volume_24h: 0,
+							close_time: null,
+							source: "bot_universe",
+						});
+						nUniverseSnapshotted += 1;
+					}
+				}
+			} catch (e) {
+				console.warn(
+					"[research] failed to read bot universe (non-fatal):",
+					e instanceof Error ? e.message : String(e),
+				);
+			}
+		}
 
 		// 4. For each "looks active" market, GET the real
 		//    orderbook. The GET endpoint is the ONLY place
@@ -280,6 +335,7 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 		artifacts: {
 			n_scanned: nScanned,
 			n_looked_active: nLookedActive,
+			n_universe_snapshotted: nUniverseSnapshotted,
 			n_snapshots_written: nSnapshotsWritten,
 			n_live: nLive,
 			live_tickers: liveTickers,

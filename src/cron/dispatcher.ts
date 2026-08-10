@@ -106,6 +106,13 @@ export interface CronEnv extends LLMEnv, TelegramEnv {
 	KALSHI_DEMO_PRIVATE_KEY?: string;
 	KALSHI_PROD_KEY_ID?: string;
 	KALSHI_PROD_PRIVATE_KEY?: string;
+	// LiveBot DO binding. Used by the research cron to
+	// read the bot's current ticker universe and snapshot
+	// those tickers even if they don't pass the
+	// `looksActive` filter (e.g. KXWARMING-50 — the LIST
+	// endpoint sometimes shows it as 0/0/0/0 even though
+	// the bot is actively polling it).
+	LIVE_BOT?: DurableObjectNamespace;
 }
 
 export interface CronResult {
