@@ -93,7 +93,13 @@ export class LLMOpinionSignal implements SignalStrategy {
 		const opinion = ctx.llmOpinion;
 		if (!opinion) return null;
 		const now = Date.now();
-		if (opinion.expires_at < now) return null; // stale
+		if (opinion.expires_at < now) return null; // cron-stamped TTL
+		// Defense in depth: even if the cron stamps a future
+		// expires_at, reject if the verdict's ts is older than
+		// this.strategy's ttl_ms. Catches the case where the
+		// cron's expires_at math is wrong (e.g. wrong TZ, or
+		// the cron forgot to bump it after a retry).
+		if (now - opinion.ts > this.ttl_ms) return null;
 		if (opinion.side === "hold") return null; // LLM says no edge
 		if (opinion.confidence < this.min_confidence) return null;
 		// Use the orderbook mid as the entry price. The

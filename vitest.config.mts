@@ -68,6 +68,8 @@ export default defineConfig({
 						"test/research-cron.test.ts",
 						// 2026-08-09 one-off ticker verification (Kalshi demo API)
 						"test/verify-tickers-now.test.ts",
+					// chunk 15: LLMOpinionSignal (2026-08-10)
+					"test/llm-opinion.test.ts",
 					],
 					environment: "node",
 				},
