@@ -76,13 +76,24 @@ import type { Vertical } from "../lib/types.js";
 // that don't have a category prefix (the "weather" / "GDP" /
 // "election" wording in some descriptive titles).
 //
-// Vertical classification map:
+// Vertical classification map (2026-08-10, chunk 14+):
 //   weather:  KXWARMING*, KXTEMP*, KXHURRICANE*, KXRAIN*, KXCLIMATE*
 //   economic: KXINFLATION, KXGDP, KXFED, KXUNEMPLOY, KXRECESSION, KXFOMC
 //   politics: KXELECTION, KXPRES, KXSENATE, KXCONGRESS, KXGOV
-//   sports:   KXMVESPORTS* (all multi-game sports parlays)
+//   sports:   KXMLB*, KXNBA*, KXNFL*, KXNHL*, KXNCAA*, KXUFC* (single-game)
+//             PLUS KXMVESPORTS* (multi-game parlays — the bot's
+//             strategies don't apply, but they're the closest
+//             thing to "sports" Kalshi has right now)
 //   — cross: KXMVECROSSCATEGORY (explicitly excluded — bot's
 //     strategies don't apply to parlays)
+//
+// **Why this matters:** before 2026-08-10 the sports prefix was
+// just KXMVESPORTS* which catches the 4,065-market multi-game
+// parlay block. Single-game markets (KXMLBSPREAD, KXMLBTOTAL,
+// KXNBASPREAD, KXNFLSPREAD, etc.) have SHORT TICKERS and are
+// tradeable per-market. The LLM should see them as candidates
+// even though they're sparse. Filtered out of `markets_for_llm`
+// only when the catalog has no real liquidity.
 
 const VERTICAL_PREFIXES: Record<Vertical, RegExp[]> = {
 	weather: [
@@ -118,10 +129,22 @@ const VERTICAL_PREFIXES: Record<Vertical, RegExp[]> = {
 		/^KXPRIMARY/i,
 	],
 	sports: [
-		// The big one: 4,065 markets in this prefix as of 2026-08-09.
-		// These are multi-game parlays, which the bot's naive
-		// strategy wasn't designed for, but they're the closest
-		// thing to "sports" Kalshi has.
+		// Single-game markets. These have SHORT TICKERS (e.g.
+		// KXMLBSPREAD, KXMLBTOTAL) — Kalshi's product for
+		// a single game (spread, total, moneyline). The bot's
+		// naive + reversion strategies can run on these.
+		/^KXMLB/i,
+		/^KXNBA/i,
+		/^KXNFL/i,
+		/^KXNHL/i,
+		/^KXNCAA/i,
+		/^KXUFC/i,
+		/^KXEPL/i,
+		// Multi-game sports parlays. 4,065 markets as of
+		// 2026-08-09, all "freshly listed" (vol=0, OI=0).
+		// No strategy for them yet, but they're the closest
+		// thing to "sports" Kalshi has, so we keep them
+		// visible in the universe-health check.
 		/^KXMVESPORTS/i,
 	],
 };
