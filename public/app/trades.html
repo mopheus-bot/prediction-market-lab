@@ -452,6 +452,17 @@
 				const buildPath = (series) => series.map((p, i) => `${i === 0 ? "M" : "L"}${xOf(p.ts).toFixed(1)},${yOf(p.pnl).toFixed(1)}`).join(" ");
 				const paperPath = buildPath(paperPoints);
 				const realPath = buildPath(realPoints);
+				// 2026-08-10: combined path + area fill. The area
+				// fill was lost in commit bd91e91 (Fix 4: paper/real
+				// split). The user noticed "the green fill isn't
+				// filling" — restoring it here. The combined path
+				// traces the TOTAL cumulative PnL; the area closes
+				// back to the zero line so the gradient fills the
+				// space under the curve.
+				const combinedPath = buildPath(points);
+				const firstX = xOf(points[0].ts).toFixed(1);
+				const lastX = xOf(points[points.length - 1].ts).toFixed(1);
+				const combinedArea = `${combinedPath} L${lastX},${y0.toFixed(1)} L${firstX},${y0.toFixed(1)} Z`;
 				const finalPnl = points[points.length - 1].pnl;
 				const finalPaper = paperPoints.length > 0 ? paperPoints[paperPoints.length - 1].pnl : 0;
 				const finalReal = realPoints.length > 0 ? realPoints[realPoints.length - 1].pnl : 0;
@@ -460,7 +471,7 @@
 				svg.innerHTML = `
 					<defs>
 						<linearGradient id="pnl-area-gradient" x1="0" y1="0" x2="0" y2="1">
-							<stop offset="0%" stop-color="${lineColor}" stop-opacity="0.2"/>
+							<stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
 							<stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
 						</linearGradient>
 					</defs>
@@ -470,6 +481,10 @@
 					<text x="${PAD - 6}" y="${y0 + 3}" text-anchor="end" fill="var(--ink-faint)" font-size="10" font-family="ui-monospace, monospace">$0</text>
 					<text x="${PAD - 6}" y="${yOf(maxPnl) + 3}" text-anchor="end" fill="var(--green-soft, #34d399)" font-size="10" font-family="ui-monospace, monospace">+$${(maxPnl / 100).toFixed(0)}</text>
 					<text x="${PAD - 6}" y="${yOf(minPnl) + 3}" text-anchor="end" fill="var(--red-soft, #fca5a5)" font-size="10" font-family="ui-monospace, monospace">−$${(Math.abs(minPnl) / 100).toFixed(0)}</text>
+					<!-- Combined area fill (green if total PnL > 0, red if < 0).
+					     Drawn UNDER the per-mode lines so the mode lines stay
+					     on top. -->
+					<path d="${combinedArea}" fill="url(#pnl-area-gradient)" stroke="none" />
 					<!-- Paper line (muted grey, thinner) — only draw if
 					     there are paper trades. -->
 					${paperPoints.length > 0 ? `
