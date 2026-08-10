@@ -328,6 +328,33 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 		console.warn("[research] failed to record cron_run", e);
 	}
 
+	// 5b. 2026-08-10: snapshot retention. The
+	//     live_market_snapshots table grows at ~1 row
+	//     per 3s per ticker (bot's polling feed). At
+	//     1 ticker that's 28k rows/day; at 10 tickers
+	//     280k. We only need the latest snapshot per
+	//     ticker for the "live now" view, and the
+	//     history() endpoint only goes back 1h. So
+	//     keep 2h of history and trim the rest.
+	try {
+		const cutoff = now - 2 * 60 * 60 * 1000;
+		const result = await env.DB
+			.prepare(
+				`DELETE FROM live_market_snapshots
+				 WHERE user_id = ?1 AND ts < ?2`,
+			)
+			.bind(DEFAULT_USER_ID, cutoff)
+			.run();
+		const deleted = result.meta?.changes ?? 0;
+		if (deleted > 0) {
+			console.log(
+				`[research] retention: deleted ${deleted} snapshots older than 2h`,
+			);
+		}
+	} catch (e) {
+		console.warn("[research] retention cleanup failed (non-fatal):", e);
+	}
+
 	return {
 		ok: errors.length === 0,
 		cron_name: "research",
