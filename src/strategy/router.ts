@@ -60,6 +60,14 @@ export interface VerticalStrategyRouterOpts {
 	/** Per-strategy knobs (forwarded to the constructors). */
 	dev_min?: number;
 	p_min?: number;
+	/** Per-vertical NaiveSignal fade thresholds (fraction,
+	 *  e.g. 0.02 = 2%). Used when the vertical falls back to
+	 *  NaiveSignal (no reversion model loaded). Defaults to
+	 *  the FADE_THRESHOLD constant (= 0.05) if a vertical is
+	 *  missing from the map. 2026-08-10: live Kalshi markets
+	 *  are lower-vol than synthetic, so weather and sports
+	 *  routinely need 2% instead of 5% to fire at all. */
+	fade_thresholds?: Partial<Record<Vertical, number>>;
 }
 
 /**
@@ -69,12 +77,14 @@ function defaultProfiles(
 	models: VerticalStrategyRouterOpts["models"],
 	dev_min: number,
 	p_min: number,
+	fadeThresholds: Partial<Record<Vertical, number>> | undefined,
 ): Record<Vertical, VerticalProfile> {
+	const ft = (v: Vertical): number => fadeThresholds?.[v] ?? 0.05;
 	const profiles: Record<Vertical, VerticalProfile> = {
-		weather: [new NaiveSignal({ name: "naive_weather" })],
-		economic: [new NaiveSignal({ name: "naive_economic" })],
-		politics: [new NaiveSignal({ name: "naive_politics" })],
-		sports: [new NaiveSignal({ name: "naive_sports" })],
+		weather: [new NaiveSignal({ name: "naive_weather", fade_threshold: ft("weather") })],
+		economic: [new NaiveSignal({ name: "naive_economic", fade_threshold: ft("economic") })],
+		politics: [new NaiveSignal({ name: "naive_politics", fade_threshold: ft("politics") })],
+		sports: [new NaiveSignal({ name: "naive_sports", fade_threshold: ft("sports") })],
 	};
 	if (models?.reversion?.weather) {
 		profiles.weather = [
@@ -107,7 +117,7 @@ export class VerticalStrategyRouter implements SignalStrategy {
 	constructor(opts: VerticalStrategyRouterOpts = {}) {
 		const dev_min = opts.dev_min ?? 1.5;
 		const p_min = opts.p_min ?? 0.30;
-		const defaults = defaultProfiles(opts.models, dev_min, p_min);
+		const defaults = defaultProfiles(opts.models, dev_min, p_min, opts.fade_thresholds);
 		const merged: Record<string, VerticalProfile> = { ...defaults };
 		if (opts.profiles) {
 			for (const [vertical, profile] of Object.entries(opts.profiles)) {

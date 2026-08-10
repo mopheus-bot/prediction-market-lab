@@ -150,6 +150,14 @@ export interface LiveBotState {
 	/** Chunk 10.8c: per-vertical blocklist. The bot skips
 	 *  trades on any ticker whose vertical is in this list. */
 	disabled_verticals?: string[] | null;
+	/** 2026-08-10: per-vertical NaiveSignal fade threshold
+	 *  override. The default 5% is calibrated to synthetic
+	 *  high-vol data; live Kalshi markets (especially weather
+	 *  + single-game sports) rarely move 5% in 60 polls.
+	 *  Map of vertical (weather/economic/politics/sports) to
+	 *  threshold fraction (0.02 = 2%). Missing verticals fall
+	 *  back to the default 5%. Set via /start config. */
+	per_vertical_fade_threshold?: Record<string, number> | null;
 };
 	/** The most recent risk reject reason (per-ticker, for /status). */
 	last_reject: { ts_ms: number; ticker: string; code: string; message: string } | null;
@@ -219,6 +227,13 @@ export interface LiveBotConfig {
 	 * Lets the operator add/withdraw money, hit /start, and
 	 * have position sizing adjust to the new balance. */
 	refresh_bankroll?: boolean;
+	/** 2026-08-10: per-vertical NaiveSignal fade threshold
+	 * override. Map of vertical (weather/economic/politics/sports)
+	 * to threshold fraction (0.02 = 2%). The default 5% rarely
+	 * fires on live Kalshi markets. Set per-vertical thresholds
+	 * for verticals where the bot has data but the default
+	 * threshold is too tight. Missing verticals fall back to 5%. */
+	per_vertical_fade_threshold?: Record<string, number> | null;
 }
 
 // ─── Env (subset we need) ─────────────────────────────────────────────
@@ -357,6 +372,8 @@ export class LiveBot implements DurableObject {
 			disabled_tickers: state.config.disabled_tickers ?? null,
 			per_vertical_max_notional_cents:
 				state.config.per_vertical_max_notional_cents ?? null,
+			per_vertical_fade_threshold:
+				state.config.per_vertical_fade_threshold ?? null,
 			ticker_verticals: state.config.ticker_verticals ?? null,
 			trading_mode: state.config.trading_mode,
 			bankroll_cents: state.config.bankroll_cents,
@@ -443,6 +460,10 @@ export class LiveBot implements DurableObject {
 				per_vertical_max_notional_cents: null,
 				disabled_tickers: null,
 				disabled_verticals: null,
+				// 2026-08-10: default to 2% for weather (the only
+				// vertical with real data right now). Other
+				// verticals stay at 5% until they get real data.
+				per_vertical_fade_threshold: { weather: 0.02 },
 			},
 			last_reject: null,
 		};
@@ -1301,6 +1322,14 @@ export class LiveBot implements DurableObject {
 				config.disabled_verticals !== undefined
 					? config.disabled_verticals
 					: state.config.disabled_verticals,
+			// 2026-08-10: per-vertical NaiveSignal fade threshold.
+			// null = explicit clear (use defaults), undefined = leave
+			// alone. Mirrors the pattern used for the other per-vertical
+			// maps above.
+			per_vertical_fade_threshold:
+				config.per_vertical_fade_threshold !== undefined
+					? config.per_vertical_fade_threshold
+					: state.config.per_vertical_fade_threshold,
 			started_ts_ms: Date.now(),
 		};
 		if (config.user_id) state.user_id = config.user_id;
@@ -1616,6 +1645,13 @@ export class LiveBot implements DurableObject {
 					economic: this._models.economic ?? undefined,
 				},
 			},
+			// 2026-08-10: per-vertical NaiveSignal fade thresholds.
+			// Live Kalshi markets are lower-vol than the synthetic
+			// data the default 5% was calibrated against, so each
+			// vertical usually needs its own override. The default
+			// (missing entry) is 5% — operators tune this from
+			// /start config.per_vertical_fade_threshold.
+			fade_thresholds: state.config.per_vertical_fade_threshold ?? undefined,
 		});
 		for (const [ticker, t] of Object.entries(state.tickers)) {
 			if (t.price_history.length < 2) continue;

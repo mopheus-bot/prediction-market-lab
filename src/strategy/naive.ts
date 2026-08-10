@@ -13,6 +13,15 @@
  * walk without news shocks is break-even, and the 60-70% follow
  * signals cancel out the fade edge in the synthetic data).
  *
+ * **Per-vertical threshold override (2026-08-10):** the default
+ * 5% is calibrated to high-vol synthetic data. On Kalshi's real
+ * markets, low-vol verticals (weather, single-game sports) rarely
+ * move 5% in 60 polls. The operator can pass `fade_threshold` in
+ * the constructor to override — e.g. `new NaiveSignal({
+ * fade_threshold: 0.02, name: "naive_weather" })` for a 2%
+ * threshold. The router passes per-vertical values when the
+ * strategy is wired up; tests use the default.
+ *
  * This is the chunk-3 placeholder strategy. Chunk 4 (ONNX models)
  * adds ML-based strategies that handle real momentum vs noise
  * discrimination; the per-vertical router in `router.ts` dispatches
@@ -26,15 +35,32 @@ import {
 	type SignalStrategy,
 } from "./signal.js";
 
+export interface NaiveSignalOpts {
+	size?: number;
+	name?: string;
+	/** Override the default 5% fade threshold. Useful for
+	 *  low-vol verticals (weather) where 5% is too high and
+	 *  the strategy would never fire. Pass a fraction (0.02
+	 *  = 2%, not 2 cents). */
+	fade_threshold?: number;
+}
+
 export class NaiveSignal implements SignalStrategy {
 	readonly name: string;
 	readonly size: number;
+	private readonly fade_threshold: number;
 
-	constructor(opts: { size?: number; name?: string } = {}) {
+	constructor(opts: NaiveSignalOpts = {}) {
 		this.size = opts.size ?? 1;
 		this.name = opts.name ?? "naive";
+		this.fade_threshold = opts.fade_threshold ?? FADE_THRESHOLD;
 		if (this.size < 1) {
 			throw new Error(`size must be >= 1, got ${this.size}`);
+		}
+		if (this.fade_threshold <= 0 || this.fade_threshold > 1) {
+			throw new Error(
+				`fade_threshold must be in (0, 1], got ${this.fade_threshold}`,
+			);
 		}
 	}
 
@@ -46,7 +72,7 @@ export class NaiveSignal implements SignalStrategy {
 
 		const movePct = (newPrice - oldPrice) / oldPrice;
 
-		if (Math.abs(movePct) > FADE_THRESHOLD) {
+		if (Math.abs(movePct) > this.fade_threshold) {
 			// Big move — fade (overreaction hypothesis).
 			if (movePct > 0) {
 				return {
