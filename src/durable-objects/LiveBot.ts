@@ -694,7 +694,16 @@ export class LiveBot implements DurableObject {
 			case "/start": {
 				const config = (await request.json().catch(() => ({}))) as LiveBotConfig;
 				await this.start(config);
-				return Response.json({ ok: true, started: true, config: state.config });
+				// Re-read state so the response reflects the
+				// new config (start() mutates and saves to
+				// storage; the local `state` variable was
+				// captured before start() ran).
+				const freshState = await this.loadState();
+				return Response.json({
+					ok: true,
+					started: true,
+					config: freshState?.config ?? state.config,
+				});
 			}
 
 			case "/auto-start": {
