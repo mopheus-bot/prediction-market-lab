@@ -25,6 +25,23 @@
 						<div class="pos-hero-label">Realized PnL (lifetime)</div>
 						<div class="pos-hero-num mono" id="trades-total-pnl">$0.00</div>
 						<div class="pos-hero-sub" id="trades-total-pnl-sub">0 closed trades</div>
+						<!-- 2026-08-10: paper/real split. The big number
+						     above is the mixed total; the colored sub-row
+						     breaks it out by mode so the operator can see
+						     paper vs real P&L at a glance without filtering. -->
+						<div class="trades-pnl-split" id="trades-pnl-split">
+							<span class="trades-pnl-split-item paper">
+								<span class="trades-pnl-split-dot" aria-hidden="true"></span>
+								<span class="trades-pnl-split-label">Paper</span>
+								<span class="trades-pnl-split-val mono" id="trades-pnl-paper">$0.00</span>
+							</span>
+							<span class="trades-pnl-split-sep">·</span>
+							<span class="trades-pnl-split-item real">
+								<span class="trades-pnl-split-dot" aria-hidden="true"></span>
+								<span class="trades-pnl-split-label">Real</span>
+								<span class="trades-pnl-split-val mono" id="trades-pnl-real">$0.00</span>
+							</span>
+						</div>
 					</div>
 					<div class="pos-hero-kpis">
 						<div class="kpi-card">
@@ -305,6 +322,8 @@
 				const pnl24hEl = document.getElementById("trades-pnl-24h");
 				const pnl24hSub = document.getElementById("trades-pnl-24h-sub");
 				const signalsEl = document.getElementById("trades-signals");
+				const paperPnlEl = document.getElementById("trades-pnl-paper");
+				const realPnlEl = document.getElementById("trades-pnl-real");
 
 				// Count paper vs real (is_paper: 0 = real, non-zero = paper)
 				const realTrades = trades.filter((t) => t.is_paper === 0);
@@ -312,10 +331,25 @@
 				// Total realized PnL — only count trades with pnl_cents (closed)
 				const closedTrades = trades.filter((t) => t.pnl_cents != null);
 				const totalPnlCents = closedTrades.reduce((a, t) => a + (t.pnl_cents || 0), 0);
-				// 24h PnL
+				// Paper vs real PnL (lifetime, closed only) — the
+				// split that powers the new colored sub-row.
+				const paperPnlCents = closedTrades
+					.filter((t) => t.is_paper !== 0)
+					.reduce((a, t) => a + (t.pnl_cents || 0), 0);
+				const realPnlCents = closedTrades
+					.filter((t) => t.is_paper === 0)
+					.reduce((a, t) => a + (t.pnl_cents || 0), 0);
+				// 24h PnL (mixed)
 				const dayAgo = Date.now() - 86400_000;
 				const pnl24h = closedTrades
 					.filter((t) => (t.ts || 0) > dayAgo)
+					.reduce((a, t) => a + (t.pnl_cents || 0), 0);
+				// 24h PnL paper/real split (for the kpi sub-line)
+				const pnl24hPaper = closedTrades
+					.filter((t) => (t.ts || 0) > dayAgo && t.is_paper !== 0)
+					.reduce((a, t) => a + (t.pnl_cents || 0), 0);
+				const pnl24hReal = closedTrades
+					.filter((t) => (t.ts || 0) > dayAgo && t.is_paper === 0)
 					.reduce((a, t) => a + (t.pnl_cents || 0), 0);
 
 				const pnlCls = totalPnlCents > 0 ? "ok" : totalPnlCents < 0 ? "bad" : "muted";
@@ -334,9 +368,24 @@
 
 				pnl24hEl.textContent = fmtCents(pnl24h);
 				pnl24hEl.className = `kpi-num mono ${pnl24h > 0 ? "ok" : pnl24h < 0 ? "bad" : ""}`;
-				pnl24hSub.textContent = closedTrades.filter((t) => (t.ts || 0) > dayAgo).length > 0
-					? `closed in last 24h`
-					: "no closes in 24h";
+				// Sub-line: paper $X · real $X so the operator can
+				// see the mode split without toggling the filter.
+				const pnl24hSplit = `paper ${fmtCents(pnl24hPaper)} · real ${fmtCents(pnl24hReal)}`;
+				pnl24hSub.textContent = pnl24hSplit;
+
+				// Paper/real PnL split (lifetime). Each gets its
+				// own color (paper=muted/grey, real=red so the
+				// real-money number is unmistakable). 0 shows
+				// as a muted $0.00, not "—", so the line is
+				// always complete and scannable.
+				if (paperPnlEl) {
+					paperPnlEl.textContent = fmtCents(paperPnlCents);
+					paperPnlEl.className = `trades-pnl-split-val mono ${paperPnlCents > 0 ? "ok" : paperPnlCents < 0 ? "bad" : "muted"}`;
+				}
+				if (realPnlEl) {
+					realPnlEl.textContent = fmtCents(realPnlCents);
+					realPnlEl.className = `trades-pnl-split-val mono ${realPnlCents > 0 ? "ok" : realPnlCents < 0 ? "bad" : "muted"}`;
+				}
 
 				// Signals count comes from signals fetch
 				if (_signalsRaw.data) {

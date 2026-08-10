@@ -1866,6 +1866,21 @@ footer {
   padding-top: 16px;
   border-top: 1px solid var(--card-border);
 }
+/* 2026-08-10 (v2): live-mode tint on the hero KPIs. Mirrors the
+   banner's red treatment so the operator gets the same color story
+   top-to-bottom. Off mode = muted grey. Paper = no override (the
+   default border-top is fine — the amber banner already covers it). */
+.bot-hero-kpis[data-mode="real"] {
+  border-top-color: rgba(239, 68, 68, 0.45);
+}
+.bot-hero-kpis[data-mode="real"] .kpi-card {
+  border-color: rgba(239, 68, 68, 0.22);
+  background: rgba(239, 68, 68, 0.04);
+}
+.bot-hero-kpis[data-mode="off"] {
+  border-top-color: var(--card-border);
+  opacity: 0.85;
+}
 
 /* KPI cards (reusable) */
 .kpi-card {
@@ -2154,6 +2169,48 @@ footer {
   font-size: 12px;
   color: var(--ink-faint);
   font-family: var(--font-mono);
+}
+/* 2026-08-10: paper/real PnL split under the big realized-PnL
+   number. Colored dots + bold labels so the operator can read the
+   mode split at a glance without scrolling into the trade table. */
+.trades-pnl-split {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+}
+.trades-pnl-split-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.trades-pnl-split-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.trades-pnl-split-item.paper .trades-pnl-split-dot { background: var(--ink-faint); }
+.trades-pnl-split-item.real  .trades-pnl-split-dot { background: var(--red); }
+.trades-pnl-split-label {
+  color: var(--ink-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.trades-pnl-split-item.real .trades-pnl-split-label { color: var(--red); font-weight: 600; }
+.trades-pnl-split-val {
+  color: var(--ink);
+  font-weight: 600;
+}
+.trades-pnl-split-val.ok  { color: var(--green); }
+.trades-pnl-split-val.bad { color: var(--red); }
+.trades-pnl-split-val.muted { color: var(--ink-faint); }
+.trades-pnl-split-sep {
+  color: var(--ink-faint);
+  opacity: 0.5;
 }
 .pos-hero-kpis {
   display: grid;

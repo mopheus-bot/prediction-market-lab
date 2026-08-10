@@ -51,26 +51,31 @@
 						<div class="mode-banner-sub" id="mode-banner-sub">All numbers below are simulated fills — no real money is being traded.</div>
 					</div>
 				</div>
-				<div class="bot-hero-kpis">
-					<div class="kpi-card kpi-large">
-						<div class="kpi-label">Real Kalshi balance</div>
-						<div class="kpi-num mono" id="hero-balance">$—</div>
-						<div class="kpi-sub" id="hero-balance-sub">only matters in live mode</div>
-					</div>
+				<!-- 2026-08-10 (v2): hero KPIs are mode-aware. Labels
+				     + sub-lines flip per trading_mode so the operator
+				     never has to read the banner + cross-reference. The
+				     container has data-mode set by renderBotHeroExtras()
+				     so CSS can tint live KPIs red. -->
+				<div class="bot-hero-kpis" id="bot-hero-kpis" data-mode="paper">
 					<div class="kpi-card">
-						<div class="kpi-label">Paper bankroll</div>
+						<div class="kpi-label" data-kpi="bankroll-label">Bankroll</div>
 						<div class="kpi-num mono" id="bot-bankroll">$—</div>
-						<div class="kpi-sub" id="bot-bankroll-sub">paper trading capital</div>
+						<div class="kpi-sub" data-kpi="bankroll-sub">simulated capital</div>
 					</div>
 					<div class="kpi-card">
-						<div class="kpi-label">Paper deployed today</div>
+						<div class="kpi-label" data-kpi="deployed-label">Deployed today</div>
 						<div class="kpi-num mono" id="bot-deployed">$—</div>
 						<div class="kpi-sub" id="bot-deployed-sub">vs cap</div>
 					</div>
 					<div class="kpi-card">
-						<div class="kpi-label">Paper signals fired</div>
+						<div class="kpi-label" data-kpi="signals-label">Signals fired</div>
 						<div class="kpi-num mono" id="bot-signals">—</div>
-						<div class="kpi-sub" id="bot-signals-sub">model fires (paper only)</div>
+						<div class="kpi-sub" id="bot-signals-sub">model fires</div>
+					</div>
+					<div class="kpi-card">
+						<div class="kpi-label" data-kpi="pnl-label">P/L today</div>
+						<div class="kpi-num mono" id="bot-pnl-today">$—</div>
+						<div class="kpi-sub" id="bot-pnl-today-sub">realized + unrealized</div>
 					</div>
 				</div>
 			</section>
@@ -382,7 +387,110 @@
 			// For simplicity, we patch the elements directly after each
 			// render by wrapping the existing refresh. We use a small
 			// interval + the global _lastBotStatus the app.js sets.
-			function renderBotHeroExtras() {
+
+			// 2026-08-10: per-mode label/sub copy for each hero KPI.
+			// Indexed by data-kpi name; the JS just reads the current
+			// mode and applies the matching tuple. Off mode = paused
+			// copy (no new trades, numbers still tracked).
+			const KPI_COPY = {
+				bankroll: {
+					paper: { label: "Paper bankroll",     sub: "simulated capital" },
+					real:  { label: "Real bankroll",      sub: "real money on Kalshi" },
+					off:   { label: "Bankroll",           sub: "paused · no new trades" },
+				},
+				deployed: {
+					paper: { label: "Paper deployed today", sub: "of $X.XX cap" }, // cap appended at render
+					real:  { label: "Real deployed today",  sub: "of $X.XX cap" },
+					off:   { label: "Deployed today",       sub: "paused" },
+				},
+				signals: {
+					paper: { label: "Paper signals fired", sub: "X trades" },
+					real:  { label: "Real signals fired",  sub: "X trades" },
+					off:   { label: "Signals fired",       sub: "paused" },
+				},
+				pnl: {
+					paper: { label: "Paper P/L today", sub: "realized + unrealized" },
+					real:  { label: "Real P/L today",  sub: "realized + unrealized" },
+					off:   { label: "P/L today",        sub: "paused" },
+				},
+			};
+
+			// Cache today's PnL by mode so the hero can flip without
+			// re-fetching trades on every refresh. 5s TTL — same
+			// cadence as the rest of the bot page.
+			let _tradesCachePnl = { data: null, ts: 0 };
+			const TRADES_CACHE_TTL_MS = 5_000;
+			async function fetchTradesForPnl() {
+				const now = Date.now();
+				if (_tradesCachePnl.data && now - _tradesCachePnl.ts < TRADES_CACHE_TTL_MS) {
+					return _tradesCachePnl.data;
+				}
+				try {
+					// 200 rows × ~24h of closes is plenty for a "today P/L" number.
+					const r = await fetch("/api/pm/trades?limit=200", { credentials: "same-origin" });
+					if (!r.ok) return _tradesCachePnl.data || [];
+					const d = await r.json();
+					_tradesCachePnl = { data: d.trades || [], ts: now };
+					return _tradesCachePnl.data;
+				} catch (_e) { return _tradesCachePnl.data || []; }
+			}
+
+			function computeTodayPnlByMode(trades, mode) {
+				// "Today" = trades in the current UTC day so the
+				// number resets at 00:00 UTC (matches Kalshi's day
+				// boundary). Includes both realized (closed) and
+				// unrealized (open) — the latter from the open
+				// position's mark vs entry. For "today" we can only
+				// count trades whose timestamp is today; unrealized
+				// from today-entries that are still open is captured
+				// via position-side PnL.
+				const isPaper = mode !== "real";
+				const dayStart = new Date();
+				dayStart.setUTCHours(0, 0, 0, 0);
+				const dayStartMs = dayStart.getTime();
+				let realized = 0;
+				for (const t of trades) {
+					if ((t.is_paper === 0) === isPaper) continue;
+					if ((t.ts || 0) < dayStartMs) continue;
+					if (t.pnl_cents != null) realized += t.pnl_cents;
+				}
+				return realized;
+			}
+
+			function applyModeCopy(mode) {
+				// Set the kpi-label + kpi-sub text for each tile
+				// based on the current mode. The "deployed" and
+				// "signals" tiles have dynamic sub-text (cap value,
+				// trade count) — those are merged in here so the
+				// static copy + the dynamic fragment both end up in
+				// the right place.
+				const capC = window._lastBotStatus?.risk?.daily_notional_cap_cents || 0;
+				const capStr = `of $${(capC / 100).toFixed(2)} cap`;
+				const nTrades = window._lastBotStatus?.counts?.n_trades || 0;
+				const tradesSub = nTrades ? `${nTrades} trade${nTrades === 1 ? "" : "s"}` : "no trades yet";
+
+				const set = (key, sub) => {
+					const labelEl = document.querySelector(`[data-kpi="${key}-label"]`);
+					const subEl = key === "deployed" || key === "signals"
+						? document.getElementById(`bot-${key === "deployed" ? "deployed" : "signals"}-sub`)
+						: document.querySelector(`[data-kpi="${key}-sub"]`);
+					const copy = KPI_COPY[key][mode];
+					if (labelEl) labelEl.textContent = copy.label;
+					if (subEl) subEl.textContent = sub ?? copy.sub;
+				};
+				set("bankroll");
+				set("deployed", capStr);
+				set("signals", tradesSub);
+				set("pnl");
+
+				// Tint the kpi container so CSS can apply the live
+				// red accent. Same data-mode as the banner so the
+				// operator gets the same color treatment top-to-bottom.
+				const kpiContainer = document.getElementById("bot-hero-kpis");
+				if (kpiContainer) kpiContainer.setAttribute("data-mode", mode);
+			}
+
+			async function renderBotHeroExtras() {
 				const s = window._lastBotStatus;
 				if (!s) return;
 				// 2026-08-10: big paper/live banner. Drives the
@@ -406,10 +514,16 @@
 						: mode === "off" ? "Bot is paused — no new trades. Open positions (if any) are still tracked."
 						: "All numbers below are simulated fills — no real money is being traded.";
 				}
+
+				// Apply mode-aware KPI labels + sub copy. Done BEFORE
+				// the value writes so the labels reflect the mode the
+				// numbers are about to show.
+				applyModeCopy(mode);
+
 				// Frames
 				const fEl = document.getElementById("bot-frames");
 				if (fEl) fEl.textContent = fmtCount(s.counts?.n_frames);
-				// Bankroll
+				// Bankroll — same field for both modes; label flips.
 				const bEl = document.getElementById("bot-bankroll");
 				if (bEl) bEl.textContent = "$" + ((s.risk?.bankroll_cents || 0) / 100).toFixed(2);
 				// Deployed today
@@ -417,13 +531,38 @@
 				const capC = s.risk?.daily_notional_cap_cents || 0;
 				const dC = s.risk?.daily_notional_cents || 0;
 				if (dEl) dEl.textContent = "$" + (dC / 100).toFixed(2);
-				const ds = document.getElementById("bot-deployed-sub");
-				if (ds) ds.textContent = `of $${(capC / 100).toFixed(2)} cap`;
+				// (sub copy is set by applyModeCopy; no need to overwrite here)
 				// Signals
 				const sigEl = document.getElementById("bot-signals");
 				if (sigEl) sigEl.textContent = fmtCount(s.counts?.n_signals);
-				const sigSub = document.getElementById("bot-signals-sub");
-				if (sigSub) sigSub.textContent = s.counts?.n_trades ? `${s.counts.n_trades} trades` : "no trades yet";
+
+				// P/L today: sum of today's realized PnL for the
+				// current mode + today's unrealized from open
+				// positions (status.risk.total_unrealized_pnl_cents).
+				// The unrealized number is global (all open
+				// positions), so we add it on top regardless of mode
+				// — same currency in both paper and live mode.
+				const trades = await fetchTradesForPnl();
+				const todayRealized = computeTodayPnlByMode(trades, mode);
+				const unrealized = s.risk?.total_unrealized_pnl_cents || 0;
+				const todayPnl = todayRealized + unrealized;
+				const pnlEl = document.getElementById("bot-pnl-today");
+				if (pnlEl) {
+					pnlEl.textContent = fmtCents(todayPnl);
+					pnlEl.classList.remove("ok", "bad", "muted");
+					if (todayPnl > 0) pnlEl.classList.add("ok");
+					else if (todayPnl < 0) pnlEl.classList.add("bad");
+				}
+				const pnlSub = document.getElementById("bot-pnl-today-sub");
+				if (pnlSub) {
+					if (mode === "off") pnlSub.textContent = "paused";
+					else {
+						const rPart = todayRealized === 0 ? "—" : fmtCents(todayRealized);
+						const uPart = unrealized === 0 ? "—" : fmtCents(unrealized);
+						pnlSub.textContent = `realized ${rPart} · unreal ${uPart}`;
+					}
+				}
+
 				// Peak bankroll + consec losses
 				const peakEl = document.getElementById("caps-peak");
 				if (peakEl) peakEl.textContent = "$" + ((s.risk?.peak_bankroll_cents || 0) / 100).toFixed(2);
