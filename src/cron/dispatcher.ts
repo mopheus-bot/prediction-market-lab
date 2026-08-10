@@ -45,6 +45,7 @@ import { runAutoPilotCron } from "./auto-pilot-cron.js";
 import { runHeartbeatCron } from "./heartbeat-cron.js";
 import { runLeadsCron } from "./leads-cron.js";
 import { runResearchCron } from "./research-cron.js";
+import { runLLMOpinionsCron } from "./llm-opinions-cron.js";
 import type { LLMEnv } from "../llm/index.js";
 import type { TelegramEnv } from "../telegram/index.js";
 
@@ -58,6 +59,7 @@ export const CRON_TABLE = {
 	auto_pilot: "30 5 * * *", // 05:30 UTC daily (before daily recap)
 	heartbeat: "0 7 * * *",   // 07:00 UTC daily (after daily recap; passive health check)
 	leads: "30 */6 * * *",    // every 6 hours +30min (00:30/06:30/12:30/18:30 UTC). 2026-08-09: tightened from daily 02:00 UTC to 6h. Offset by 30min from news so the LLM has fresh news data; unique expression so jobForCron can dispatch correctly.
+	llm_opinions: "15,45 * * * *", // every 30 min (15, 45 minutes past the hour). 2026-08-10: chunk 15, asks the LLM for per-ticker verdicts. LLMOpinionSignal reads from llm_opinions. Unique expression (not 0,30) so jobForCron dispatch works without colliding with other "every-30" patterns.
 	train: "0 0 * * SUN",     // 00:00 UTC Sunday (day-of-week as name, not 0)
 	backtest: "0 1 * * SUN",  // 01:00 UTC Sunday (after train)
 } as const;
@@ -166,6 +168,7 @@ export const JOBS: Record<CronName, JobFn> = {
 	auto_pilot: runAutoPilotCron,
 	heartbeat: runHeartbeatCron,
 	leads: runLeadsCron,
+	llm_opinions: runLLMOpinionsCron,
 	train: runTrainCron,
 	backtest: runBacktestCron,
 };

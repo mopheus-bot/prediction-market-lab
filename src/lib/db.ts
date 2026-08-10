@@ -19,6 +19,7 @@ import type {
 	LeadKind,
 	LeadStatus,
 	LeadSuggestionRow,
+	LLMOpinionRow,
 	LlmCallRow,
 	LlmStatus,
 	MarketSnapshotRow,
@@ -26,6 +27,7 @@ import type {
 	ModelStatus,
 	NewCronRun,
 	NewLeadSuggestion,
+	NewLLMOpinion,
 	NewLlmCall,
 	NewMarketSnapshot,
 	NewModel,
@@ -809,5 +811,93 @@ export const liveMarketSnapshots = {
 			.bind(user_id, since_ts)
 			.first<{ c: number }>();
 		return row?.c ?? 0;
+	},
+};
+
+// ─── llm_opinions ───────────────────────────────────────────────────────
+
+export const llmOpinions = {
+	async insert(db: D1Database, o: NewLLMOpinion): Promise<number> {
+		const res = await db
+			.prepare(
+				`INSERT INTO llm_opinions
+				 (user_id, ts, ticker, side, confidence, reasoning,
+				  current_price_cents, vertical, model,
+				  input_tokens, output_tokens, duration_ms, expires_at)
+				 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+				 ON CONFLICT (user_id, ticker, ts) DO UPDATE
+				   SET side = excluded.side,
+				       confidence = excluded.confidence,
+				       reasoning = excluded.reasoning,
+				       current_price_cents = excluded.current_price_cents,
+				       vertical = excluded.vertical,
+				       model = excluded.model,
+				       input_tokens = excluded.input_tokens,
+				       output_tokens = excluded.output_tokens,
+				       duration_ms = excluded.duration_ms,
+				       expires_at = excluded.expires_at`,
+			)
+			.bind(
+				o.user_id,
+				o.ts,
+				o.ticker,
+				o.side,
+				o.confidence,
+				o.reasoning,
+				o.current_price_cents,
+				o.vertical,
+				o.model,
+				o.input_tokens,
+				o.output_tokens,
+				o.duration_ms,
+				o.expires_at,
+			)
+			.run();
+		return Number(res.meta?.last_row_id ?? 0);
+	},
+
+	/** Latest opinion for a ticker (within the TTL window).
+	 *  Returns null if there's no fresh verdict. */
+	async latestForTicker(
+		db: D1Database,
+		user_id: string,
+		ticker: string,
+		now: number,
+	): Promise<LLMOpinionRow | null> {
+		return await db
+			.prepare(
+				`SELECT * FROM llm_opinions
+				 WHERE user_id = ?1 AND ticker = ?2 AND expires_at > ?3
+				 ORDER BY ts DESC LIMIT 1`,
+			)
+			.bind(user_id, ticker, now)
+			.first<LLMOpinionRow>();
+	},
+
+	/** Latest N opinions for a ticker (any age). Used for
+	 *  the dashboard's "what is the LLM saying?" view. */
+	async latestForAllTickers(
+		db: D1Database,
+		user_id: string,
+		opts: { onlyLive?: boolean; limit?: number } = {},
+	): Promise<LLMOpinionRow[]> {
+		// One row per ticker (the latest by ts). We use a
+		// window function — same pattern as live_market_snapshots.
+		const sql = `
+			SELECT * FROM (
+			  SELECT *, ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ts DESC) AS rn
+			  FROM llm_opinions
+			  WHERE user_id = ?1
+			) WHERE rn = 1
+			ORDER BY ts DESC
+			LIMIT ?`;
+		const res = await db
+			.prepare(sql)
+			.bind(user_id, opts.limit ?? 100)
+			.all<LLMOpinionRow & { rn: number }>();
+		return (res.results ?? []).map((r) => {
+			const { rn: _rn, ...rest } = r;
+			return rest;
+		});
 	},
 };

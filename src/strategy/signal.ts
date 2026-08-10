@@ -62,6 +62,11 @@ export interface SignalOrderbook {
  * `orderbook` and `market` are optional so the same context can be
  * constructed from partial state (e.g. during the first few frames
  * before the orderbook has been seeded).
+ *
+ * 2026-08-10: `llmOpinion` is pre-fetched by the LiveBot's polling
+ * feed from the `llm_opinions` D1 table. The LLMOpinionSignal
+ * strategy reads it to emit verdict-driven signals. Strategies
+ * that don't care (NaiveSignal, ReversionQualitySignal) ignore it.
  */
 export interface SignalContext {
 	ticker: string;
@@ -69,6 +74,13 @@ export interface SignalContext {
 	currentTick: number;
 	orderbook?: SignalOrderbook | null;
 	market?: SignalMarket | null;
+	llmOpinion?: {
+		side: "yes" | "no" | "hold";
+		confidence: number;
+		reasoning: string;
+		ts: number;
+		expires_at: number;
+	} | null;
 }
 
 // ─── Strategy interface ────────────────────────────────────────────────

@@ -26,6 +26,7 @@
 import type { Vertical } from "../lib/types.js";
 import { NaiveSignal } from "./naive.js";
 import { ReversionQualitySignal } from "./reversion.js";
+import { LLMOpinionSignal } from "./llm-opinion.js";
 import type { RandomForestModel } from "./forest.js";
 import type { Signal, SignalContext, SignalStrategy } from "./signal.js";
 
@@ -91,11 +92,24 @@ function defaultProfiles(
 ): Record<Vertical, VerticalProfile> {
 	const ft = (v: Vertical): number => fadeThresholds?.[v] ?? 0.05;
 	const ma = (v: Vertical): number => minAbs?.[v] ?? 0;
+	// 2026-08-10: each vertical's default profile is now
+	// [naive, llm_opinion] — the router uses the agreement
+	// stacker, so the bot only trades when BOTH the
+	// price-based signal AND the LLM verdict agree. This
+	// filters out false positives from either source: a
+	// 1¢ noise move on KXWARMING-50 won't fire a trade
+	// unless the LLM also said "YES is mispriced", and
+	// an LLM opinion at 0.6 confidence on a flat market
+	// won't fire unless the price is also moving.
+	const makeProfile = (
+		vertical: Vertical,
+		primary: SignalStrategy,
+	): VerticalProfile => [primary, new LLMOpinionSignal({ name: `llm_${vertical}` })];
 	const profiles: Record<Vertical, VerticalProfile> = {
-		weather: [new NaiveSignal({ name: "naive_weather", fade_threshold: ft("weather"), min_absolute_move_cents: ma("weather") })],
-		economic: [new NaiveSignal({ name: "naive_economic", fade_threshold: ft("economic"), min_absolute_move_cents: ma("economic") })],
-		politics: [new NaiveSignal({ name: "naive_politics", fade_threshold: ft("politics"), min_absolute_move_cents: ma("politics") })],
-		sports: [new NaiveSignal({ name: "naive_sports", fade_threshold: ft("sports"), min_absolute_move_cents: ma("sports") })],
+		weather: makeProfile("weather", new NaiveSignal({ name: "naive_weather", fade_threshold: ft("weather"), min_absolute_move_cents: ma("weather") })),
+		economic: makeProfile("economic", new NaiveSignal({ name: "naive_economic", fade_threshold: ft("economic"), min_absolute_move_cents: ma("economic") })),
+		politics: makeProfile("politics", new NaiveSignal({ name: "naive_politics", fade_threshold: ft("politics"), min_absolute_move_cents: ma("politics") })),
+		sports: makeProfile("sports", new NaiveSignal({ name: "naive_sports", fade_threshold: ft("sports"), min_absolute_move_cents: ma("sports") })),
 	};
 	if (models?.reversion?.weather) {
 		profiles.weather = [

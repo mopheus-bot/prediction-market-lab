@@ -172,6 +172,29 @@ export interface LlmCallRow {
 	created_at: number;
 }
 
+/** 2026-08-10: per-ticker LLM opinion verdicts. The
+ *  LLMOpinionSignal strategy reads from this table on
+ *  every bot poll (pre-fetched into SignalContext by
+ *  maybeSignalAll) to emit verdict-driven signals. */
+export interface LLMOpinionRow {
+	id: number;
+	user_id: string;
+	ts: number;
+	ticker: string;
+	side: "yes" | "no" | "hold";
+	confidence: number;
+	reasoning: string;
+	current_price_cents: number | null;
+	vertical: string | null;
+	model: string | null;
+	input_tokens: number | null;
+	output_tokens: number | null;
+	duration_ms: number | null;
+	expires_at: number;
+}
+
+export type NewLLMOpinion = Omit<LLMOpinionRow, "id">;
+
 /** A pending LLM-generated suggestion. One row per
  * (ticker, kind, run) — the leads-cron inserts up to a
  * handful of rows per invocation. The operator reviews

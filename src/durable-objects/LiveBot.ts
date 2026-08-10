@@ -64,15 +64,16 @@ import {
 import { sendMessage as sendTelegramMessage } from "../telegram/index.js";
 import { RiskEngine } from "../risk/engine.js";
 import { defaultRiskConfig, type RiskConfig } from "../risk/config.js";
-import type { Side, Vertical } from "../lib/types.js";
+import type { LLMOpinionRow, Side, Vertical } from "../lib/types.js";
 import { DEFAULT_USER_ID } from "../lib/types.js";
-import { liveMarketSnapshots } from "../lib/db.js";
+import { liveMarketSnapshots, llmOpinions as llmOpinionsDb } from "../lib/db.js";
 import {
 	type Signal,
 	type SignalContext,
 	type SignalStrategy,
 } from "../strategy/signal.js";
 import { VerticalStrategyRouter } from "../strategy/router.js";
+import { LLMOpinionSignal } from "../strategy/llm-opinion.js";
 import { loadModelFromR2, type ModelLoaderEnv } from "../strategy/model-loader.js";
 import type { RandomForestModel } from "../strategy/forest.js";
 
@@ -1857,8 +1858,31 @@ export class LiveBot implements DurableObject {
 			// (KXWARMING-50) where 1¢ moves are real edge.
 			min_absolute_move_cents: state.config.per_vertical_min_absolute_move_cents ?? undefined,
 		});
+		// 2026-08-10: pre-fetch the LLM opinion for each
+		// ticker (in parallel) so the strategy can read it
+		// from ctx.llmOpinion. Per-ticker DB read; cheap.
+		const now = Date.now();
+		const opinions = new Map<string, LLMOpinionRow | null>();
+		if (this.env.DB) {
+			await Promise.all(
+				Object.keys(state.tickers).map(async (ticker) => {
+					try {
+						const op = await llmOpinionsDb.latestForTicker(
+							this.env.DB!,
+							DEFAULT_USER_ID,
+							ticker,
+							now,
+						);
+						opinions.set(ticker, op);
+					} catch {
+						opinions.set(ticker, null);
+					}
+				}),
+			);
+		}
 		for (const [ticker, t] of Object.entries(state.tickers)) {
 			if (t.price_history.length < 2) continue;
+			const opinion = opinions.get(ticker) ?? null;
 			const ctx: SignalContext = {
 				ticker,
 				priceHistory: t.price_history,
@@ -1882,6 +1906,18 @@ export class LiveBot implements DurableObject {
 					vertical: t.vertical,
 					title: t.title,
 				},
+				// 2026-08-10: pass the LLM opinion (or null)
+				// into the context. The LLMOpinionSignal
+				// strategy reads it; the others ignore it.
+				llmOpinion: opinion
+					? {
+							side: opinion.side,
+							confidence: opinion.confidence,
+							reasoning: opinion.reasoning,
+							ts: opinion.ts,
+							expires_at: opinion.expires_at,
+						}
+					: null,
 			};
 			const sig = router.__call(ctx);
 			if (sig === null) continue;
