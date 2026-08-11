@@ -106,7 +106,7 @@
 			"30 5 * * *",    // auto_pilot — 05:30 UTC daily (chunk 11b; default off)
 			"0 7 * * *",     // heartbeat  — 07:00 UTC daily (passive health check; alerts on failure)
 			"30 */6 * * *",  // leads      — every 6 hours +30min (00:30/06:30/12:30/18:30 UTC). LLM-driven ticker universe add+drop. 2026-08-09: tightened from daily 02:00 UTC to 6h; offset by 30min from news so the LLM has fresh news data to weigh against. Unique expression (different from news) so jobForCron can dispatch correctly.
-			"15,45 * * * *", // llm_opinions — every 30 min (15, 45 past the hour). 2026-08-10: chunk 15, asks the LLM for per-ticker verdicts. LLMOpinionSignal reads from llm_opinions and emits signals on each bot poll when the verdict is fresh + confident.
+			"*/2 * * * *", // llm_opinions — every 2 min. 2026-08-10: chunk 15, asks the LLM for per-ticker verdicts. LLMOpinionSignal reads from llm_opinions and emits signals on each bot poll when the verdict is fresh + confident. 2026-08-10 21:00 (paper-mode): tightened from 30 min to 2 min so the bot sees new market data within a couple polls of it appearing. The polling feed is event-driven (1.5s/ticker); the LLM cron was the slow loop.
 			"0 0 * * SUN",   // train      — 00:00 UTC Sunday
 			"0 1 * * SUN"    // backtest   — 01:00 UTC Sunday (chunk 11a)
 		]

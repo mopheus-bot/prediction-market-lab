@@ -26,6 +26,7 @@
 import { validateRiskConfig, type RiskConfig } from "./config.js";
 import {
 	makeRiskState,
+	dailyNotionalCents,
 	nOpenPositions,
 	type ClosedTrade,
 	type Position,
@@ -148,6 +149,99 @@ export class RiskEngine {
 			size = Math.min(size, this._config.max_contracts_per_trade);
 		}
 		return Math.max(0, size);
+	}
+
+	/**
+	 * 2026-08-10 21:00 (paper-mode expansion): dynamic per-trade
+	 * sizing judge. The static `computeSize` is bounded by the
+	 * per-trade cap (a fixed number of contracts). The user
+	 * asked for "an upper and lower threshold, any value in
+	 * between is free game" — a dynamic range the bot can
+	 * sweep through based on conditions.
+	 *
+	 * Algorithm:
+	 *   baseCents = signal.confidence × upperCents
+	 *   - drawdown > 5%       → halve
+	 *   - recent win rate > 60% → 1.2× boost
+	 *   - recent win rate < 40% → 0.7× shrink
+	 *   - clamp to [lowerCents, upperCents]
+	 *   - clamp to remaining daily notional
+	 *   - clamp to remaining position slots
+	 *
+	 * Outputs the size in contracts and a reasoning string for
+	 * the cadence panel / dashboard to display. NOT a replacement
+	 * for computeSize — this is layered on top: the judge produces
+	 * a target notional, then the per-trade cap + bankroll-pct
+	 * floors/caps are applied. Use this for the signal-driven
+	 * path; keep computeSize for the /place-test-order endpoint.
+	 */
+	judgeSize(
+		entryPrice: number,
+		signalConfidence: number,
+		recentClosed: ReadonlyArray<{ pnl_cents: number }>,
+	): { size: number; notional_cents: number; reasoning: string } {
+		if (!(entryPrice >= 1 && entryPrice <= 99)) return { size: 0, notional_cents: 0, reasoning: "invalid_price" };
+		if (this._state.bankroll_cents <= 0) return { size: 0, notional_cents: 0, reasoning: "zero_bankroll" };
+		if (!(signalConfidence > 0 && signalConfidence <= 1)) {
+			return { size: 0, notional_cents: 0, reasoning: "invalid_confidence" };
+		}
+
+		const upperCents = this._config.max_notional_cents_per_trade;
+		const lowerCents = 10; // 10¢ floor — always have some skin in the game
+
+		// Base: confidence × upper
+		let baseCents = upperCents * signalConfidence;
+
+		// Drawdown adjustment
+		const drawdown =
+			this._state.peak_bankroll_cents > 0
+				? (this._state.peak_bankroll_cents - this._state.bankroll_cents) /
+					this._state.peak_bankroll_cents
+				: 0;
+		if (drawdown > 0.10) baseCents *= 0.25; // in drawdown-pause zone anyway
+		else if (drawdown > 0.05) baseCents *= 0.5;
+
+		// Recent win rate (last 5 closed trades)
+		const recent = recentClosed.slice(-5);
+		const recentWins = recent.filter((t) => t.pnl_cents > 0).length;
+		const recentWinRate = recent.length > 0 ? recentWins / recent.length : 0.5;
+		if (recentWinRate > 0.6) baseCents *= 1.2;
+		if (recentWinRate < 0.4) baseCents *= 0.7;
+
+		// Clamp to [lower, upper]
+		let finalCents = Math.max(lowerCents, Math.min(upperCents, baseCents));
+
+		// Clamp to remaining daily notional. The state stores
+		// the rolling 24h notional as a history array; sum it
+		// here. The daily cap is the per-trade cap × 50 (50 trades
+		// per day is the rough upper bound for the dynamic range).
+		const dailyUsed = dailyNotionalCents(this._state);
+		const dailyRemainingCents = Math.max(
+			0,
+			this._config.max_notional_cents_per_trade * 50 - dailyUsed,
+		);
+		finalCents = Math.min(finalCents, dailyRemainingCents);
+
+		// Clamp to remaining position slots
+		const openCount = Object.keys(this._state.open_positions).length;
+		const slotsLeft = Math.max(0, this._config.max_concurrent_positions - openCount);
+		if (slotsLeft <= 0) {
+			return { size: 0, notional_cents: 0, reasoning: "no_position_slots" };
+		}
+		// Split the remaining daily notional across remaining slots
+		const perSlotCap = Math.floor(dailyRemainingCents / slotsLeft);
+		finalCents = Math.min(finalCents, perSlotCap);
+
+		// Final clamp to [lower, upper] (in case daily cap was tight)
+		finalCents = Math.max(lowerCents, Math.min(upperCents, finalCents));
+
+		const size = Math.floor(finalCents / entryPrice);
+		const reasoning =
+			`judge: conf=${(signalConfidence * 100).toFixed(0)}% ` +
+			`dd=${(drawdown * 100).toFixed(1)}% ` +
+			`wr=${(recentWinRate * 100).toFixed(0)}% ` +
+			`slots=${slotsLeft} → ${finalCents}¢ (${size} @ ${entryPrice}¢)`;
+		return { size, notional_cents: finalCents, reasoning };
 	}
 
 	perMarketCostCents(ticker: string): number {

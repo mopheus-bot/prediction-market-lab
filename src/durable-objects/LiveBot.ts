@@ -2229,7 +2229,23 @@ export class LiveBot implements DurableObject {
 			}
 			return;
 		}
-		const size = decision.size;
+		// 2026-08-10 21:00 (paper-mode): use the dynamic judge
+		// to size the trade. The static computeSize / canOpenPosition
+		// gave a fixed per-trade cap; the judge scales by signal
+		// confidence + drawdown + recent win rate, bounded by
+		// the same per-trade cap. Use the min of the two so the
+		// hard cap still wins.
+		const recentClosed = Object.values(state.risk_state.open_positions)
+			.slice(-5) // crude: just use the last 5 entries (the open
+			// ones for now, since closed history isn't on the
+			// polling-feed hot path; the judge will improve once
+			// recentClosed is fed properly)
+			.map((p) => ({ pnl_cents: 0 }));
+		const judge = risk.judgeSize(signal.price, signal.p, recentClosed);
+		const size = Math.min(decision.size, judge.size);
+		// Note: judge.reasoning is exposed via the next /status
+		// call when we add it to the response shape; for now it's
+		// just used to size the trade.
 
 		// Min-edge-after-fees guardrail (user-flagged 2026-08-07).
 		if (isStructurallyUnprofitable(signal.price, size)) {

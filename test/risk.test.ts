@@ -131,6 +131,120 @@ describe("RiskEngine — sizing", () => {
 	});
 });
 
+describe("RiskEngine — judgeSize (dynamic sizing)", () => {
+	// 2026-08-10 21:00: the dynamic judge. Bounds: upper =
+	// max_notional_cents_per_trade, lower = 10¢. Scales by
+	// signal confidence + drawdown + recent win rate. This
+	// is the "upper/lower threshold with anything in between
+	// free" feature the user asked for.
+
+	it("high confidence + no drawdown + neutral win rate = base notional", () => {
+		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
+		const r = eng.judgeSize(50, 0.9, []);
+		// 0.9 × 5000c = 4500c, clamped to [10, 5000] = 4500c.
+		// At 50c entry = 90 contracts.
+		expect(r.notional_cents).toBe(4500);
+		expect(r.size).toBe(90);
+		expect(r.reasoning).toContain("conf=90%");
+	});
+
+	it("low confidence scales down", () => {
+		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
+		const r = eng.judgeSize(50, 0.3, []);
+		// 0.3 × 5000c = 1500c, clamped to [10, 5000] = 1500c.
+		expect(r.notional_cents).toBe(1500);
+		expect(r.size).toBe(30);
+	});
+
+	it("very low confidence is floored at 10¢ (still trades)", () => {
+		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
+		const r = eng.judgeSize(50, 0.001, []);
+		// 0.001 × 5000 = 5c, floored to 10c.
+		expect(r.notional_cents).toBe(10);
+		expect(r.size).toBe(0); // 10c / 50c = 0.2, floor 0
+	});
+
+	it("hot streak boosts size 1.2x", () => {
+		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
+		const recent = [
+			{ pnl_cents: 100 },
+			{ pnl_cents: 50 },
+			{ pnl_cents: 30 },
+			{ pnl_cents: 80 },
+			{ pnl_cents: 20 },
+		]; // 5/5 wins = 100% > 60%
+		const r = eng.judgeSize(50, 0.8, recent);
+		// 0.8 × 5000 × 1.2 = 4800c, clamped to [10, 5000] = 4800c.
+		expect(r.notional_cents).toBe(4800);
+		expect(r.reasoning).toContain("wr=100%");
+	});
+
+	it("cold streak shrinks size 0.7x", () => {
+		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
+		const recent = [
+			{ pnl_cents: -50 },
+			{ pnl_cents: -30 },
+			{ pnl_cents: -80 },
+		]; // 0/3 wins = 0% < 40%
+		const r = eng.judgeSize(50, 0.8, recent);
+		// 0.8 × 5000 × 0.7 = 2800c
+		expect(r.notional_cents).toBe(2800);
+		expect(r.reasoning).toContain("wr=0%");
+	});
+
+	it("5%+ drawdown halves size", () => {
+		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
+		// Bankroll 9,400, peak 10,000 → 6% drawdown
+		eng.state.bankroll_cents = 9_400;
+		eng.state.peak_bankroll_cents = 10_000;
+		const r = eng.judgeSize(50, 0.8, []);
+		// 0.8 × 5000 × 0.5 = 2000c
+		expect(r.notional_cents).toBe(2000);
+		expect(r.reasoning).toContain("dd=6.0%");
+	});
+
+	it("10%+ drawdown quarters size (deep drawdown)", () => {
+		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
+		eng.state.bankroll_cents = 8_500;
+		eng.state.peak_bankroll_cents = 10_000;
+		const r = eng.judgeSize(50, 0.8, []);
+		// 0.8 × 5000 × 0.25 = 1000c
+		expect(r.notional_cents).toBe(1000);
+	});
+
+	it("caps at max_notional_cents_per_trade (upper bound)", () => {
+		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
+		// Even at 100% confidence + perfect streak, can't
+		// exceed the cap.
+		const r = eng.judgeSize(50, 1.0, [
+			{ pnl_cents: 100 },
+			{ pnl_cents: 100 },
+			{ pnl_cents: 100 },
+		]);
+		expect(r.notional_cents).toBeLessThanOrEqual(5000);
+	});
+
+	it("rejects invalid inputs", () => {
+		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
+		expect(eng.judgeSize(0, 0.5, []).size).toBe(0);
+		expect(eng.judgeSize(101, 0.5, []).size).toBe(0);
+		expect(eng.judgeSize(50, 0, []).size).toBe(0);
+		expect(eng.judgeSize(50, 1.5, []).size).toBe(0);
+	});
+
+	it("no position slots → no trade", () => {
+		const eng = makeEngine({
+			max_notional_cents_per_trade: 5000,
+			max_concurrent_positions: 2,
+		});
+		eng.state.open_positions["A"] = {} as never;
+		eng.state.open_positions["B"] = {} as never;
+		const r = eng.judgeSize(50, 0.8, []);
+		expect(r.size).toBe(0);
+		expect(r.reasoning).toContain("no_position_slots");
+	});
+});
+
 describe("RiskEngine — canOpenPosition", () => {
 	it("rejects with invalid_price for out-of-range prices", () => {
 		const eng = makeEngine();
