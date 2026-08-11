@@ -58,6 +58,7 @@ import {
 import { DEFAULT_USER_ID } from "../lib/types.js";
 import { cronRuns, liveMarketSnapshots } from "../lib/db.js";
 import { loadPrivateKey, KalshiCredentials } from "../kalshi/auth.js";
+import { classifyByEventTicker } from "../kalshi/leads-scout.js";
 import type { CronEnv, CronResult } from "./dispatcher.js";
 
 const MAX_PAGES = 30;
@@ -210,10 +211,24 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 			maxPages: MAX_PAGES,
 		})) {
 			nScanned += 1;
-			if (!looksActive(m)) continue;
+			const eventTicker =
+				(m as unknown as { event_ticker?: string }).event_ticker ?? "";
+			// 2026-08-10 21:10: also keep markets the LLM can
+			// actually price (KXGDP, KXNBA, KXPRES, etc.) even
+			// if they have last_price=0 / OI=0 in the LIST view.
+			// Kalshi lists single-event markets with 0 price
+			// when they're newly listed or pre-resolution; the
+			// looksActive filter was dropping them. classifyByEventTicker
+			// returns a vertical (weather/economic/politics/sports)
+			// for these — the LLM has real knowledge of them.
+			// Parlays (KXMVECROSSCATEGORY, KXMVESPORTSMULTIGAME)
+			// are deliberately excluded by classifyByEventTicker
+			// so they don't bypass the looksActive filter.
+			const isKnownPrefix = classifyByEventTicker(eventTicker, m.title) != null;
+			if (!looksActive(m) && !isKnownPrefix) continue;
 			looksActiveMarkets.push({
 				ticker: m.ticker,
-				event_ticker: (m as unknown as { event_ticker?: string }).event_ticker ?? "",
+				event_ticker: eventTicker,
 				title: m.title ?? "",
 				last_price_cents: m.last_price_cents,
 				open_interest: m.open_interest ?? 0,
