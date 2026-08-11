@@ -548,7 +548,8 @@
 				const todayPnl = todayRealized + unrealized;
 				const pnlEl = document.getElementById("bot-pnl-today");
 				if (pnlEl) {
-					pnlEl.textContent = fmtCents(todayPnl);
+					// 2026-08-10: % of bankroll next to the $.
+					pnlEl.textContent = fmtCentsPct(todayPnl);
 					pnlEl.classList.remove("ok", "bad", "muted");
 					if (todayPnl > 0) pnlEl.classList.add("ok");
 					else if (todayPnl < 0) pnlEl.classList.add("bad");
@@ -557,8 +558,8 @@
 				if (pnlSub) {
 					if (mode === "off") pnlSub.textContent = "paused";
 					else {
-						const rPart = todayRealized === 0 ? "—" : fmtCents(todayRealized);
-						const uPart = unrealized === 0 ? "—" : fmtCents(unrealized);
+						const rPart = todayRealized === 0 ? "—" : fmtCentsPct(todayRealized);
+						const uPart = unrealized === 0 ? "—" : fmtCentsPct(unrealized);
 						pnlSub.textContent = `realized ${rPart} · unreal ${uPart}`;
 					}
 				}
@@ -749,6 +750,38 @@
 				setHealthOpen(open);
 			} catch (_e) {}
 
+			// ─── SSE handlers (Phase 3 of docs/EVENT-DRIVEN-UI.md) ──
+			//
+			// 2026-08-10: bot.html is the main hero dashboard.
+			// Every mode change, kill switch, signal, and
+			// trade close updates the KPIs in place. The 5s
+			// timer is kept as a fallback for the cron-runs
+			// log (which has a separate D1 read path).
+			registerSSEHandler("init", (data) => {
+				// The first event from /api/pm/bot/stream is
+				// the full init payload with config. Re-render
+				// the hero so the mode banner, bankroll, and
+				// KPIs all sync immediately.
+				renderBotHeroExtras();
+			});
+			registerSSEHandler("mode_change", () => {
+				// Mode banner is updated globally in app.js.
+				// Re-render the hero too so the "P/L today"
+				// KPI picks up the new mode.
+				renderBotHeroExtras();
+			});
+			registerSSEHandler("trade_close", () => {
+				// Re-render the hero — the realized PnL just
+				// changed. The activity log will pick this up
+				// on the next 10s refresh.
+				renderBotHeroExtras();
+			});
+			registerSSEHandler("auto_promote", (data) => {
+				if (data && data.ticker) {
+					toast(`auto-promoted ${data.ticker} (${data.vertical}) @ conf ${data.confidence?.toFixed(2) || "?"}`, true);
+				}
+			});
+
 			// ─── Wire up: extend existing app.js refresh with our extras ───
 			// The app.js's default appPageInit starts timers that fire
 			// refresh() and refreshVerticals() every 5s. We hook into
@@ -756,11 +789,13 @@
 			const _origInit = window.appPageInit;
 			window.appPageInit = function botPageInit() {
 				if (_origInit) _origInit();
-				// Now add our own timers
+				// Now add our own timers — 10s fallback (SSE
+				// is the primary path; this is for the cron
+				// log which has its own D1 read path).
 				startTimers([
-					{ fn: renderBotHeroExtras, ms: 5000 },
+					{ fn: renderBotHeroExtras, ms: 10000 },
 					{ fn: refreshActivityLog, ms: 10000 },
-					{ fn: renderHealth, ms: 5000 },
+					{ fn: renderHealth, ms: 10000 },
 				]);
 				// Immediate renders
 				renderBotHeroExtras();

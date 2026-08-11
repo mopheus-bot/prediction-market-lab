@@ -1162,6 +1162,27 @@
 					window.__devTimer = setInterval(() => document.getElementById("dev-refresh")?.click(), 10_000);
 				}
 			};
+
+			// ─── SSE handlers (Phase 3) ───
+			//
+			// 2026-08-10: dev.html is the operator's tool for
+			// the leads pipeline + model registry. SSE-driven
+			// auto_promote events fire a toast + re-render
+			// the universe panel so the operator sees new
+			// tickers appear instantly. The 10s polling
+			// remains as a fallback for the broader refresh
+			// (cron runs, model registry, leads table).
+			registerSSEHandler("auto_promote", (data) => {
+				if (data && data.ticker) {
+					toast(`auto-promoted ${data.ticker} (${data.vertical}) @ conf ${(data.confidence || 0).toFixed(2)}`, true);
+					document.getElementById("dev-refresh")?.click();
+				}
+			});
+			registerSSEHandler("init", () => {
+				// Sync the bankroll + mode banner on first paint
+				// (handled globally too, but explicit here for
+				// the dev-specific panels that may show config).
+			});
 		</script>
 	</body>
 </html>

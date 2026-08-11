@@ -2797,3 +2797,53 @@ body[data-kill-switch="true"] .mode-banner {
 .real-only { display: none; }
 body[data-trading-mode="paper"] .paper-only { display: inline; }
 body[data-trading-mode="real"] .real-only { display: inline; }
+
+/* ─── Connection status chip in nav (Phase 3, 2026-08-10) ─── */
+.sse-conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  border: 1px solid;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.sse-conn-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.sse-conn[data-state="live"] {
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.sse-conn[data-state="live"] .sse-conn-dot {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+  animation: sse-pulse 2s ease-in-out infinite;
+}
+.sse-conn[data-state="reconnecting"] {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.sse-conn[data-state="reconnecting"] .sse-conn-dot {
+  background: #f59e0b;
+}
+.sse-conn[data-state="dead"] {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.sse-conn[data-state="dead"] .sse-conn-dot {
+  background: #ef4444;
+}
+@keyframes sse-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

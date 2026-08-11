@@ -1566,6 +1566,10 @@ function injectAppNav() {
 			`).join("")}
 		</ul>
 		<div class="app-nav-right">
+			<span class="sse-conn" id="sse-connection-status" data-state="reconnecting" title="connecting to event stream…">
+				<span class="sse-conn-dot" aria-hidden="true"></span>
+				<span class="sse-conn-label">…</span>
+			</span>
 			<span class="stage-badge" id="stage-badge" data-color="warn" role="status" aria-label="Bot stage">
 				<span class="stage-dot" id="stage-dot"></span>
 				<span class="stage-label" id="stage-label">connecting…</span>
@@ -1625,6 +1629,46 @@ function stopTimers() {
 	_appTimers = [];
 }
 
+// ─── Mode banner (Phase 3) ────────────────────────────────
+//
+// 2026-08-10: every page gets a banner at the top that
+// swaps live on mode_change + kill_switch SSE events.
+// Trades page has its own inline banner; the shared
+// version is injected for every other page.
+function injectModeBanner() {
+	if (document.getElementById("mode-banner")) return;
+	const banner = document.createElement("div");
+	banner.id = "mode-banner";
+	banner.className = "mode-banner paper";
+	banner.innerHTML = `
+		<span class="mode-banner-dot" aria-hidden="true"></span>
+		<span class="mode-banner-text">PAPER TRADING · no real money at risk</span>
+		<span class="mode-banner-kill" id="mode-banner-kill" hidden>KILL SWITCH ON · no new trades</span>
+	`;
+	document.body.insertBefore(banner, document.body.firstChild);
+}
+
+function setModeBannerState(mode, killOn) {
+	const banner = document.getElementById("mode-banner");
+	if (!banner) return;
+	banner.setAttribute("data-trading-mode", mode);
+	const text = banner.querySelector(".mode-banner-text");
+	if (text) {
+		if (mode === "real") {
+			text.textContent = "REAL TRADING · real money on the line";
+		} else if (mode === "off") {
+			text.textContent = "TRADING OFF · no new signals";
+		} else {
+			text.textContent = "PAPER TRADING · no real money at risk";
+		}
+	}
+	const killIndicator = document.getElementById("mode-banner-kill");
+	if (killIndicator) {
+		if (killOn) killIndicator.removeAttribute("hidden");
+		else killIndicator.setAttribute("hidden", "");
+	}
+}
+
 // ─── SSE event bus (Phase 2 of docs/EVENT-DRIVEN-UI.md) ────────
 //
 // Replaces (or supplements) the timer-polling pattern.
@@ -1664,8 +1708,15 @@ function _sseSetStatus(state) {
 	if (state === "live") el.classList.add("sse-live");
 	else if (state === "reconnecting") el.classList.add("sse-reconnecting");
 	else el.classList.add("sse-dead");
+	el.setAttribute("data-state", state);
+	const label = el.querySelector(".sse-conn-label");
+	if (label) {
+		if (state === "live") label.textContent = "live";
+		else if (state === "reconnecting") label.textContent = "reconnecting…";
+		else label.textContent = "disconnected";
+	}
 	el.title = state === "live"
-		? "live event stream connected"
+		? "live event stream connected — updates without refresh"
 		: state === "reconnecting"
 			? "reconnecting to event stream…"
 			: "event stream disconnected";
@@ -1757,6 +1808,42 @@ document.addEventListener("visibilitychange", () => {
 
 document.addEventListener("DOMContentLoaded", () => {
 	injectAppNav();
+	// 2026-08-10: every page gets the mode banner + global
+	// SSE handlers (mode banner, kill indicator, signal
+	// stream). Pages can override or add more in their
+	// own appPageInit.
+	injectModeBanner();
+	registerSSEHandler("init", (data) => {
+		if (data && data.config) {
+			document.body.setAttribute(
+				"data-trading-mode",
+				data.config.trading_mode || "paper",
+			);
+			document.body.setAttribute(
+				"data-kill-switch",
+				String(!!data.config.kill_switch),
+			);
+			setModeBannerState(
+				data.config.trading_mode || "paper",
+				!!data.config.kill_switch,
+			);
+			window.setBankrollCents(data.config.bankroll_cents);
+		}
+	});
+	registerSSEHandler("mode_change", (data) => {
+		if (data && data.trading_mode) {
+			document.body.setAttribute("data-trading-mode", data.trading_mode);
+			setModeBannerState(data.trading_mode, document.body.getAttribute("data-kill-switch") === "true");
+		}
+	});
+	registerSSEHandler("kill_switch", (data) => {
+		const on = !!data?.on;
+		document.body.setAttribute("data-kill-switch", String(on));
+		setModeBannerState(
+			document.body.getAttribute("data-trading-mode") || "paper",
+			on,
+		);
+	});
 	// 2026-08-10: open the SSE event bus. Every open page
 	// gets a live stream of bot events; the EventSource
 	// auto-reconnects on disconnect. Pages register their

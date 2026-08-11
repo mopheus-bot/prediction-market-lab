@@ -216,10 +216,27 @@
 				if (sec < 86400) return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
 				return `${Math.floor(sec / 86400)}d ${Math.floor((sec % 86400) / 3600)}h`;
 			}
+			// fmtCentsShort is the inline short formatter used
+			// by the rest of this page. Phase 3 (2026-08-10):
+			// wrap it to also show % of bankroll where the
+			// value matters (uPnL per position, total uPnL,
+			// realized PnL). Bankroll comes from the global
+			// _bankrollCents that the SSE init event seeds.
 			function fmtCentsShort(c) {
 				if (c == null) return "—";
 				const sign = c < 0 ? "−" : c > 0 ? "+" : "";
-				return `${sign}$${(Math.abs(c) / 100).toFixed(2)}`;
+				const dollars = (Math.abs(c) / 100).toFixed(2);
+				const base = `${sign}$${dollars}`;
+				if (window.getBankrollCents && window.getBankrollCents()) {
+					const pct = (c / window.getBankrollCents()) * 100;
+					const pctSign = pct < 0 ? "−" : pct > 0 ? "+" : "";
+					const absPct = Math.abs(pct);
+					const pctStr = absPct < 1
+						? absPct.toFixed(3) + "%"
+						: absPct.toFixed(2) + "%";
+					return `${base} (${pctSign}${pctStr})`;
+				}
+				return base;
 			}
 
 			// ─── Data fetchers (cached) ───
@@ -688,11 +705,27 @@
 				renderRisk(openPositions, closedAll);
 			}
 
+			// ─── SSE handlers (Phase 3) ───
+			//
+			// 2026-08-10: positions update live on trade_open,
+			// trade_close, and unrealized_pnl. The polling
+			// fallback is dropped to 30s (was 5s) — SSE is
+			// the primary channel.
+			registerSSEHandler("init", () => renderPositionsPage());
+			registerSSEHandler("trade_open", () => renderPositionsPage());
+			registerSSEHandler("trade_close", () => renderPositionsPage());
+			registerSSEHandler("unrealized_pnl", () => renderPositionsPage());
+			registerSSEHandler("auto_promote", (data) => {
+				if (data && data.ticker) {
+					toast(`universe: +${data.ticker} (${data.vertical})`, true);
+				}
+			});
+
 			// ─── Wire into app.js ───
 			const _origInit = window.appPageInit;
 			window.appPageInit = function positionsPageInit() {
 				if (_origInit) _origInit();
-				startTimers([{ fn: renderPositionsPage, ms: 5000 }]);
+				startTimers([{ fn: renderPositionsPage, ms: 30000 }]);
 				renderPositionsPage();
 			};
 			window.appPageOnVisible = function () {
