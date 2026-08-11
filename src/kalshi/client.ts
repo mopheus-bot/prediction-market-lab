@@ -339,6 +339,35 @@ export class KalshiClient {
 		return { events, cursor: data.cursor && data.cursor !== "" ? data.cursor : null };
 	}
 
+	// 2026-08-11 (Phase 4, LLM-PIPELINE Bug A): single-event
+	// fetch by ticker. Used by the LLM cron to ground its
+	// verdicts on the parent event's title, sub_title,
+	// rules_primary, and (for parlays) the
+	// mve_selected_legs. Without this, the LLM sees a
+	// market title like "yes Tanner Bibee: 4+,yes Eury
+	// Pérez: 6+,yes Paul Skenes: 6+" and has to guess what
+	// bundle of outcomes is in the market (per
+	// docs/LLM-PIPELINE.md Bug A: high confidence = high
+	// hallucination). The endpoint returns the event
+	// object including all nested markets.
+	async getEvent(
+		eventTicker: string,
+		opts: { withNestedMarkets?: boolean } = {},
+	): Promise<KalshiEvent> {
+		const params: Record<string, unknown> = {};
+		if (opts.withNestedMarkets !== undefined) {
+			params.with_nested_markets = opts.withNestedMarkets;
+		}
+		const data = (await this.get(
+			`/events/${encodeURIComponent(eventTicker)}`,
+			params,
+		)) as { event?: Record<string, unknown> };
+		if (!data.event) {
+			throw new Error(`event ${eventTicker} not found`);
+		}
+		return parseEvent(data.event);
+	}
+
 	// --- portfolio (auth required) ----------------------------------
 
 	async getBalance(): Promise<{

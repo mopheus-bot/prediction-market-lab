@@ -170,6 +170,28 @@ export interface LLMOpinionContext {
 		yes_bid_cents: number;
 		yes_ask_cents: number;
 	}>;
+	// 2026-08-11 (Phase 4, LLM-PIPELINE Bug A): parent event
+	// context fetched from Kalshi's
+	// /events/{event_ticker}?with_nested_markets=true. The LLM
+	// was hallucinating on parlay markets because it had no
+	// view of the bundle structure. Passing the event title +
+	// sub_title + the leg list (for parlays) gives the LLM
+	// real math to do instead of guessing. Optional — the
+	// prompt builder gracefully handles undefined.
+	eventTitle?: string;
+	eventSubTitle?: string;
+	rulesPrimary?: string;
+	// 2026-08-11: for parlay markets (KXMVECROSSCATEGORY,
+	// KXMVESPORTSMULTIGAME), the individual leg markets that
+	// make up the bundle. Each leg has its own event_ticker,
+	// market_ticker, and side. The LLM can compute the
+	// bundle's fair value as the product of leg probabilities.
+	// Optional — only present on parlays.
+	parlayLegs?: Array<{
+		event_ticker: string;
+		market_ticker: string;
+		side: "yes" | "no";
+	}>;
 }
 
 async function askLLMForOpinion(
@@ -193,15 +215,63 @@ async function askLLMForOpinion(
 		.join("\n  ");
 	const trendBlock = trendLines ? `\nLast hour trend (oldest → newest):\n  ${trendLines}\n` : "";
 
+	// 2026-08-11 (Phase 4, LLM-PIPELINE Bug A): build the
+	// event-context block. For single-event markets this
+	// gives the LLM the parent event's title + sub_title +
+	// resolution criteria. For parlay markets it gives
+	// the leg list so the LLM can compute the bundle's
+	// fair value instead of guessing. The previous
+	// version of the prompt only had the market's title,
+	// which for parlays is just a comma-separated YES
+	// list (e.g. "yes Bibee 4+,yes Pérez 6+,yes Skenes 6+")
+	// that the LLM had to interpret with no grounding.
+	const eventContextLines: string[] = [];
+	if (ctx.eventTitle) {
+		eventContextLines.push(`Event: ${ctx.eventTitle}`);
+	}
+	if (ctx.eventSubTitle) {
+		eventContextLines.push(`Sub-title: ${ctx.eventSubTitle}`);
+	}
+	if (ctx.rulesPrimary) {
+		// Cap at 500 chars; full rules can be hundreds of
+		// lines of legal text we don't need in the prompt.
+		const rulesShort = ctx.rulesPrimary.length > 500
+			? ctx.rulesPrimary.slice(0, 500) + "…"
+			: ctx.rulesPrimary;
+		eventContextLines.push(`Resolution: ${rulesShort}`);
+	}
+	if (ctx.parlayLegs && ctx.parlayLegs.length > 0) {
+		// Cap at 10 legs in the prompt; a 22-leg parlay
+		// would blow the token budget. The LLM doesn't
+		// need every leg — the bundle is "all must win",
+		// so the dominant legs (highest volume on
+		// Kalshi) drive the implied probability. We
+		// show the first 10 in deterministic order
+		// (Kalshi's response order is stable per call).
+		const legs = ctx.parlayLegs.slice(0, 10);
+		const legsBlock = legs
+			.map((leg) => `  - ${leg.market_ticker} (${leg.side})`)
+			.join("\n");
+		const extra = ctx.parlayLegs.length > 10
+			? ` … and ${ctx.parlayLegs.length - 10} more legs`
+			: "";
+		eventContextLines.push(
+			`This is a parlay market (${ctx.parlayLegs.length}-leg bundle). For YES to resolve, ALL of these must win:\n${legsBlock}${extra}`,
+		);
+	}
+	const eventContext = eventContextLines.length > 0
+		? `\n${eventContextLines.join("\n")}\n`
+		: "";
+
 	const prompt = `Market: ${ctx.ticker}
 Title: ${ctx.title}
-Vertical: ${ctx.vertical}
+Vertical: ${ctx.vertical}${eventContext}
 Current YES price: ${ctx.currentYesPriceCents}¢ (NO = ${100 - ctx.currentYesPriceCents}¢)
 Current orderbook: bid ${ctx.yesBidCents ?? "?"}¢ / ask ${ctx.yesAskCents ?? "?"}¢ / last trade ${ctx.lastPriceCents ?? "?"}¢
 24h volume: ${ctx.volume24h ?? "?"} contracts · open interest: ${ctx.openInterest ?? "?"}${trendBlock}
 What's your view? Reply JSON: {"side": "yes" | "no" | "hold", "confidence": 0.0-1.0, "reasoning": "..."}`;
 
-	const result = await chat(env, SYSTEM_PROMPT, prompt, { max_tokens: 500 });
+	const result = await chat(env, SYSTEM_PROMPT, prompt, { max_tokens: 600 });
 	return {
 		parsed: result.ok ? parseLLMOpinion(result.text) : null,
 		raw: result.text,
@@ -245,6 +315,75 @@ function isParlay(ticker: string): boolean {
 function capConfidenceByDomain(ticker: string, rawConfidence: number): number {
 	if (!isParlay(ticker)) return rawConfidence;
 	return Math.min(rawConfidence, PARLAY_CONFIDENCE_CAP);
+}
+
+// 2026-08-11 (Phase 4, LLM-PIPELINE Bug A): fetch the
+// parent event for a market, with a per-event-ticker
+// cache so multi-market events (e.g. KXNEWPOPE-70 has 7
+// sub-markets) only trigger 1 /events call. Returns the
+// LLM-relevant context (event title, sub_title, rules,
+// parlay leg list). Failures return undefined — the LLM
+// prompt gracefully degrades.
+const _eventCtxCache = new Map<string, {
+  fetchedAt: number;
+  ctx: {
+    eventTitle?: string;
+    eventSubTitle?: string;
+    rulesPrimary?: string;
+    parlayLegs?: Array<{ event_ticker: string; market_ticker: string; side: "yes" | "no" }>;
+  };
+}>();
+const EVENT_CTX_TTL_MS = 10 * 60 * 1000; // 10 min
+
+async function fetchEventContextCached(
+  env: CronEnv,
+  eventTicker: string | null,
+): Promise<{
+  eventTitle?: string;
+  eventSubTitle?: string;
+  rulesPrimary?: string;
+  parlayLegs?: Array<{ event_ticker: string; market_ticker: string; side: "yes" | "no" }>;
+} | null> {
+  if (!eventTicker) return null;
+  const now = Date.now();
+  const cached = _eventCtxCache.get(eventTicker);
+  if (cached && now - cached.fetchedAt < EVENT_CTX_TTL_MS) {
+    return cached.ctx;
+  }
+  if (!env.KALSHI_PROD_KEY_ID || !env.KALSHI_PROD_PRIVATE_KEY) return null;
+  try {
+    const { KalshiClient, DEFAULT_PRODUCTION_BASE } = await import("../kalshi/client.js");
+    const { loadPrivateKey, KalshiCredentials } = await import("../kalshi/auth.js");
+    const pk = await loadPrivateKey(env.KALSHI_PROD_PRIVATE_KEY);
+    const creds = new KalshiCredentials(env.KALSHI_PROD_KEY_ID, pk);
+    const client = new KalshiClient({
+      baseUrl: DEFAULT_PRODUCTION_BASE,
+      credentials: creds,
+      requestsPerSecond: 4,
+    });
+    const event = await client.getEvent(eventTicker, { withNestedMarkets: true });
+    // The leg list lives on each market in the event;
+    // for our purposes the first market is enough since
+    // multi-leg bundles have a single mve_selected_legs
+    // list (only one market per bundle actually carries
+    // the leg spec).
+    const primaryMarket = event.markets.find((m) => m.mve_selected_legs && m.mve_selected_legs.length > 0)
+      ?? event.markets[0];
+    const ctx = {
+      eventTitle: event.title || undefined,
+      eventSubTitle: event.sub_title || undefined,
+      rulesPrimary: (event as unknown as { rules_primary?: string }).rules_primary || undefined,
+      parlayLegs: primaryMarket?.mve_selected_legs,
+    };
+    _eventCtxCache.set(eventTicker, { fetchedAt: now, ctx });
+    return ctx;
+  } catch (e) {
+    console.warn(
+      `[llm-opinions] fetchEventContext(${eventTicker}) failed (non-fatal):`,
+      e instanceof Error ? e.message : String(e),
+    );
+    return null;
+  }
 }
 
 async function readBotUniverse(env: CronEnv): Promise<string[]> {
@@ -737,6 +876,21 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 					? "sports"
 					: "unknown"
 			);
+			// 2026-08-11 (Phase 4, LLM-PIPELINE Bug A):
+			// fetch the parent event so the LLM has the
+			// event title, sub_title, resolution rules,
+			// and (for parlays) the list of leg markets.
+			// Without this, the LLM sees a market title
+			// like "yes Bibee 4+,yes Pérez 6+,yes Skenes 6+"
+			// and has to guess at the bundle — high
+			// confidence on a 4-leg parlay is a hallucination,
+			// not an edge. Cached per (ticker → event_ticker)
+			// so multi-market events (e.g. KXNEWPOPE-70 has
+			// 7 sub-markets) only trigger 1 /events call.
+			const eventCtx = await fetchEventContextCached(
+				env,
+				snap.event_ticker,
+			);
 			const llm = await askLLMForOpinion(env, {
 				ticker,
 				title,
@@ -754,6 +908,10 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 						yes_ask_cents: p.yes_ask_cents,
 					}),
 				),
+				eventTitle: eventCtx?.eventTitle,
+				eventSubTitle: eventCtx?.eventSubTitle,
+				rulesPrimary: eventCtx?.rulesPrimary,
+				parlayLegs: eventCtx?.parlayLegs,
 			});
 			totalInputTokens += llm.input_tokens ?? 0;
 			totalOutputTokens += llm.output_tokens ?? 0;

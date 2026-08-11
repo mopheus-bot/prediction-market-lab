@@ -58,6 +58,18 @@ export interface KalshiMarket {
 	close_time: string | null;
 	open_time: string | null;
 	expiration_time: string | null;
+	// 2026-08-11 (Phase 4, LLM-PIPELINE Bug A): for parlay
+	// markets (KXMVECROSSCATEGORY, KXMVESPORTSMULTIGAME),
+	// each leg is a separate YES/NO market. The LLM needs
+	// to see the leg event_ticker + side to evaluate the
+	// bundle. Optional — only present on parlays. The
+	// KalshiClient.getEvent() call surfaces this via
+	// with_nested_markets=true.
+	mve_selected_legs?: Array<{
+		event_ticker: string;
+		market_ticker: string;
+		side: "yes" | "no";
+	}>;
 }
 
 export function parseMarket(wire: KalshiMarketWire | Record<string, unknown>): KalshiMarket {
@@ -82,6 +94,24 @@ export function parseMarket(wire: KalshiMarketWire | Record<string, unknown>): K
 		close_time: w.close_time ? String(w.close_time) : null,
 		open_time: w.open_time ? String(w.open_time) : null,
 		expiration_time: w.expiration_time ? String(w.expiration_time) : null,
+		// 2026-08-11 (Phase 4, LLM-PIPELINE Bug A):
+		// mve_selected_legs is the bundle spec for
+		// parlay markets. Each leg has the
+		// (event_ticker, market_ticker, side) of a
+		// component market; the bundle's YES resolves
+		// only if every leg's side wins. Optional —
+		// only present on parlay markets. Wire shape
+		// from Kalshi's /events/{ticker}?with_nested_markets=true
+		// response.
+		mve_selected_legs: Array.isArray(w.mve_selected_legs)
+			? (w.mve_selected_legs as Array<Record<string, unknown>>).map(
+				(leg) => ({
+					event_ticker: String(leg.event_ticker ?? ""),
+					market_ticker: String(leg.market_ticker ?? ""),
+					side: (leg.side === "no" ? "no" : "yes") as "yes" | "no",
+				}),
+			)
+			: undefined,
 	};
 }
 
