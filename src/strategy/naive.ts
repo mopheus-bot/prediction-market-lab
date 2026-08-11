@@ -22,6 +22,18 @@
  * threshold. The router passes per-vertical values when the
  * strategy is wired up; tests use the default.
  *
+ * **Reversal confirmation gate (2026-08-11, option 2):** the
+ * naive fade is a "catching a falling knife" pattern on
+ * trending markets. To make it safer, require that the
+ * orderbook on the side we're betting on has real depth
+ * (≥ `min_support_contracts` contracts at the best bid).
+ * A thin bid means nobody is stepping in to support the
+ * bounce — the fade is unlikely to fill / the fill is
+ * unlikely to mean-revert. With a deep bid, somebody
+ * else is also betting the bounce, which is evidence
+ * (not proof) of a real reversal. Default 0 = off
+ * (back-compat); the router sets it to 3 for live use.
+ *
  * This is the chunk-3 placeholder strategy. Chunk 4 (ONNX models)
  * adds ML-based strategies that handle real momentum vs noise
  * discrimination; the per-vertical router in `router.ts` dispatches
@@ -51,6 +63,13 @@ export interface NaiveSignalOpts {
 	 *  (entry edge) and would never hit a 5% percentage
 	 *  threshold. Pass 0 to disable (percentage only). */
 	min_absolute_move_cents?: number;
+	/** Reversal confirmation: require at least this many
+	 *  contracts at the best bid on the side we're betting
+	 *  on. Filters out "fade into a void" entries on thin
+	 *  books where the price is dropping because no one is
+	 *  bidding, not because a buyer is about to step in.
+	 *  Pass 0 to disable. Default 0. */
+	min_support_contracts?: number;
 }
 
 export class NaiveSignal implements SignalStrategy {
@@ -58,12 +77,14 @@ export class NaiveSignal implements SignalStrategy {
 	readonly size: number;
 	private readonly fade_threshold: number;
 	private readonly min_absolute_move_cents: number;
+	private readonly min_support_contracts: number;
 
 	constructor(opts: NaiveSignalOpts = {}) {
 		this.size = opts.size ?? 1;
 		this.name = opts.name ?? "naive";
 		this.fade_threshold = opts.fade_threshold ?? FADE_THRESHOLD;
 		this.min_absolute_move_cents = opts.min_absolute_move_cents ?? 0;
+		this.min_support_contracts = opts.min_support_contracts ?? 0;
 		if (this.size < 1) {
 			throw new Error(`size must be >= 1, got ${this.size}`);
 		}
@@ -75,6 +96,11 @@ export class NaiveSignal implements SignalStrategy {
 		if (this.min_absolute_move_cents < 0 || this.min_absolute_move_cents > 99) {
 			throw new Error(
 				`min_absolute_move_cents must be in [0, 99], got ${this.min_absolute_move_cents}`,
+			);
+		}
+		if (this.min_support_contracts < 0) {
+			throw new Error(
+				`min_support_contracts must be >= 0, got ${this.min_support_contracts}`,
 			);
 		}
 	}
@@ -104,23 +130,57 @@ export class NaiveSignal implements SignalStrategy {
 
 		// Tag the rationale with which threshold fired so
 		// the operator can tell the two paths apart in
-		// the signals log.
+		// the signals log. The direction suffix describes
+		// the price move (not the signal side): "up" =
+		// price went up, we fade → side is no. "down" =
+		// price went down, we fade → side is yes.
 		const trigger = exceedsPct ? "fade" : "abs";
-		if (movePct > 0) {
-			return {
-				side: "no",
-				price: Math.round(newPrice),
-				size: this.size,
-				rationale: `${this.name}_${trigger}_up`,
-				p: 0.55,
-			};
+		const direction = movePct > 0 ? "up" : "down";
+		const side: "yes" | "no" = movePct > 0 ? "no" : "yes";
+
+		// Reversal confirmation gate. If the gate is on
+		// and the orderbook is too thin on the side we're
+		// betting on, drop the signal — the fade has no
+		// real support.
+		//
+		// side=yes  → we want YES to go up; require depth
+		//             at the YES best bid.
+		// side=no   → we want NO to go up; require depth
+		//             at the NO best bid.
+		if (this.min_support_contracts > 0) {
+			const depth = side === "yes"
+				? this.bestBidDepth(ctx, "yes")
+				: this.bestBidDepth(ctx, "no");
+			if (depth < this.min_support_contracts) return null;
 		}
+
 		return {
-			side: "yes",
+			side,
 			price: Math.round(newPrice),
 			size: this.size,
-			rationale: `${this.name}_${trigger}_down`,
+			rationale: `${this.name}_${trigger}_${direction}`,
 			p: 0.55,
 		};
+	}
+
+	/** Sum the contract counts at the best bid price on
+	 *  the given side. Returns 0 if no book is present
+	 *  or the side has no levels. The caller treats 0
+	 *  as "no support" — the gate filters it out when
+	 *  min_support_contracts > 0. */
+	private bestBidDepth(
+		ctx: SignalContext,
+		side: "yes" | "no",
+	): number {
+		const ob = ctx.orderbook;
+		if (!ob) return 0;
+		const levels = side === "yes" ? ob.yesLevels : ob.noLevels;
+		if (levels.length === 0) return 0;
+		const top = Math.max(...levels.map((l) => l.priceCents));
+		let sum = 0;
+		for (const l of levels) {
+			if (l.priceCents === top) sum += l.count;
+		}
+		return sum;
 	}
 }

@@ -78,6 +78,15 @@ export interface VerticalStrategyRouterOpts {
 	 *  reasonable percentage threshold. 2026-08-10: lets
 	 *  the bot actually fire on KXWARMING-50's micro-moves. */
 	min_absolute_move_cents?: Partial<Record<Vertical, number>>;
+	/** 2026-08-11 (option 2, lock-in): per-vertical
+	 *  reversal confirmation depth. The NaiveSignal only
+	 *  fires if the orderbook has at least this many
+	 *  contracts at the best bid on the side we're
+	 *  betting on. Filters out "fade into a void"
+	 *  entries on thin books. Map of vertical to
+	 *  contract count; missing entry = use 3 (the
+	 *  router's default). */
+	min_support_contracts?: Partial<Record<Vertical, number>>;
 }
 
 /**
@@ -89,9 +98,14 @@ function defaultProfiles(
 	p_min: number,
 	fadeThresholds: Partial<Record<Vertical, number>> | undefined,
 	minAbs: Partial<Record<Vertical, number>> | undefined,
+	minSupport: Partial<Record<Vertical, number>> | undefined,
 ): Record<Vertical, VerticalProfile> {
 	const ft = (v: Vertical): number => fadeThresholds?.[v] ?? 0.05;
 	const ma = (v: Vertical): number => minAbs?.[v] ?? 0;
+	// 2026-08-11 (option 2, lock-in): default 3 contracts
+	// at the best bid. Operators can override per-vertical
+	// or set to 0 to disable the gate.
+	const ms = (v: Vertical): number => minSupport?.[v] ?? 3;
 	// 2026-08-10: each vertical's default profile is now
 	// [naive, llm_opinion] — the router uses the priority
 	// stacker, so the bot trades when EITHER the price-based
@@ -102,11 +116,21 @@ function defaultProfiles(
 	// get 5% / 0¢ defaults. The LLM is the primary signal
 	// source for the new verticals until a per-vertical
 	// model gets trained.
+	//
+	// 2026-08-11 (option 2, lock-in): every NaiveSignal in
+	// the router uses `ms(vertical)` for the reversal
+	// confirmation gate. The naive fade is negative-EV on
+	// trending markets (KXOAIANTH-40-OAI lost $19.53
+	// fading a down-move in a market with no bid support).
+	// Requiring `ms` contracts at the best bid on the side
+	// we're betting on filters out the "fade into a void"
+	// entries. Set 0 to disable per vertical.
 	const makeNaiveProfile = (vertical: Vertical): VerticalProfile => [
 		new NaiveSignal({
 			name: `naive_${vertical}`,
 			fade_threshold: ft(vertical),
 			min_absolute_move_cents: ma(vertical),
+			min_support_contracts: ms(vertical),
 		}),
 		new LLMOpinionSignal({ name: `llm_${vertical}` }),
 	];
@@ -120,7 +144,32 @@ function defaultProfiles(
 		// source until enough trade data accumulates for a
 		// reversion model to be trained.
 		elections: makeNaiveProfile("elections"),
-		financials: makeNaiveProfile("financials"),
+		// 2026-08-11 (option 1, lock-in): financials is
+		// LLM-only with a high conviction floor. The naive
+		// fade strategy is structurally negative-EV on
+		// trending financials markets (KXOAIANTH-40-OAI:
+		// naive fade-down lost $19.53 over 6h as the price
+		// kept dropping). Until we have a real edge on this
+		// vertical — reversal confirmation, event-driven
+		// signals, or a trained reversion model — the only
+		// safe entry path is a high-conviction LLM verdict.
+		//
+		// min_confidence 0.65 (vs the default 0.6) is one tick
+		// stricter than the global default. It still admits
+		// verdicts like KXDEELRIP-40-DEEL (0.60 → 0.62 range
+		// in recent runs, with consistent direction over
+		// hours) but filters out the marginal 0.55-0.6
+		// "mild edge" calls that don't survive the spread.
+		//
+		// The router still uses the priority-dispatch
+		// pattern (first non-null Signal wins), but with one
+		// strategy in the profile, the dispatch is trivial.
+		financials: [
+			new LLMOpinionSignal({
+				name: "llm_financials_strict",
+				min_confidence: 0.65,
+			}),
+		],
 		entertainment: makeNaiveProfile("entertainment"),
 		science_technology: makeNaiveProfile("science_technology"),
 		crypto: makeNaiveProfile("crypto"),
@@ -170,6 +219,7 @@ export class VerticalStrategyRouter implements SignalStrategy {
 			p_min,
 			opts.fade_thresholds,
 			opts.min_absolute_move_cents,
+			opts.min_support_contracts,
 		);
 		const merged: Record<string, VerticalProfile> = { ...defaults };
 		if (opts.profiles) {

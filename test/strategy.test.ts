@@ -20,6 +20,21 @@ function ctx(prices: number[], vertical = "weather"): SignalContext {
 			eventTicker: "KXWARMING",
 			vertical,
 		},
+		// 2026-08-11 (option 2, lock-in): the NaiveSignal's
+		// reversal confirmation gate (min_support_contracts)
+		// reads ctx.orderbook. The default min_support_contracts
+		// in the router is 3, so tests need an orderbook with
+		// at least 3 contracts at the best bid on the side
+		// the signal is betting on. The newPrice is the last
+		// element of `prices`; for a fade-up (movePct>0) the
+		// signal bets "no" → we need NO bid depth. For a
+		// fade-down, the signal bets "yes" → YES bid depth.
+		// We populate both sides with 5 contracts so the gate
+		// passes regardless of fade direction.
+		orderbook: {
+			yesLevels: [{ priceCents: prices[prices.length - 1] ?? 50, count: 5 }],
+			noLevels: [{ priceCents: 100 - (prices[prices.length - 1] ?? 50), count: 5 }],
+		},
 	};
 }
 

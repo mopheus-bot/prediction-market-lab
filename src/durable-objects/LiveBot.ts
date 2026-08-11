@@ -174,6 +174,18 @@ export interface LiveBotState {
 	 *  meaningful edge but below any reasonable percentage
 	 *  threshold. Map of vertical to cents (1 = 1¢). */
 	per_vertical_min_absolute_move_cents?: Record<string, number> | null;
+	/** 2026-08-11 (option 2, lock-in): per-vertical
+	 *  reversal confirmation depth. The NaiveSignal only
+	 *  fires if the orderbook has at least this many
+	 *  contracts at the best bid on the side we're betting
+	 *  on. Filters out "fade into a void" entries on thin
+	 *  books where the price is moving because no one is
+	 *  bidding, not because a real reversal is forming.
+	 *  Map of vertical to contract count (3 = "at least
+	 *  3 contracts at the top of book"). 0 disables the
+	 *  gate for that vertical. Default 3 applied by the
+	 *  router. */
+	per_vertical_min_support_contracts?: Record<string, number> | null;
 };
 	/** The most recent risk reject reason (per-ticker, for /status). */
 	last_reject: { ts_ms: number; ticker: string; code: string; message: string } | null;
@@ -256,6 +268,11 @@ export interface LiveBotConfig {
 	 *  this for stable markets (KXWARMING-50) where 1¢
 	 *  moves are meaningful edge. Map of vertical to cents. */
 	per_vertical_min_absolute_move_cents?: Record<string, number> | null;
+	/** 2026-08-11 (option 2, lock-in): per-vertical
+	 *  reversal confirmation depth. See the state-config
+	 *  docstring for semantics. Map of vertical to
+	 *  contract count. */
+	per_vertical_min_support_contracts?: Record<string, number> | null;
 }
 
 // ─── Env (subset we need) ─────────────────────────────────────────────
@@ -407,6 +424,8 @@ export class LiveBot implements DurableObject {
 				state.config.per_vertical_fade_threshold ?? null,
 			per_vertical_min_absolute_move_cents:
 				state.config.per_vertical_min_absolute_move_cents ?? null,
+			per_vertical_min_support_contracts:
+				state.config.per_vertical_min_support_contracts ?? null,
 			ticker_verticals: state.config.ticker_verticals ?? null,
 			trading_mode: state.config.trading_mode,
 			bankroll_cents: state.config.bankroll_cents,
@@ -514,6 +533,17 @@ export class LiveBot implements DurableObject {
 				// 1.3% — meaningful absolute edge. Other
 				// verticals stay at 0 (percentage only).
 				per_vertical_min_absolute_move_cents: { weather: 1 },
+				// 2026-08-11 (option 2, lock-in): reversal
+				// confirmation depth per-vertical. Default
+				// 3 contracts at the best bid on the side
+				// we're betting. Operators override per-
+				// vertical or set to 0 to disable.
+				per_vertical_min_support_contracts: {
+					weather: 3,
+					economic: 3,
+					politics: 3,
+					sports: 3,
+				},
 			},
 			last_reject: null,
 		};
@@ -1724,6 +1754,14 @@ export class LiveBot implements DurableObject {
 				config.per_vertical_min_absolute_move_cents !== undefined
 					? config.per_vertical_min_absolute_move_cents
 					: state.config.per_vertical_min_absolute_move_cents,
+			// 2026-08-11 (option 2, lock-in): per-vertical
+			// reversal confirmation depth. Same null/
+			// undefined semantics as the other per-vertical
+			// maps. Map of vertical to contract count.
+			per_vertical_min_support_contracts:
+				config.per_vertical_min_support_contracts !== undefined
+					? config.per_vertical_min_support_contracts
+					: state.config.per_vertical_min_support_contracts,
 			started_ts_ms: Date.now(),
 		};
 		if (config.user_id) state.user_id = config.user_id;
@@ -2231,6 +2269,14 @@ export class LiveBot implements DurableObject {
 			// 0 (disabled). Operators set this for stable markets
 			// (KXWARMING-50) where 1¢ moves are real edge.
 			min_absolute_move_cents: state.config.per_vertical_min_absolute_move_cents ?? undefined,
+			// 2026-08-11 (option 2, lock-in): per-vertical
+			// reversal confirmation depth. NaiveSignal
+			// only fires if the orderbook has at least
+			// this many contracts at the best bid on the
+			// side we're betting on. Map of vertical to
+			// contract count. Default 3 in the router
+			// when missing.
+			min_support_contracts: state.config.per_vertical_min_support_contracts ?? undefined,
 		});
 		// 2026-08-10: pre-fetch the LLM opinion for each
 		// ticker (in parallel) so the strategy can read it

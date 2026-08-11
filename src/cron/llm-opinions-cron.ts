@@ -73,13 +73,24 @@ const AUTO_PROMOTE_MAX_PER_RUN = 5;
 // AUTO_PROMOTE_MAX_PER_RUN=5 cap is the backstop: at most 5
 // new tickers per 30-min cron, regardless of how many
 // high-confidence verdicts the LLM produces.
+//
+// 2026-08-11 (option 1, lock-in): removed "financials" from
+// the auto-promote set. The financials vertical is currently
+// disabled in the live bot (`disabled_verticals=["financials"]`)
+// because the naive fade strategy is bleeding money on
+// trending markets (KXOAIANTH-40-OAI: −$19.53 realized on a
+// 651-contract fade-down that never bounced). While
+// financials is off, we don't want the LLM cron to silently
+// add new financials tickers back into the universe — that
+// would re-open the bleeding-money path. When financials
+// is re-enabled with a real edge, add it back here.
 const AUTO_PROMOTE_VERTICALS: ReadonlySet<string> = new Set([
 	"weather",
 	"economic",
 	"politics",
 	"sports",
 	"elections",
-	"financials",
+	// "financials", // disabled 2026-08-11 — see comment above
 	"entertainment",
 	"science_technology",
 	"crypto",
