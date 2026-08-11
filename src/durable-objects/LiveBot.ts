@@ -642,6 +642,40 @@ export class LiveBot implements DurableObject {
 		for (const controller of dead) this._sseClients.delete(controller);
 	}
 
+	/**
+	 * 2026-08-10: emit a `risk` event with the full risk
+	 * panel payload. Called after every trade event (open
+	 * or close) since those are the only times the
+	 * bankroll / drawdown / daily-notional change. The
+	 * payload mirrors the `risk` block of /status so the
+	 * UI can render a complete gauge panel from a single
+	 * event.
+	 */
+	private _sseEmitRisk(state: LiveBotState): void {
+		const drawdownCents =
+			state.risk_state.peak_bankroll_cents -
+			state.risk_state.bankroll_cents;
+		const drawdownPct =
+			state.risk_state.peak_bankroll_cents > 0
+				? (drawdownCents / state.risk_state.peak_bankroll_cents) * 100
+				: 0;
+		const openCount = Object.keys(state.risk_state.open_positions).length;
+		this._sseEmit("risk", {
+			ts: Date.now(),
+			bankroll_cents: state.risk_state.bankroll_cents,
+			peak_bankroll_cents: state.risk_state.peak_bankroll_cents,
+			drawdown_cents: drawdownCents,
+			drawdown_pct: drawdownPct,
+			consecutive_losses: state.risk_state.consecutive_losses,
+			daily_notional_cents: dailyNotionalCents(state.risk_state),
+			daily_notional_cap_cents: state.config.daily_notional_cents_cap,
+			open_positions_count: openCount,
+			max_concurrent_positions: 10, // mirrors the bumped default
+			kill_switch_on: state.config.kill_switch ?? false,
+			trading_mode: state.config.trading_mode,
+		});
+	}
+
 	private _sseEnsureKeepalive(): void {
 		if (this._sseKeepalive !== null) return;
 		this._sseKeepalive = setInterval(() => {
@@ -1304,6 +1338,11 @@ export class LiveBot implements DurableObject {
 					entry_price: priceCents,
 					rationale: "manual",
 				});
+				// Risk state changed (notional deployed). Emit
+				// a `risk` event so the UI's risk gauges
+				// update. See _sseEmitRisk() below for the
+				// payload shape.
+				this._sseEmitRisk(s);
 
 				// Chunk 10.8: Telegram on manual test orders too.
 				// The Telegram send in maybeRecordTrade only
@@ -1960,6 +1999,28 @@ export class LiveBot implements DurableObject {
 					trade_count: t.trade_count,
 					ts: Date.now(),
 				});
+				// 2026-08-10: if this ticker has an open
+				// position, emit an unrealized_pnl event so
+				// the UI can update the per-position sparkline
+				// + uPnL cell in real-time (every 1.5s/ticker
+				// with an open position). Cheap — single ticker
+				// per event.
+				if (t.position !== null && mid !== null) {
+					const pos = t.position;
+					const uPnLCents =
+						pos.side === "yes"
+							? Math.round((mid - pos.entry_price_cents) * pos.size)
+							: Math.round((pos.entry_price_cents - (100 - mid)) * pos.size);
+					this._sseEmit("unrealized_pnl", {
+						ticker,
+						side: pos.side,
+						size: pos.size,
+						entry_price: pos.entry_price_cents,
+						mark: mid,
+						unrealized_cents: uPnLCents,
+						ts: Date.now(),
+					});
+				}
 				// 2026-08-10: write the orderbook to D1 so the
 				// dashboard's "live markets" view reflects what
 				// the bot is actually polling in <SNAPSHOT_DEBOUNCE_MS
@@ -2778,6 +2839,9 @@ export class LiveBot implements DurableObject {
 			rationale,
 			ts: Date.now(),
 		});
+		// Risk state changed (bankroll + drawdown after
+		// settlement). Emit a `risk` event for the gauges.
+		this._sseEmitRisk(state);
 		return closed.pnl_cents;
 	}
 

@@ -86,11 +86,12 @@
 							<th class="num">PnL</th>
 							<th class="num">PnL%</th>
 							<th class="num">Age</th>
+							<th>Trend</th>
 							<th></th>
 						</tr>
 					</thead>
 					<tbody id="open-positions-body">
-						<tr><td colspan="11" class="empty">no open positions</td></tr>
+						<tr><td colspan="12" class="empty">no open positions</td></tr>
 					</tbody>
 				</table>
 			</section>
@@ -169,18 +170,36 @@
 				</div>
 				<div class="card-blurb">Concentration risk + per-vertical cap utilization. Open this when you want to check if your exposure is well-distributed.</div>
 				<div class="risk-body" id="risk-body" hidden>
+					<!-- Phase 4: live risk gauges. Updated on every
+					     `risk` SSE event (after every trade_open
+					     and trade_close). The bars + the daily
+					     notional used fraction update in place. -->
 					<div class="health-grid">
+						<div class="health-tile">
+							<div class="health-tile-label">Daily notional used</div>
+							<div class="health-tile-val mono" id="risk-daily-notional">—</div>
+							<div class="health-bar"><div class="health-bar-fill" id="risk-daily-notional-bar"></div></div>
+						</div>
+						<div class="health-tile">
+							<div class="health-tile-label">Drawdown from peak</div>
+							<div class="health-tile-val mono" id="risk-drawdown-pct">—</div>
+							<div class="health-bar"><div class="health-bar-fill" id="risk-drawdown-bar"></div></div>
+						</div>
+						<div class="health-tile">
+							<div class="health-tile-label">Open positions</div>
+							<div class="health-tile-val mono" id="risk-open-count">—</div>
+						</div>
+						<div class="health-tile">
+							<div class="health-tile-label">Consec losses</div>
+							<div class="health-tile-val mono" id="risk-consec-losses">—</div>
+						</div>
 						<div class="health-tile">
 							<div class="health-tile-label">Concentration</div>
 							<div class="health-tile-val mono" id="risk-concentration">—</div>
 						</div>
 						<div class="health-tile">
-							<div class="health-tile-label">Days in drawdown</div>
-							<div class="health-tile-val mono" id="risk-drawdown">—</div>
-						</div>
-						<div class="health-tile">
-							<div class="health-tile-label">Consec losses</div>
-							<div class="health-tile-val mono" id="risk-consec-losses">—</div>
+							<div class="health-tile-label">Bankroll vs peak</div>
+							<div class="health-tile-val mono" id="risk-bankroll-vs-peak">—</div>
 						</div>
 					</div>
 					<div class="risk-verticals" id="risk-verticals"></div>
@@ -237,6 +256,51 @@
 					return `${base} (${pctSign}${pctStr})`;
 				}
 				return base;
+			}
+
+			// ─── Sparkline (Phase 4) ───
+			//
+			// 2026-08-10: per-position price sparkline. Updated
+			// live on every `poll` event for the ticker's
+			// ticker. Rolling buffer of the last 60 mid points.
+			// Rendered as an inline SVG polyline scaled to
+			// 100×24 (the cell is 100px wide × 24px tall).
+			const SPARK_MAX = 60;
+			const _priceBuffers = {}; // ticker → [mid, mid, ...]
+			function pushSparkPoint(ticker, mid) {
+				if (mid === null || mid === undefined) return;
+				if (!_priceBuffers[ticker]) _priceBuffers[ticker] = [];
+				const buf = _priceBuffers[ticker];
+				buf.push(mid);
+				if (buf.length > SPARK_MAX) buf.splice(0, buf.length - SPARK_MAX);
+			}
+			function renderSparkline(ticker) {
+				const svg = document.getElementById(`spark-${ticker}`);
+				if (!svg) return;
+				const buf = _priceBuffers[ticker] || [];
+				if (buf.length < 2) {
+					svg.innerHTML = `<text x="50" y="14" text-anchor="middle" font-size="9" fill="var(--ink-faint)" font-family="ui-monospace, monospace">…</text>`;
+					return;
+				}
+				// Scale: x = i / (n-1) * 100; y = (max-mid)/(range) * 24
+				const min = Math.min(...buf);
+				const max = Math.max(...buf);
+				const range = Math.max(1, max - min);
+				const points = buf.map((m, i) => {
+					const x = (i / (buf.length - 1)) * 100;
+					const y = 24 - ((m - min) / range) * 22 - 1;
+					return `${x.toFixed(1)},${y.toFixed(1)}`;
+				}).join(" ");
+				// Color: green if last > first, red if last < first
+				const last = buf[buf.length - 1];
+				const first = buf[0];
+				const color = last > first ? "#34d399" : last < first ? "#fca5a5" : "var(--ink-faint)";
+				svg.innerHTML = `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" />`;
+			}
+			function renderAllSparklines() {
+				for (const ticker of Object.keys(_priceBuffers)) {
+					renderSparkline(ticker);
+				}
 			}
 
 			// ─── Data fetchers (cached) ───
@@ -470,7 +534,7 @@
 				const countEl = document.getElementById("open-pos-count");
 				countEl.textContent = `${openPositions.length} open`;
 				if (openPositions.length === 0) {
-					tbody.innerHTML = `<tr><td colspan="11" class="empty">no open positions · the bot will fill this table as signals turn into fills</td></tr>`;
+					tbody.innerHTML = `<tr><td colspan="12" class="empty">no open positions · the bot will fill this table as signals turn into fills</td></tr>`;
 					return;
 				}
 				// Sort by unrealized PnL desc (best first)
@@ -494,6 +558,7 @@
 						<td class="num mono ${pnlCls}"><strong>${fmtCentsShort(p.unrealized_pnl_cents)}</strong></td>
 						<td class="num mono ${pnlCls}">${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%</td>
 						<td class="num mono">${fmtAge(ageSec)}</td>
+						<td class="spark-cell" id="spark-cell-${p.ticker || "?"}"><svg class="sparkline" id="spark-${p.ticker || "?"}" viewBox="0 0 100 24" preserveAspectRatio="none" aria-label="price trend"></svg></td>
 						<td><button class="btn small danger pos-close-btn" data-ticker="${p.ticker || ""}">Close</button></td>
 					</tr>`;
 				}).join("");
@@ -611,6 +676,58 @@
 				bestWorstSub.textContent = `${best.ticker} / ${worst.ticker}`;
 			}
 
+			// ─── Render: live risk gauges (Phase 4) ───
+			//
+			// 2026-08-10: this function is called by the
+			// `risk` SSE handler. The payload has the full
+			// risk state (bankroll, peak, drawdown, daily
+			// notional, daily cap, open positions, kill switch).
+			// Each gauge updates in place — no full re-render.
+			function renderRiskGauges(data) {
+				if (!data) return;
+				const section = document.getElementById("risk-section");
+				if (section) section.hidden = false;
+
+				// Daily notional used (with bar)
+				const dnEl = document.getElementById("risk-daily-notional");
+				const dnBar = document.getElementById("risk-daily-notional-bar");
+				if (dnEl && data.daily_notional_cents !== undefined) {
+					const used = data.daily_notional_cents / 100;
+					const cap = data.daily_notional_cap_cents / 100;
+					dnEl.textContent = `$${used.toFixed(2)} of $${cap.toFixed(0)}`;
+					if (dnBar) {
+						const pct = data.daily_notional_cap_cents > 0
+							? Math.min(100, (data.daily_notional_cents / data.daily_notional_cap_cents) * 100)
+							: 0;
+						dnBar.style.width = `${pct}%`;
+						dnBar.setAttribute("data-fill", pct > 80 ? "warn" : pct > 50 ? "ok" : "ok");
+					}
+				}
+
+				// Drawdown (with bar)
+				const ddEl = document.getElementById("risk-drawdown-pct");
+				const ddBar = document.getElementById("risk-drawdown-bar");
+				if (ddEl && data.drawdown_pct !== undefined) {
+					ddEl.textContent = `${data.drawdown_pct.toFixed(2)}%`;
+					if (ddBar) {
+						ddBar.style.width = `${Math.min(100, data.drawdown_pct * 10)}%`; // 10% drawdown = full bar
+						ddBar.setAttribute("data-fill", data.drawdown_pct > 5 ? "warn" : data.drawdown_pct > 2 ? "ok" : "ok");
+					}
+				}
+
+				// Open positions count
+				const ocEl = document.getElementById("risk-open-count");
+				if (ocEl && data.open_positions_count !== undefined) {
+					ocEl.textContent = `${data.open_positions_count} / ${data.max_concurrent_positions || 10}`;
+				}
+
+				// Bankroll vs peak
+				const bpEl = document.getElementById("risk-bankroll-vs-peak");
+				if (bpEl && data.bankroll_cents !== undefined && data.peak_bankroll_cents !== undefined) {
+					bpEl.textContent = `$${(data.bankroll_cents / 100).toFixed(2)} / $${(data.peak_bankroll_cents / 100).toFixed(2)}`;
+				}
+			}
+
 			// ─── Render: risk view ───
 			function renderRisk(openPositions, closedAll) {
 				const section = document.getElementById("risk-section");
@@ -632,9 +749,10 @@
 				// Days in drawdown (since last positive unrealized PnL)
 				const totalUnrealized = openPositions.reduce((a, p) => a + (p.unrealized_pnl_cents || 0), 0);
 				const inDrawdown = totalUnrealized < 0;
-				// Days in drawdown isn't tracked per-position; show "—" for now
-				document.getElementById("risk-drawdown").textContent = inDrawdown ? "yes (open)" : "no";
-				document.getElementById("risk-drawdown").className = `health-tile-val mono ${inDrawdown ? "warn" : "ok"}`;
+				// Days in drawdown isn't tracked per-position; the
+				// `risk-drawdown-pct` gauge is updated by the SSE
+				// `risk` handler (renderRiskGauges). Old
+				// `risk-drawdown` element was removed in Phase 4.
 				// Consec losses (from bot status)
 				const consec = (window._lastBotStatus?.risk?.consecutive_losses) ?? 0;
 				document.getElementById("risk-consec-losses").textContent = String(consec);
@@ -711,10 +829,46 @@
 			// trade_close, and unrealized_pnl. The polling
 			// fallback is dropped to 30s (was 5s) — SSE is
 			// the primary channel.
+			// ─── SSE handlers (Phase 3 + Phase 4) ───
+			//
+			// 2026-08-10: positions update live on trade_open,
+			// trade_close, and unrealized_pnl. Phase 4 adds
+			// the per-position sparkline: every `poll` event
+			// for an open-position ticker pushes a new mid
+			// to the per-ticker price buffer and redraws the
+			// inline SVG. The full page re-render is dropped
+			// to 30s (was 5s) — SSE is the primary channel.
 			registerSSEHandler("init", () => renderPositionsPage());
 			registerSSEHandler("trade_open", () => renderPositionsPage());
 			registerSSEHandler("trade_close", () => renderPositionsPage());
-			registerSSEHandler("unrealized_pnl", () => renderPositionsPage());
+			registerSSEHandler("unrealized_pnl", (data) => {
+				if (!data) return;
+				// Re-render the row to update the uPnL cell.
+				// We can't patch individual cells cheaply
+				// (the row HTML is built from a template),
+				// so a full re-render is fine for now —
+				// positions are typically <10 rows.
+				renderPositionsPage();
+			});
+			registerSSEHandler("poll", (data) => {
+				if (!data || data.mid === null || data.mid === undefined) return;
+				// Only push sparkline points for tickers with
+				// an open position. The full positions list
+				// lives in window._lastBotStatus.risk.open_positions.
+				const openTickers = new Set(
+					Object.keys(window._lastBotStatus?.risk?.open_positions || {}),
+				);
+				if (!openTickers.has(data.ticker)) return;
+				pushSparkPoint(data.ticker, data.mid);
+				renderSparkline(data.ticker);
+			});
+			registerSSEHandler("risk", (data) => {
+				// Risk state changed (bankroll, daily notional,
+				// drawdown, kill switch). Update the risk gauges.
+				if (typeof renderRiskGauges === "function") {
+					renderRiskGauges(data);
+				}
+			});
 			registerSSEHandler("auto_promote", (data) => {
 				if (data && data.ticker) {
 					toast(`universe: +${data.ticker} (${data.vertical})`, true);

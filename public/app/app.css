@@ -2847,3 +2847,35 @@ body[data-trading-mode="real"] .real-only { display: inline; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+/* ─── Sparkline + live health bars (Phase 4) ─── */
+.sparkline {
+  display: block;
+  width: 100px;
+  height: 24px;
+}
+.spark-cell {
+  padding: 4px 8px !important;
+  vertical-align: middle !important;
+}
+.health-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.health-bar-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 2px;
+  transition: width 320ms ease-out, background-color 200ms;
+  width: 0%;
+}
+.health-bar-fill[data-fill="warn"] {
+  background: #f59e0b;
+}
+.health-bar-fill[data-fill="bad"] {
+  background: #ef4444;
+}
