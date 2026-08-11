@@ -126,7 +126,29 @@ export async function handleSummary(
 		// The summary endpoint reads today's R2 daily-recap
 		// if available, falls back to a live aggregate.
 		const recap = await readDailyRecap(env);
-		if (recap) return json({ ok: true, source: "r2", recap });
+		if (recap) {
+			// 2026-08-11: R2 recap uses {trades: {n_total,
+			// realized_pnl_cents}, verticals: {v: {n_trades,
+			// pnl_cents}}}. The dashboard + app.js read the
+			// flat legacy keys (n_trades_24h, last_24h_cents,
+			// realized_cents). Without these aliases, the
+			// hero shows 24h PnL = $0.00 even when the R2
+			// recap clearly has the numbers. Add the
+			// aliases so both shapes work — keep the R2
+			// fields too so future callers can use the
+			// richer shape.
+			return json({
+				ok: true,
+				source: "r2",
+				recap: {
+					...recap,
+					n_trades_24h: recap.trades.n_total,
+					pnl_24h_cents: recap.trades.realized_pnl_cents,
+					last_24h_cents: recap.trades.realized_pnl_cents,
+					realized_cents: recap.trades.realized_pnl_cents,
+				},
+			});
+		}
 		// Fallback: live aggregate for the last 24h.
 		const since = Date.now() - 24 * 60 * 60 * 1000;
 		const tradesAgg = await env.DB
@@ -289,6 +311,15 @@ export async function handleSummary(
 			recap: {
 				n_trades: tradesAgg?.n_trades ?? 0,
 				pnl_cents: tradesAgg?.pnl_cents ?? 0,
+				// 2026-08-11: legacy aliases so the
+				// dashboard's hero "24h PnL" / "X trades
+				// 24h" KPIs read the same field names
+				// regardless of source (R2 vs live).
+				// See the R2 branch above for context.
+				n_trades_24h: tradesAgg?.n_trades ?? 0,
+				pnl_24h_cents: tradesAgg?.pnl_cents ?? 0,
+				last_24h_cents: tradesAgg?.pnl_cents ?? 0,
+				realized_cents: tradesAgg?.pnl_cents ?? 0,
 				lookback_hours: 24,
 				verticals,
 				lifetime: {
