@@ -133,6 +133,45 @@ function looksActive(
 	return false;
 }
 
+/** Liquidity score used to rank LIST-sourced markets.
+ *  Matches the heuristic in src/kalshi/leads-scout.ts:
+ *  volume_24h + open_interest * 5. OI is weighted higher
+ *  because it represents a tradeable book (open orders)
+ *  while volume_24h can be skewed by a single large print. */
+function liquidityScore(m: {
+	volume_24h: number;
+	open_interest: number;
+}): number {
+	return m.volume_24h + m.open_interest * 5;
+}
+
+/** Sort the snapshot list (universe first, then LIST by
+ *  liquidity, then ticker for determinism) and cap the
+ *  total at `cap`. Returns the sorted+capped list.
+ *
+ *  Universe is always prioritized — the bot is actively
+ *  trading on those, so a missing snapshot is a
+ *  correctness bug, not just a freshness issue. LIST
+ *  fills the remaining budget, best-liquidity first. */
+export function sortAndCapSnapshots<
+	T extends {
+		ticker: string;
+		source: "list" | "bot_universe";
+		volume_24h: number;
+		open_interest: number;
+	},
+>(markets: T[], cap: number): T[] {
+	const sorted = [...markets].sort((a, b) => {
+		if (a.source !== b.source) {
+			return a.source === "bot_universe" ? -1 : 1;
+		}
+		const liqDiff = liquidityScore(b) - liquidityScore(a);
+		if (liqDiff !== 0) return liqDiff;
+		return a.ticker.localeCompare(b.ticker);
+	});
+	return sorted.length > cap ? sorted.slice(0, cap) : sorted;
+}
+
 /** A snapshot is "live" (Kalshi is quoting this market) if EITHER
  *  side has a non-zero price — yes_bid > 0 OR yes_ask > 0.
  *
@@ -349,45 +388,19 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 			}
 		}
 
-		// 2026-08-11 (Phase 4, followup #3): cap the GET
-		// workload. Even after the parlay skip, there are
-		// 1,000+ single-event markets. With 5 req/s
-		// throttle, 1,000 GETs × 200ms = 200s wall-clock —
-		// 6x over the 30s Worker limit.
+		// Cap the GET workload at MAX_GETS. With 5 req/s
+		// throttle, MAX_GETS=100 keeps wall-clock at ~22s
+		// (well under the 30s Worker limit). Universe is
+		// always prioritized — see sortAndCapSnapshots.
 		//
 		// 2026-08-11 06:08: universe grew to 53 tickers.
-		// Previous flow capped LIST at MAX_GETS=100, then
-		// the 3b pass added universe ON TOP of that —
-		// total = 153 GETs = 37s wall-clock. Fix: do the
-		// universe pass BEFORE the cap, then sort
-		// (universe first, then LIST by liquidity) and
-		// cap the TOTAL at MAX_GETS. Universe is always
-		// prioritized (the bot is actively trading on
-		// these — a missing snapshot here is a real
-		// correctness bug, not just a freshness issue).
-		// LIST-sourced markets fill the remaining budget,
-		// best-liquidity first. If universe grows further
-		// the wall-clock stays bounded at MAX_GETS.
-		looksActiveMarkets.sort((a, b) => {
-			// Universe first.
-			if (a.source !== b.source) {
-				return a.source === "bot_universe" ? -1 : 1;
-			}
-			// Within the same source: LIST sorted by liquidity.
-			// Universe entries have 0/0/0 so this is a no-op
-			// for them, but the stable secondary key is
-			// ticker for deterministic ordering (so the
-			// same N universe tickers always make the cut
-			// when universe > MAX_GETS — which it isn't
-			// today but might be in a year).
-			return (
-				(b.volume_24h + b.open_interest * 5) -
-				(a.volume_24h + a.open_interest * 5)
-			);
-		});
-		if (looksActiveMarkets.length > MAX_GETS) {
-			looksActiveMarkets.length = MAX_GETS;
-		}
+		// Previous flow capped LIST at MAX_GETS=100 then
+		// added universe on top — total = 153 GETs = 37s
+		// wall-clock, over the Worker limit. Universe now
+		// goes through the cap too.
+		const sortedCapped = sortAndCapSnapshots(looksActiveMarkets, MAX_GETS);
+		looksActiveMarkets.length = 0;
+		looksActiveMarkets.push(...sortedCapped);
 
 		// 4. For each "looks active" market, GET the real
 		//    orderbook. The GET endpoint is the ONLY place

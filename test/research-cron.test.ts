@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { runResearchCron } from "../src/cron/research-cron.js";
+import { runResearchCron, sortAndCapSnapshots } from "../src/cron/research-cron.js";
 import type { KalshiClient, KalshiMarket } from "../src/kalshi/client.js";
 
 function makeMarket(
@@ -190,6 +190,143 @@ describe("research-cron", () => {
 		expect(typeof liveMarketSnapshots.latestPerTicker).toBe("function");
 		expect(typeof liveMarketSnapshots.history).toBe("function");
 		expect(typeof liveMarketSnapshots.liveCountSince).toBe("function");
+	});
+
+	// 2026-08-11: sortAndCapSnapshots is the new pure
+	// helper that drives the universe-first prioritization
+	// in the cron. Universe always goes first, then LIST
+	// by liquidity, then ticker for deterministic
+	// tiebreaks. The cap bounds total GETs at MAX_GETS=100
+	// so wall-clock stays under the 30s Worker limit even
+	// if universe grows further. These tests cover the
+	// prioritization + cap behavior without needing a
+	// mock KalshiClient (the helper is pure).
+	describe("sortAndCapSnapshots", () => {
+		const universe = (ticker: string) => ({
+			ticker,
+			source: "bot_universe" as const,
+			volume_24h: 0,
+			open_interest: 0,
+		});
+		const listed = (
+			ticker: string,
+			volume_24h: number,
+			open_interest: number,
+		) => ({
+			ticker,
+			source: "list" as const,
+			volume_24h,
+			open_interest,
+		});
+
+		it("puts universe before LIST regardless of input order", () => {
+			const out = sortAndCapSnapshots(
+				[
+					listed("LIST-1", 1000, 100),
+					universe("UNI-A"),
+					listed("LIST-2", 500, 50),
+					universe("UNI-B"),
+				],
+				100,
+			);
+			expect(out.map((m) => m.ticker)).toEqual([
+				"UNI-A",
+				"UNI-B",
+				"LIST-1",
+				"LIST-2",
+			]);
+		});
+
+		it("sorts LIST by liquidity (vol_24h + OI*5) descending", () => {
+			// OI weighted 5x: B has 10*5=50 + 100=150, A has
+			// 1000 + 0*5=1000. A wins on raw score.
+			const out = sortAndCapSnapshots(
+				[
+					listed("LOW", 10, 10),    // score 60
+					listed("OI-HEAVY", 100, 10), // score 150
+					listed("VOL-HEAVY", 1000, 0), // score 1000
+				],
+				100,
+			);
+			expect(out.map((m) => m.ticker)).toEqual([
+				"VOL-HEAVY",
+				"OI-HEAVY",
+				"LOW",
+			]);
+		});
+
+		it("ties broken alphabetically by ticker for determinism", () => {
+			// All four have the same liquidity score (0).
+			// Ticker tiebreaker makes the order stable.
+			const out = sortAndCapSnapshots(
+				[
+					listed("ZED", 0, 0),
+					listed("ALPHA", 0, 0),
+					listed("MIKE", 0, 0),
+					listed("DELTA", 0, 0),
+				],
+				100,
+			);
+			expect(out.map((m) => m.ticker)).toEqual([
+				"ALPHA",
+				"DELTA",
+				"MIKE",
+				"ZED",
+			]);
+		});
+
+		it("caps total at the cap, with universe taking the cap first when universe > cap", () => {
+			// Build universe of 5, LIST of 10. Cap = 7.
+			// Expected: 5 universe + 2 LIST (top by liquidity).
+			const list = [
+				listed("L1", 100, 0),   // score 100
+				listed("L2", 90, 0),    // score 90
+				listed("L3", 80, 0),    // score 80
+				listed("L4", 70, 0),    // score 70
+				listed("L5", 60, 0),    // score 60
+				listed("L6", 50, 0),    // score 50
+				listed("L7", 40, 0),    // score 40
+				listed("L8", 30, 0),    // score 30
+				listed("L9", 20, 0),    // score 20
+				listed("L10", 10, 0),   // score 10
+			];
+			const uni = [
+				universe("U1"),
+				universe("U2"),
+				universe("U3"),
+				universe("U4"),
+				universe("U5"),
+			];
+			const out = sortAndCapSnapshots([...list, ...uni], 7);
+			expect(out.length).toBe(7);
+			expect(out.filter((m) => m.source === "bot_universe").length).toBe(5);
+			expect(out.filter((m) => m.source === "list").length).toBe(2);
+			// Top 2 LIST by liquidity are L1, L2.
+			expect(out.slice(5).map((m) => m.ticker)).toEqual(["L1", "L2"]);
+		});
+
+		it("does not mutate the input array", () => {
+			const input = [
+				listed("B-LIST", 100, 0),
+				universe("A-UNI"),
+			];
+			const inputSnapshot = [...input];
+			const out = sortAndCapSnapshots(input, 100);
+			// The returned array is the sorted version.
+			expect(out.map((m) => m.ticker)).toEqual(["A-UNI", "B-LIST"]);
+			// The input array is untouched.
+			expect(input).toEqual(inputSnapshot);
+		});
+
+		it("is a no-op when input length is below the cap", () => {
+			const out = sortAndCapSnapshots(
+				[listed("A", 1, 0), listed("B", 2, 0)],
+				100,
+			);
+			expect(out.length).toBe(2);
+			// Within LIST: B has higher liquidity.
+			expect(out.map((m) => m.ticker)).toEqual(["B", "A"]);
+		});
 	});
 
 	// 2026-08-10: the research-cron now also snapshots
