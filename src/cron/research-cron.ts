@@ -61,9 +61,56 @@ import { loadPrivateKey, KalshiCredentials } from "../kalshi/auth.js";
 import { classifyByEventTicker } from "../kalshi/leads-scout.js";
 import type { CronEnv, CronResult } from "./dispatcher.js";
 
+// 2026-08-11 (Phase 4, followup #3): Kalshi's open catalog
+// is 99% parlay markets — ~62,000 KXMVESPORTS* and
+// KXMVECROSSCATEGORY* multi-leg bundles that the bot's
+// strategies (naive, reversion, LLM) explicitly don't
+// price. The previous research-cron walked ALL 30 pages
+// of the catalog and GET'd every "looks active" market
+// — 550 GETs × 500ms each = 275s wall-clock, which is
+// WAY over the 30s CF Worker limit. The cron had been
+// timing out silently since 01:10 (no cron_run row
+// because the kill happens before recordRun).
+//
+// 2026-08-11 fix: skip the parlay block at the LIST
+// level (don't even include them in `looksActiveMarkets`).
+// This drops the GET count from ~550 to ~50 (the actual
+// single-event markets Kalshi lists). With throttle=4
+// req/s, 50 GETs × 250ms = 12.5s + 6s for 30 LIST pages
+// = 18.5s wall-clock per cron. Plenty of headroom under
+// the 30s limit, and the cron now actually completes
+// and writes to cron_runs every 15 min.
+//
+// The user asked: "isn't that collecting actual real live
+// data and tickers (or supposed to) to feed the llm for
+// verified kalshi leads (to prevent hallucination)?" —
+// YES. The research-cron is the canonical "verified"
+// data path: LIST returns the catalog, GET returns the
+// real orderbook (LIST returns 0/0 for bid/ask), and the
+// snapshot is what the LLM cron reads to ground its
+// verdicts. Without this cron running, the LLM sees
+// stale data and hallucinates more (Bug A from
+// docs/LLM-PIPELINE.md).
 const MAX_PAGES = 30;
 const PAGE_SIZE = 200;
 const REQUEST_TIMEOUT_MS = 8_000;
+// Skip the parlay block at the LIST level. These are
+// the 60k+ multi-leg bundles Kalshi pushes — the bot's
+// strategies (naive, reversion, LLM) don't price them,
+// and they would dominate the GET workload if included.
+// KXMVESPORTS* = multi-game sports parlays, ~62k markets.
+// KXMVECROSSCATEGORY* = cross-category parlays, ~57k markets.
+const SKIP_PARLAY_PREFIXES = [
+	/^KXMVESPORTSMULTIGAME/i,
+	/^KXMVESPORTS/i,
+	/^KXMVECROSSCATEGORY/i,
+];
+function isParlayEventTicker(eventTicker: string): boolean {
+	for (const re of SKIP_PARLAY_PREFIXES) {
+		if (re.test(eventTicker)) return true;
+	}
+	return false;
+}
 
 /** A market "looks active" if it has any historical trade OR
  *  any open interest. These are the markets we'll spend a
@@ -129,7 +176,7 @@ async function buildKalshiClientAsync(env: CronEnv): Promise<KalshiClient | null
 			return new KalshiClient({
 				baseUrl: DEFAULT_PRODUCTION_BASE,
 				credentials: creds,
-				requestsPerSecond: 2,
+				requestsPerSecond: 4,
 			});
 		} catch (e) {
 			console.warn("[research] failed to load Kalshi prod creds", e);
@@ -142,7 +189,7 @@ async function buildKalshiClientAsync(env: CronEnv): Promise<KalshiClient | null
 			return new KalshiClient({
 				baseUrl: "https://demo-api.kalshi.co/trade-api/v2",
 				credentials: creds,
-				requestsPerSecond: 2,
+				requestsPerSecond: 4,
 			});
 		} catch (e) {
 			console.warn("[research] failed to load Kalshi demo creds", e);
@@ -226,6 +273,12 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 			// so they don't bypass the looksActive filter.
 			const isKnownPrefix = classifyByEventTicker(eventTicker, m.title) != null;
 			if (!looksActive(m) && !isKnownPrefix) continue;
+			// 2026-08-11: skip the parlay block at the LIST level
+			// (60k+ multi-leg bundles the bot doesn't price — see
+			// SKIP_PARLAY_PREFIXES at the top of this file). Without
+			// this filter, the research-cron walked ~550 GETs per
+			// run, blowing past the 30s Worker wall-clock limit.
+			if (isParlayEventTicker(eventTicker)) continue;
 			looksActiveMarkets.push({
 				ticker: m.ticker,
 				event_ticker: eventTicker,
