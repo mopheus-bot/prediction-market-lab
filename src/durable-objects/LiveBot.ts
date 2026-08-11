@@ -2342,6 +2342,49 @@ export class LiveBot implements DurableObject {
 			const sig = router.__call(ctx);
 			if (sig === null) continue;
 			state.n_signals += 1;
+			// 2026-08-11 (defensive check, regression fix):
+			// disabled_verticals was previously only checked
+			// at the "add ticker to universe" path (the
+			// /api/pm/bot/* handler at line ~1278). If a
+			// ticker was already in the bot's universe
+			// (e.g. added before financials was disabled),
+			// its signals would still fire even when the
+			// vertical is in disabled_verticals. The
+			// KXOAIANTH-40-OAI 18:22 EDT entry on 2026-08-11
+			// is the documented regression — naive_financials
+			// signal fired on a financials ticker after
+			// disabled_verticals=["financials"] was applied.
+			//
+			// The router's per-vertical profile is also
+			// supposed to be disabled (option 1 makes
+			// financials = LLM-only), but that's a separate
+			// code path and may not have hot-loaded into a
+			// DO that booted before the patch. Belt-and-
+			// suspenders: drop the signal here if the
+			// ticker's vertical is in disabled_verticals.
+			// Independent of the router profile. n_signals
+			// was already incremented above so the count
+			// reflects the drop.
+			const tv = t.vertical
+				? String(t.vertical)
+				: (state.config.ticker_verticals?.[ticker] ?? null);
+			if (
+				tv !== null &&
+				state.config.disabled_verticals !== null &&
+				state.config.disabled_verticals !== undefined &&
+				state.config.disabled_verticals.length > 0 &&
+				state.config.disabled_verticals.includes(tv)
+			) {
+				this._sseEmit("signal", {
+					ticker,
+					side: sig.side,
+					price: sig.price,
+					p: sig.p,
+					rationale: `${sig.rationale}_vertical_disabled`,
+					ts: Date.now(),
+				});
+				continue;
+			}
 			// 2026-08-10: SSE fan-out. Every signal — filled
 			// or rejected — emits a `signal` event so the
 			// UI can show a live "signal stream" panel.

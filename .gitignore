@@ -29,3 +29,4 @@ public/_validate-screenshot.png
 # contents (e.g. daily-recap/latest.json) leaves a
 # spurious file in the working tree. Never commit.
 daily-recap/
+models/reversion-*-20*.json
