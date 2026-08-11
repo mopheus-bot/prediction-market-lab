@@ -126,10 +126,26 @@ function computeMid(ob: {
 	yesLevels: Array<{ priceCents: number; count: number }>;
 	noLevels: Array<{ priceCents: number; count: number }>;
 }): number | null {
-	if (ob.yesLevels.length === 0 || ob.noLevels.length === 0) return null;
-	const yb = Math.max(...ob.yesLevels.map((l) => l.priceCents));
-	const nb = Math.max(...ob.noLevels.map((l) => l.priceCents));
-	const ya = 100 - nb;
-	if (yb <= 0 || ya <= 0 || ya <= yb) return null;
-	return Math.round((yb + ya) / 2);
+	// 2026-08-10 21:10 (paper-mode): mirror the widening in
+	// `orderbookMidCents` (src/kalshi/models.ts). Without this,
+	// the LLMOpinionSignal returns null on parlays (one-sided
+	// books) and the strategy never fires. With the widening,
+	// the strategy uses the available side's price as a
+	// degenerate mid so the LLM's verdict can translate into
+	// an actionable signal on parlays too.
+	const yb =
+		ob.yesLevels.length === 0
+			? null
+			: Math.max(...ob.yesLevels.map((l) => l.priceCents));
+	const nb =
+		ob.noLevels.length === 0
+			? null
+			: Math.max(...ob.noLevels.map((l) => l.priceCents));
+	const ya = nb === null ? null : 100 - nb;
+	if (yb !== null && ya !== null && yb > 0 && ya > 0 && ya > yb) {
+		return Math.round((yb + ya) / 2);
+	}
+	if (yb !== null && yb > 0) return yb;
+	if (ya !== null && ya > 0) return ya;
+	return null;
 }

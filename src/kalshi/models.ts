@@ -181,8 +181,29 @@ export function noAskCents(ob: KalshiOrderbook): number | null {
 export function orderbookMidCents(ob: KalshiOrderbook): number | null {
 	const yb = bestYesBidCents(ob);
 	const ya = yesAskCents(ob);
-	if (yb === null || ya === null) return null;
-	return Math.round((yb + ya) / 2);
+	// 2026-08-10 21:10 (paper-mode exploration): the previous
+	// definition returned null on one-sided books (only YES bid
+	// OR only NO bid). That's correct for a "real two-sided
+	// mid" — but Kalshi's open catalog is ~100% parlays with
+	// one-sided quotes, so every parlay was getting price_history
+	// stuck at 0 frames and the strategies couldn't fire.
+	//
+	// Widened to return a degenerate mid on one-sided books:
+	//   - Both sides     → (yb + ya) / 2  (original behavior)
+	//   - YES bid only   → yb              (lower bound, conservative for sellers)
+	//   - YES ask only   → ya              (upper bound, conservative for buyers)
+	//   - Neither        → null            (genuinely no info)
+	//
+	// The price will jump around as the single side moves —
+	// NaiveSignal will see 5% "moves" in thin books and fire.
+	// That's the experiment. In real-money mode, the bot
+	// should be re-tightened to require both sides before
+	// price_history.push(); see the `tightenBeforeLive` flag
+	// in the LiveBot config.
+	if (yb !== null && ya !== null) return Math.round((yb + ya) / 2);
+	if (yb !== null) return yb;
+	if (ya !== null) return ya;
+	return null;
 }
 
 // ─── Trade ───────────────────────────────────────────────────────────────
