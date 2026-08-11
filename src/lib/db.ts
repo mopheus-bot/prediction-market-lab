@@ -496,6 +496,41 @@ export const cronRuns = {
 			: await stmt.bind(cron_name, user_id).first<CronRunRow>();
 		return res ?? null;
 	},
+
+	/** 2026-08-11: count consecutive error runs matching a
+	 *  substring since the most recent non-matching run.
+	 *  Used by the scan-cron 429 backoff to apply exponential
+	 *  cooldown — first 429 → 1x base, second → 2x, third → 4x,
+	 *  capped. Resets to 0 the first time a non-429 row is
+	 *  written (success or unrelated error).
+	 *
+	 *  The query is a single statement with a correlated
+	 *  subquery for the "most recent non-matching ts" so the
+	 *  caller doesn't have to round-trip two queries. */
+	async consecutiveErrorCount(
+		db: D1Database,
+		cron_name: string,
+		user_id: string,
+		errorMessageContains: string,
+	): Promise<number> {
+		const res = await db
+			.prepare(
+				`SELECT COUNT(*) as n FROM cron_runs
+				 WHERE cron_name = ?1 AND user_id = ?2
+				   AND status = 'error'
+				   AND error_message LIKE ?3
+				   AND ts > COALESCE(
+					 (SELECT MAX(ts) FROM cron_runs
+					  WHERE cron_name = ?1 AND user_id = ?2
+					    AND (status = 'success'
+					         OR (status = 'error' AND error_message NOT LIKE ?3))),
+					 0
+				   )`,
+			)
+			.bind(cron_name, user_id, `%${errorMessageContains}%`)
+			.first<{ n: number }>();
+		return res?.n ?? 0;
+	},
 };
 
 // ─── llm_calls ──────────────────────────────────────────────────────────

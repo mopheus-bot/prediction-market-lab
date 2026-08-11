@@ -31,18 +31,33 @@
  * captured.
  *
  * **Cache layer (2026-08-08):** a full scan is ~2,500 Kalshi
- * REST calls (~21 min wall-clock at the default 2 req/s
+ * REST calls (~21 min wall-clock at the default 4 req/s
  * throttle). The cron fires every 15 min, so scans were
  * overlapping and tripping Kalshi's IP-based 429 limiter
  * (every recent scan returned 429 on the first call).
  * We now short-circuit if a successful scan ran in the
  * last `SCAN_CACHE_TTL_SEC` (default 1800 = 30 min) — the
  * paper engine doesn't need a fresher candidate set than
- * that, and we stop hammering Kalshi. If a 429 hit within
- * the last `SCAN_429_BACKOFF_SEC` (default 3600 = 1 hour),
- * we also skip — Kalshi's IP throttling is sustained, not
- * bursty, so the short backoff wasn't enough to let it
- * lift. Operators can override via Worker vars.
+ * that, and we stop hammering Kalshi.
+ *
+ * **429 backoff (2026-08-11, exponential):** if a 429 hit
+ * within the last `SCAN_429_BACKOFF_SEC` (default 14400 =
+ * 4h, the "base unit"), the scan skips. The effective
+ * cooldown is `base × 2^N` where N = the number of
+ * consecutive 429 errors since the last non-429 run,
+ * capped at 12h. So: first 429 → 4h, second → 8h, third
+ * onwards → 12h cap. Resets to 0 the first time a
+ * successful run lands.
+ *
+ * Why exponential: Kalshi's IP throttle window in the live
+ * data is ~75 min — a flat 1h backoff always expires just
+ * before the throttle lifts, producing a 429 every cron
+ * fire (the 19 errors / 24h pattern from 2026-08-10). A
+ * 4h base × 2^N lands at 4h / 8h / 12h, which clears
+ * the window even if Kalshi bumps it to several hours.
+ * If Kalshi's window ever shrinks back to < 1h, the
+ * exponential collapses to "first try wins" because
+ * the cooldown will have already expired.
  */
 
 import {
@@ -70,7 +85,17 @@ const DEFAULT_MARKET_LIMIT = 500;
 const TRADES_PAGE_SIZE = 1000;
 const TRADES_MAX_PAGES = 5;
 const DEFAULT_SCAN_CACHE_TTL_SEC = 1800; // 30 min
-const DEFAULT_SCAN_429_BACKOFF_SEC = 3600; // 1 hour — Kalshi's IP throttling is sustained, not bursty
+// 2026-08-11: bumped from 3600 (1h) to 14400 (4h). The
+// old 1h base was always < Kalshi's 75-min throttle
+// window, so the cooldown expired just before the
+// throttle lifted — pattern: 429 every 75 min. 4h is
+// ~3.2x the observed window, safely outside it.
+const DEFAULT_SCAN_429_BACKOFF_SEC = 14400; // 4h base unit for exponential cooldown
+const SCAN_429_BACKOFF_MAX_SEC = 43200; // 12h absolute cap
+// Multiplier ladder for consecutive 429s: 1×, 2×, 4×,
+// 8×, capped at SCAN_429_BACKOFF_MAX_SEC. So with
+// base=4h: 4h, 8h, 12h cap, 12h cap, ...
+const SCAN_429_BACKOFF_MULTIPLIERS = [1, 2, 4, 8] as const;
 
 function envInt(env: CronEnv, key: keyof CronEnv, fallback: number): number {
 	const v = env[key];
@@ -85,6 +110,15 @@ function envInt(env: CronEnv, key: keyof CronEnv, fallback: number): number {
  * `ttlSec`, else null. Also returns null if a 429 hit in
  * the cron_runs table within the last `backoffSec` (don't
  * re-trigger the throttle).
+ *
+ * 2026-08-11: the 429 cooldown is now exponential. The
+ * base unit is `backoffSec` (default 4h); the effective
+ * cooldown is `base × 2^N` where N = the count of
+ * consecutive 429-error runs since the last non-429 run
+ * (success or unrelated error), capped at 12h. The
+ * consecutive-count query (`cronRunsDb.consecutiveErrorCount`)
+ * uses a correlated subquery so the cache check is a
+ * single D1 round-trip.
  */
 async function checkScanCache(
 	env: CronEnv,
@@ -95,34 +129,37 @@ async function checkScanCache(
 	if (!db) return null;
 	const now = Date.now();
 
-	// Throttle check: was there a 429 in the last backoffSec?
-	// If so, skip — Kalshi is already throttling us, more
-	// calls won't help.
+	// Throttle check: was there a 429 in the last
+	// effectiveBackoffSec? Effective cooldown grows with
+	// consecutive 429s (1×, 2×, 4×, 8×, capped at 12h)
+	// so a sustained Kalshi throttle lifts before we
+	// re-poke. Resets to 0 the first time a non-429 run
+	// lands.
 	//
-	// 2026-08-10: bug fix. The original code looked at the
-	// MOST RECENT cron_run for `scan` — but a successful
-	// "skipped" run has status='success', so the next attempt
-	// saw a success row, the 429 check didn't fire, and the
-	// scan proceeded straight into a fresh 429. The pattern
-	// (every 15 min: 429 → skip → 429 → skip → 429) was the
-	// backoff clock resetting on every successful skip.
-	//
-	// Fix: query the MOST RECENT ERROR run specifically
-	// (cronRunsDb.lastErrorRun) so a success in between
-	// doesn't reset the backoff. The "throttle" persists
-	// until 1h after the actual last 429.
+	// 2026-08-10 bug fix is preserved: we filter on
+	// error_message LIKE '%429%' so a successful "skipped"
+	// run doesn't reset the backoff clock.
 	if (backoffSec > 0) {
+		const consecutive429s = await cronRunsDb.consecutiveErrorCount(
+			db,
+			"scan",
+			DEFAULT_USER_ID,
+			"429",
+		);
+		const multIdx = Math.min(consecutive429s, SCAN_429_BACKOFF_MULTIPLIERS.length - 1);
+		const mult = SCAN_429_BACKOFF_MULTIPLIERS[multIdx];
+		const effectiveBackoffSec = Math.min(backoffSec * mult, SCAN_429_BACKOFF_MAX_SEC);
 		const lastError = await cronRunsDb.lastErrorRun(
 			db,
 			"scan",
 			DEFAULT_USER_ID,
 			"429",
 		);
-		if (lastError && now - lastError.ts < backoffSec * 1000) {
+		if (lastError && now - lastError.ts < effectiveBackoffSec * 1000) {
 			return {
 				row: {},
 				candidates: [],
-				reason: `recent_429_within_${backoffSec}s`,
+				reason: `recent_429_within_${effectiveBackoffSec}s_consec${consecutive429s}`,
 			};
 		}
 	}
@@ -182,7 +219,14 @@ export async function runScanCron(env: CronEnv): Promise<CronResult> {
 		env.ENVIRONMENT === "production"
 			? DEFAULT_PRODUCTION_BASE
 			: DEFAULT_DEMO_BASE;
-	const client = new KalshiClient({ baseUrl });
+	// 2026-08-11: bumped from 2 to 4 req/s to match
+	// research/llm-opinions. Full-scan wall-clock drops
+	// from ~21 min to ~10 min, well within the 30s
+	// Worker budget (the 30s is for a single scan, not
+	// the full run; the cron just uses what's available).
+	// Doesn't worsen the 429 situation because the
+	// throttle hits on the first call regardless of rate.
+	const client = new KalshiClient({ baseUrl, requestsPerSecond: 4 });
 
 	// Compute the lookback cutoff in unix SECONDS (Kalshi's
 	// `min_ts` filter rejects ms timestamps).
