@@ -93,23 +93,45 @@ function defaultProfiles(
 	const ft = (v: Vertical): number => fadeThresholds?.[v] ?? 0.05;
 	const ma = (v: Vertical): number => minAbs?.[v] ?? 0;
 	// 2026-08-10: each vertical's default profile is now
-	// [naive, llm_opinion] — the router uses the agreement
-	// stacker, so the bot only trades when BOTH the
-	// price-based signal AND the LLM verdict agree. This
-	// filters out false positives from either source: a
-	// 1¢ noise move on KXWARMING-50 won't fire a trade
-	// unless the LLM also said "YES is mispriced", and
-	// an LLM opinion at 0.6 confidence on a flat market
-	// won't fire unless the price is also moving.
-	const makeProfile = (
-		vertical: Vertical,
-		primary: SignalStrategy,
-	): VerticalProfile => [primary, new LLMOpinionSignal({ name: `llm_${vertical}` })];
+	// [naive, llm_opinion] — the router uses the priority
+	// stacker, so the bot trades when EITHER the price-based
+	// signal OR the LLM verdict fires (whichever comes first).
+	// 2026-08-11: expanded from 4 to 17 verticals. The four
+	// legacy verticals keep their fade_threshold /
+	// min_absolute_move_cents tunings; the 13 new verticals
+	// get 5% / 0¢ defaults. The LLM is the primary signal
+	// source for the new verticals until a per-vertical
+	// model gets trained.
+	const makeNaiveProfile = (vertical: Vertical): VerticalProfile => [
+		new NaiveSignal({
+			name: `naive_${vertical}`,
+			fade_threshold: ft(vertical),
+			min_absolute_move_cents: ma(vertical),
+		}),
+		new LLMOpinionSignal({ name: `llm_${vertical}` }),
+	];
 	const profiles: Record<Vertical, VerticalProfile> = {
-		weather: makeProfile("weather", new NaiveSignal({ name: "naive_weather", fade_threshold: ft("weather"), min_absolute_move_cents: ma("weather") })),
-		economic: makeProfile("economic", new NaiveSignal({ name: "naive_economic", fade_threshold: ft("economic"), min_absolute_move_cents: ma("economic") })),
-		politics: makeProfile("politics", new NaiveSignal({ name: "naive_politics", fade_threshold: ft("politics"), min_absolute_move_cents: ma("politics") })),
-		sports: makeProfile("sports", new NaiveSignal({ name: "naive_sports", fade_threshold: ft("sports"), min_absolute_move_cents: ma("sports") })),
+		// Legacy 4 — keep their tunings.
+		weather: makeNaiveProfile("weather"),
+		economic: makeNaiveProfile("economic"),
+		politics: makeNaiveProfile("politics"),
+		sports: makeNaiveProfile("sports"),
+		// 13 new verticals (2026-08-11). LLM is the signal
+		// source until enough trade data accumulates for a
+		// reversion model to be trained.
+		elections: makeNaiveProfile("elections"),
+		financials: makeNaiveProfile("financials"),
+		entertainment: makeNaiveProfile("entertainment"),
+		science_technology: makeNaiveProfile("science_technology"),
+		crypto: makeNaiveProfile("crypto"),
+		companies: makeNaiveProfile("companies"),
+		commodities: makeNaiveProfile("commodities"),
+		mentions: makeNaiveProfile("mentions"),
+		social: makeNaiveProfile("social"),
+		world: makeNaiveProfile("world"),
+		health: makeNaiveProfile("health"),
+		transportation: makeNaiveProfile("transportation"),
+		uncategorized: makeNaiveProfile("uncategorized"),
 	};
 	if (models?.reversion?.weather) {
 		profiles.weather = [

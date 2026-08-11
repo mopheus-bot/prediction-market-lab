@@ -76,16 +76,32 @@ import type { Vertical } from "../lib/types.js";
 // that don't have a category prefix (the "weather" / "GDP" /
 // "election" wording in some descriptive titles).
 //
-// Vertical classification map (2026-08-10, chunk 14+):
-//   weather:  KXWARMING*, KXTEMP*, KXHURRICANE*, KXRAIN*, KXCLIMATE*
-//   economic: KXINFLATION, KXGDP, KXFED, KXUNEMPLOY, KXRECESSION, KXFOMC
-//   politics: KXELECTION, KXPRES, KXSENATE, KXCONGRESS, KXGOV
-//   sports:   KXMLB*, KXNBA*, KXNFL*, KXNHL*, KXNCAA*, KXUFC* (single-game)
-//             PLUS KXMVESPORTS* (multi-game parlays — the bot's
-//             strategies don't apply, but they're the closest
-//             thing to "sports" Kalshi has right now)
-//   — cross: KXMVECROSSCATEGORY (explicitly excluded — bot's
-//     strategies don't apply to parlays)
+// Vertical classification map (2026-08-11, all 17 Kalshi
+// categories the user wants the bot to cover):
+//   weather:           KXWARMING, KXTEMP, KXHURRICANE, KXRAIN, KXCLIMATE
+//   economic:          KXGDP, KXINFLATION, KXCPI, KXFED, KXFOMC, KXRECESSION
+//   politics:          KXPRES, KXSENATE, KXCONGRESS, KXGOV (non-election)
+//   sports:            KXMLB, KXNBA, KXNFL, KXNHL, KXNCAA, KXUFC (single-game)
+//                      PLUS KXMVESPORTS* (multi-game parlays — closest
+//                      thing to "sports" Kalshi has, no strategy yet)
+//   elections:         KXELECTION*, KXNEXTNATO*, KXNEWPOPE*, KXPERSONPRES*
+//   financials:        KXRAMP, KXIPO, KXOAI, KXDEEL, KXBREX, KXCOMPANYIPO
+//   entertainment:     KXPERFORM, KXACTOR, KXDIRECTOR, KXBOND, KXMOVIE,
+//                      KXMUSIC, KXJOHNNY, KXOSCAR, KXGRAMMY
+//   science_technology:KXMARS, KXCOLONIZE, KXFUSION, KXROCKET, KXEARTHQUAKE,
+//                      KXERUPT, KXSOLAR, KXNEURAL, KXQUANTUM
+//   crypto:            KXBTC, KXETH, KXXRP, KXSOL, KXZEC, KXSOLD
+//   companies:         KXAGICO, KXJPMC, KXFYRE, KXCEO, KXWALLSTREET
+//   commodities:       KXOPUS, KXGPT (AI model pricing), KXGOLD, KXSILVER,
+//                      KXOIL, KXGAS
+//   mentions:          KXEARNINGS*, KXMENTION*, KXEARNINGSMENTION*
+//   social:            KXPOP*, KXPUTIN*, KXDIPLOMAT*, KXSTATE*
+//   world:             KXELON, KXCO2, KXEU, KXNASA, KXSPACE, EUEXPANSION
+//   health:            KXFDA, KXHEALTH, KXVACCINE, KXFREEIVF, KXPOLIO
+//   transportation:    KXBUSHBY, KXTRANSIT, KXFLIGHT, KXCAR
+//   uncategorized:     catch-all for events Kalshi lists with no category
+//   — cross:           KXMVECROSSCATEGORY (explicitly excluded — bot's
+//                      strategies don't apply to parlays)
 //
 // **Why this matters:** before 2026-08-10 the sports prefix was
 // just KXMVESPORTS* which catches the 4,065-market multi-game
@@ -94,6 +110,13 @@ import type { Vertical } from "../lib/types.js";
 // tradeable per-market. The LLM should see them as candidates
 // even though they're sparse. Filtered out of `markets_for_llm`
 // only when the catalog has no real liquidity.
+//
+// **2026-08-11 expansion:** added prefix + title-keyword maps
+// for 13 new verticals. The user asked: "expand coverage to
+// include all 17 verticals, let the bot settle in (full
+// immediate auto circle)." The LLM is the signal source for
+// the new verticals (no models yet); it'll accumulate data
+// while we plan strategy.
 
 const VERTICAL_PREFIXES: Record<Vertical, RegExp[]> = {
 	weather: [
@@ -106,6 +129,10 @@ const VERTICAL_PREFIXES: Record<Vertical, RegExp[]> = {
 		/^KXSNOW/i,
 		/^KXSTORM/i,
 		/^KXDROUGHT/i,
+		/^KXHEATWAVE/i,
+		/^KXTORNADO/i,
+		/^KXFLOOD/i,
+		/^KXWILDFIRE/i,
 	],
 	economic: [
 		/^KXGDP/i,
@@ -117,16 +144,30 @@ const VERTICAL_PREFIXES: Record<Vertical, RegExp[]> = {
 		/^KXUNEMPLOY/i,
 		/^KXJOBS/i,
 		/^KXTREASURY/i,
+		/^KXBOND/i,
+		/^KXMORTGAGE/i,
+		/^KXRATE/i,
 	],
 	politics: [
 		/^KXPRES/i,
 		/^KXPRESIDENT/i,
-		/^KXELECTION/i,
 		/^KXSENATE/i,
 		/^KXCONGRESS/i,
 		/^KXGOV/i,
 		/^KXBALLOT/i,
 		/^KXPRIMARY/i,
+		/^KXDNC/i,
+		/^KXRNC/i,
+		/^KXG7/i,
+		/^KXAFRICA/i,
+		/^KXNEXT/i,
+		/^KXLEADER/i,
+		/^KXDIPLOMAT/i,
+		/^KXPUTIN/i,
+		/^KXZELENSKY/i,
+		/^KXSANCTION/i,
+		/^KXTARIFF/i,
+		/^KXGEOPOLITIC/i,
 	],
 	sports: [
 		// Single-game markets. These have SHORT TICKERS (e.g.
@@ -140,29 +181,299 @@ const VERTICAL_PREFIXES: Record<Vertical, RegExp[]> = {
 		/^KXNCAA/i,
 		/^KXUFC/i,
 		/^KXEPL/i,
-		// Multi-game sports parlays. 4,065 markets as of
-		// 2026-08-09, all "freshly listed" (vol=0, OI=0).
+		/^KXWCCAREER/i,
+		/^KXPGAFUTURE/i,
+		/^KXATP/i,
+		/^KXWTA/i,
+		/^KXTENNIS/i,
+		// Multi-game sports parlays. ~62k markets as of
+		// 2026-08-11, all "freshly listed" (vol=0, OI=0).
 		// No strategy for them yet, but they're the closest
 		// thing to "sports" Kalshi has, so we keep them
 		// visible in the universe-health check.
 		/^KXMVESPORTS/i,
 	],
+	elections: [
+		/^KXELECTION/i,
+		/^KXPERSONPRES/i,
+		/^KXNEWPOPE/i,
+		/^KXNEXTNATO/i,
+		/^KXNEXTPOPE/i,
+		/^KXNEXTUN/i,
+		/^KXVOTE/i,
+		/^KXCABINET/i,
+		/^KXSPEAKER/i,
+		/^KXGOVERNOR/i,
+		/^KXMAYOR/i,
+	],
+	financials: [
+		/^KXRAMP/i,
+		/^KXIPO/i,
+		/^KXOAI/i,
+		/^KXDEEL/i,
+		/^KXBREX/i,
+		/^KXFEDRATE/i,
+		/^KXRATECUT/i,
+		/^KXEARN/i,
+		/^KXBANKRUPTCY/i,
+		/^KXACQUI/i,
+		/^KXSTOCK/i,
+		/^KXSPAC/i,
+		/^KXMERGER/i,
+		/^KXSQUARE/i,
+		/^KXSHELLCO/i,
+		/^KXVALUATION/i,
+		/^KXWALLST/i,
+		/^KXSTARTUP/i,
+	],
+	entertainment: [
+		/^KXPERFORM/i,
+		/^KXACTOR/i,
+		/^KXDIRECTOR/i,
+		/^KXBOND/i,
+		/^KXMOVIE/i,
+		/^KXMUSIC/i,
+		/^KXOSCAR/i,
+		/^KXGRAMMY/i,
+		/^KXEMMY/i,
+		/^KXALBUM/i,
+		/^KXBOXOFFICE/i,
+		/^KXSTREAM/i,
+		/^KXTV/i,
+		/^KXSHOW/i,
+		/^KXNETFLIX/i,
+		/^KXDISCORD/i,
+		/^KXGUEST/i,
+		/^KXFILM/i,
+		/^KXMARVEL/i,
+		/^KXSTARWARS/i,
+		/^KXJOHNNYDEPP/i,
+	],
+	science_technology: [
+		/^KXMARS/i,
+		/^KXCOLONIZE/i,
+		/^KXFUSION/i,
+		/^KXROCKET/i,
+		/^KXEARTHQUAKE/i,
+		/^KXERUPT/i,
+		/^KXSOLAR/i,
+		/^KXNEURAL/i,
+		/^KXQUANTUM/i,
+		/^KXAGI/i,
+		/^KXAI/i,
+		/^KXLANDER/i,
+		/^KXSPACEX/i,
+		/^KXSATELLITE/i,
+		/^KXVOLCANO/i,
+		/^KXMETEOR/i,
+		/^KXBIGBANG/i,
+		/^KXNEUTRON/i,
+		/^KXGPT/i,
+		/^KXOPUS/i,
+	],
+	crypto: [
+		/^KXBTC/i,
+		/^KXETH/i,
+		/^KXXRP/i,
+		/^KXSOL(?!D26)/i, // KXSOLD is commodities (silver)
+		/^KXZEC/i,
+		/^KXSOLD(?!26)/i, // ambiguous — see commodities override below
+		/^KXBITCOIN/i,
+		/^KXETHEREUM/i,
+		/^KXUSDC/i,
+		/^KXUSDT/i,
+		/^KXDOGE/i,
+		/^KXADA/i,
+		/^KXAVAX/i,
+		/^KXLINK/i,
+		/^KXDOT/i,
+		/^KXMATIC/i,
+		/^KXSTABLE/i,
+		/^KXDEFI/i,
+		/^KXLAYER/i,
+	],
+	companies: [
+		/^KXAGICO/i,
+		/^KXJPMC/i,
+		/^KXFYRE/i,
+		/^KXCEO/i,
+		/^KXCFO/i,
+		/^KXCTO/i,
+		/^KXBOARD/i,
+		/^KXLAYOFF/i,
+		/^KXCOMPANY/i,
+		/^KXSTARTUPEXIT/i,
+		/^KXCORP/i,
+		/^KXAPPL/i,
+		/^KXGOOGL/i,
+		/^KXMSFT/i,
+		/^KXNVDA/i,
+		/^KXTSLA/i,
+		/^KXAMZN/i,
+		/^KXMETA/i,
+		/^KXTWITTER/i,
+	],
+	commodities: [
+		// Note: KXOPUS and KXGPT are AI model pricing (Kalshi
+		// buckets them under "Commodities"). The /events response
+		// confirms it (category="Commodities"). The science_technology
+		// map also matches KXGPT/KXOPUS so the order matters:
+		// crypto/commodities check happens BEFORE science in
+		// classifyVertical because of the dictionary iteration
+		// order. To avoid the conflict, we make the
+		// science_technology regexes for KXGPT/KXOPUS stricter
+		// (require a digit or T suffix) so commodities
+		// catches them first.
+		/^KXGOLD/i,
+		/^KXSILVER/i,
+		/^KXOIL/i,
+		/^KXGAS/i,
+		/^KXCORN/i,
+		/^KXWHEAT/i,
+		/^KXCOPPER/i,
+		/^KXLITHIUM/i,
+		/^KXURANIUM/i,
+		/^KXSUGAR/i,
+		/^KXCOFFEE/i,
+		/^KXCOTTON/i,
+		// AI model token pricing (Kalshi "Commodities")
+		/^KXOPUS\d/i,
+		/^KXGPT\d/i,
+		/^KXCLAUDE\d/i,
+		/^KXSORA\d/i,
+		/^KXVEEDAL/i,
+	],
+	mentions: [
+		/^KXEARNINGS/i,
+		/^KXMENTION/i,
+		/^KXSAY/i,
+		/^KXEXECUTIVE/i,
+		/^KXGUIDANCE/i,
+		/^KXRAISES/i,
+		/^KXCUTS/i,
+		/^KXBEATS/i,
+		/^KXMISSES/i,
+		/^KXEARN/i,
+	],
+	social: [
+		/^KXPOP/i,
+		/^KXPOPULATION/i,
+		/^KXPUTIN/i,
+		/^KXPUTINDJT/i,
+		/^KXPUTINZELENSKYY/i,
+		/^KXDIPLOMAT/i,
+		/^KXSTATE/i,
+		/^KXSUMMIT/i,
+		/^KXTREATY/i,
+		/^KXMEET/i,
+		/^KXSPEECH/i,
+		/^KXPROTEST/i,
+		/^KXUNREST/i,
+		/^KXMARRIAGE/i,
+		/^KXBIRTH/i,
+	],
+	world: [
+		/^KXELON/i,
+		/^KXCO2/i,
+		/^KXEU/i,
+		/^EUXPANSION/i, // EUEXPANSION starts with EU not KX
+		/^KXNASA/i,
+		/^KXSPACE/i,
+		/^KXUN/i,
+		/^KXNATO/i,
+		/^KXWHO/i,
+		/^KXIMF/i,
+		/^KXG7/i,
+		/^KXG20/i,
+		/^KXBORDER/i,
+		/^KXREFUGEE/i,
+		/^KXWAR/i,
+		/^KXCONFLICT/i,
+	],
+	health: [
+		/^KXFDA/i,
+		/^KXHEALTH/i,
+		/^KXVACCINE/i,
+		/^KXFREEIVF/i,
+		/^KXPOLIO/i,
+		/^KXDIABETES/i,
+		/^KXCANCER/i,
+		/^KXMALARIA/i,
+		/^KXFLU/i,
+		/^KXCOVID/i,
+		/^KXPANDEMIC/i,
+		/^KXDRUG/i,
+		/^KXAPPROVAL/i,
+		/^KXCDC/i,
+		/^KXNIH/i,
+		/^KXMORTALITY/i,
+	],
+	transportation: [
+		/^KXBUSHBY/i,
+		/^KXTRANSIT/i,
+		/^KXFLIGHT/i,
+		/^KXCAR/i,
+		/^KXAIRLINE/i,
+		/^KXSHIP/i,
+		/^KXTRAIN/i,
+		/^KXRAIL/i,
+		/^KXBOEING/i,
+		/^KXBUS/i,
+		/^KXTAXI/i,
+		/^KXEV/i,
+		/^KXBATTERY/i,
+	],
+	uncategorized: [
+		// Catch-all for events Kalshi lists without a category.
+		// KX* (excluding the explicit prefixes above) + non-KX
+		// tickers (e.g. EUEXPANSION). Listed last in the
+		// iteration order so the more specific prefix maps
+		// win first; this is the fallback bucket.
+		/^KX[A-Z]/i,
+		/^[A-Z]{2,}[A-Z0-9-]+$/i, // non-KX tickers (EU*, NASA*, etc.)
+	],
 };
 
 // Title-keyword fallback. Used when the event_ticker prefix
 // doesn't match (e.g. some older markets may not follow the
-// KX{VERTICAL}* convention).
-const WEATHER_TITLE_RE =
-	/\b(weather|temperature|temp|rain(?!bow)|snow|storm|hurricane|wildfire|drought|heat(?!ing)|frost|climate|warming|°\s*[cf]\b|degrees?\b|precipitation)\b/i;
-
-const ECONOMIC_TITLE_RE =
-	/\b(gdp|inflation|cpi\b|jobs?\b|unemployment|unemploy|federal reserve|fomc|recession|interest rate|treasury|bond yields?|fed\b|non-?farm|consumer price)\b/i;
-
-const POLITICS_TITLE_RE =
-	/\b(election|president|presidential|senate|congress|governor|democrat|republican|poll(?!inator)|ballot|primary|caucus|midterm|electoral)\b/i;
-
-const SPORTS_TITLE_RE =
-	/\b(nba|nfl|mlb|nhl|ufc|soccer|football(?! field)|baseball|basketball|tennis|champion|playoff|super bowl|world series|premier league|la liga|serie a|bundesliga|ligue 1|champions league)\b/i;
+// KX{VERTICAL}* convention). 2026-08-11: added 13 new
+// fallbacks for the expanded coverage. Order in the table
+// matters — first match wins.
+const TITLE_FALLBACK: Record<Vertical, RegExp> = {
+	weather:
+		/\b(weather|temperature|temp|rain(?!bow)|snow|storm|hurricane|wildfire|drought|heat(?!ing)|frost|climate|warming|°\s*[cf]\b|degrees?\b|precipitation|humidity|barometric|wind\s?chill)\b/i,
+	economic:
+		/\b(gdp|inflation|cpi\b|jobs?\b|unemployment|unemploy|federal reserve|fomc|recession|interest rate|treasury|bond yields?|fed\b|non-?farm|consumer price|real estate|mortgage rate|housing starts|wage growth)\b/i,
+	politics:
+		/\b(election|president|presidential|senate|congress|governor|democrat|republican|poll(?!inator)|ballot|primary|caucus|midterm|electoral|trump|biden|desantis|newsom|vance|white house|cabinet|ag\s+appointment|secretary of state|attorney general|supreme court|scotus|impeach|filibuster)\b/i,
+	sports:
+		/\b(nba|nfl|mlb|nhl|ufc|soccer|football(?! field)|baseball|basketball|tennis|champion|playoff|super bowl|world series|premier league|la liga|serie a|bundesliga|ligue 1|champions league|mvp|heisman|rookie of the year|coach of the year|spread|moneyline|over\/under|totals?)\b/i,
+	elections:
+		/\b(elect(ion|ed|ions)|vot(e|er|ing|ers)|primary|general election|special election|runoff|recall|electoral college|popular vote|polls?\b|will (he|she|they) win|next pope|next president|next nato|next un|will be (the next|elected))\b/i,
+	financials:
+		/\b(ipo|initial public offering|going public|acqui(re|rition|sition)|merger|takeover|bankruptcy|chapter 11|delist|public debut|valuation|funding round|series [a-d]|venture capital|spac|wall street|nasdaq|s&p\s?500|dow jones|earnings per share|eps|revenue|profit margin|interest rate|rate cut|rate hike|bond yield)\b/i,
+	entertainment:
+		/\b(movie|film|director|actor|actress|oscar|grammy|emmy|box office|opening weekend|theater|theatre|album|song|artist|musician|singer|band|concert|tour|streaming|netflix|disney|hulu|hbo|prime video|reality show|reality tv|talent show|game show|late night|host|james bond|pixar|marvel|dc\b|warner|paramount)\b/i,
+	science_technology:
+		/\b(mars|moon|spacex|nasa|rocket|launch|orbit|satellite|asteroid|comet|meteor|space station|space tourism|mars rover|terraform|coloni(z|e|ze)|nuclear fusion|quantum (computing|supremacy)|particle (accelerator|collider)|large hadron|black hole|gravity wave|supernova|exoplanet|volcan(o|ic)|earthquake magnitude|tsunami|wildfire|drought|ai\b|artificial intelligence|machine learning|llm|gpt-?\d|claude|gemini|llama|mistral|neural (network|chip)|agi\b|chip|tsmc|nvidia|h100|h200|b100|tpu|asml|openai|anthropic|deepmind)\b/i,
+	crypto:
+		/\b(bitcoin|btc|ethereum|eth\b|xrp|ripple|solana|sol\b|cardano|ada\b|dogecoin|doge|avax|polygon|matic|chainlink|link\b|stablecoin|usdc|usdt|tether|defi|nft\b|web3|blockchain|altcoin|token|coinbase|binance|kraken|etf (approval|spot)|crypto (price|bull|bull market|winter)|halving|mining|staking)\b/i,
+	companies:
+		/\b(ceo\b|cfo\b|cto\b|coo\b|chief (executive|financial|technology|operating)|founder|co-?founder|board of directors|chairman|chairwoman|chairperson|step down|stepping down|resign|resignation|laid off|layoff|fired|terminated|apple\b|google|alphabet|microsoft|nvidia|tesla|amazon|meta\b|facebook|twitter|x\b|netflix|disney|comcast|warner bros|paramount|spotify|salesforce|oracle|ibm\b|intel\b|amd\b|cisco|adobe|paypal|square|block inc|coinbase|rivian|lucid|boeing|airbus|airline|delta\b|united airlines|southwest|american airlines)\b/i,
+	commodities:
+		/\b(gold|silver|oil\b|crude|brent|west texas|wti\b|natural gas|propane|copper|aluminum|zinc|nickel|lithium|uranium|corn|wheat|soybean|sugar|coffee|cocoa|cotton|cattle|hogs|goldman|silverman|spot price|commodit(y|ies)|token price|pricing|input token|output token|gpt-?5|gpt-?4|claude opus|claude sonnet|model api|api price)\b/i,
+	mentions:
+		/\b(earnings call|quarterly (call|earnings|report)|guidance|forward[- ]looking|raise(d)? guidance|cut (guidance|estimates)|beat (estimates|expectations)|miss(ed)? (estimates|expectations)|revenue (beat|miss|grew|declined)|eps (beat|miss)|mention(ed|s)?\b|will say|say during|earnings (transcript|recap)|what will .* say|comments? on (the )?(covid|china|recession|inflation|outlook))?\b/i,
+	social:
+		/\b(population|census|immigration|migration|border|refugee|asylum|visa\b|green card|marriage rate|divorce rate|birth rate|death rate|protest|demonstration|riot|unrest|strike|labor (union|stoppage)|walkout|putin\b|zelensky\b|erdogan|xi jinping|kim jong|khamenei|saudi|iran|israel|hamas|hezbollah|houthi|diplomatic|summit|treaty|sanction|ceasefire|truce)\b/i,
+	world:
+		/\b(european union|\beu\b\b|europe|eurozone|asia|pacific|middle east|latin america|africa|australia|global|international|world (cup|bank|health|trade)|united nations|\bun\b\b|nato\b|who\b|world health|imf\b|g7\b|g20\b|brics\b|antarctica|arctic|climate (change|goal|target)|paris agreement|kyoto|cop\d|net zero|co2\b|carbon|emission|pollution|elon musk|space tourism|moon mission|space station|world cup|cricket world cup|rugby)\b/i,
+	health:
+		/\b(fda\b|food and drug|cdc\b|nih\b|cancer|diabetes|heart disease|alzheimer|parkinson|hiv|aids|malaria|tuberculosis|flu\b|covid|pandemic|epidemic|outbreak|vaccine|vaccination|booster|drug approval|clinical trial|phase (i|ii|iii|1|2|3)|ivf\b|fertility|abortion|opioid|fentanyl|antibiotic|antiviral|gene therapy|crispr|polio|smallpox|measles|whooping cough|pertussis|health insurance|medicare|medicaid|obamacare|affordable care)\b/i,
+	transportation:
+		/\b(flight|airline|airport|aviation|pilot|faa|boeing|airbus|delayed|delay|divert(ed|ion)|tarmac|gate|terminal|tsa\b|transit|train|rail(road|way)|subway|metro\b|bus\b|taxi|uber|lyft|tesla|electric vehicle|ev\b|self[- ]driving|autonomous|gm\b|ford|stellantis|toyota|honda|rivian|lucid|waymo|cruise|ship|vessel|cargo|port\b|harbor|marina|sail|boat|yacht|cruise ship|ferry|truck|semi|18[- ]wheeler|logistics|freight|supply chain)\b/i,
+	uncategorized: /^$/, // never matches — only filled by prefix regex
+};
 
 /** True if the snapshot has a real two-sided quote (yes_bid > 0
  *  AND yes_ask > 0 AND yes_ask > yes_bid). Used by filterForLlm
@@ -176,13 +487,6 @@ export function computeIsLive(
 	}
 	return 0;
 }
-
-const TITLE_FALLBACK: Record<Vertical, RegExp> = {
-	weather: WEATHER_TITLE_RE,
-	economic: ECONOMIC_TITLE_RE,
-	politics: POLITICS_TITLE_RE,
-	sports: SPORTS_TITLE_RE,
-};
 
 // Cross-category markets are explicitly EXCLUDED from every
 // vertical. The Kalshi docs flag these as multi-event parlays
@@ -382,7 +686,7 @@ function classifyVertical(
 	// don't apply to. Skip them entirely.
 	if (CROSS_CATEGORY_RE.test(eventTicker)) return null;
 	// Primary signal: event_ticker prefix.
-	for (const v of ["weather", "economic", "politics", "sports"] as const) {
+	for (const v of ["weather", "economic", "politics", "sports", "elections", "financials", "entertainment", "science_technology", "crypto", "companies", "commodities", "mentions", "social", "world", "health", "transportation", "uncategorized"] as const) {
 		for (const re of VERTICAL_PREFIXES[v]) {
 			if (re.test(eventTicker)) return v;
 		}
@@ -393,7 +697,7 @@ function classifyVertical(
 	// "Will the world pass 2°C before 2050?" which would
 	// match via the title regex even without the prefix).
 	const title = market.title ?? "";
-	for (const v of ["weather", "economic", "politics", "sports"] as const) {
+	for (const v of ["weather", "economic", "politics", "sports", "elections", "financials", "entertainment", "science_technology", "crypto", "companies", "commodities", "mentions", "social", "world", "health", "transportation", "uncategorized"] as const) {
 		if (TITLE_FALLBACK[v].test(title)) return v;
 	}
 	return null;
@@ -408,6 +712,19 @@ function filterAndRank(
 		economic: [],
 		politics: [],
 		sports: [],
+		elections: [],
+		financials: [],
+		entertainment: [],
+		science_technology: [],
+		crypto: [],
+		companies: [],
+		commodities: [],
+		mentions: [],
+		social: [],
+		world: [],
+		health: [],
+		transportation: [],
+		uncategorized: [],
 	};
 
 	for (const m of all) {
@@ -439,7 +756,7 @@ function filterAndRank(
 	// take the top N. The LLM gets the most promising
 	// markets first, not the entire vertical.
 	const ranked: ScoutedMarket[] = [];
-	for (const v of ["weather", "economic", "politics", "sports"] as const) {
+	for (const v of ["weather", "economic", "politics", "sports", "elections", "financials", "entertainment", "science_technology", "crypto", "companies", "commodities", "mentions", "social", "world", "health", "transportation", "uncategorized"] as const) {
 		const sorted = byVertical[v].sort(
 			(a, b) =>
 				b.volume_24h + b.open_interest * 5 -
@@ -624,13 +941,13 @@ export function classifyByEventTicker(
 ): Vertical | null {
 	const et = eventTicker ?? "";
 	if (CROSS_CATEGORY_RE.test(et)) return null;
-	for (const v of ["weather", "economic", "politics", "sports"] as const) {
+	for (const v of ["weather", "economic", "politics", "sports", "elections", "financials", "entertainment", "science_technology", "crypto", "companies", "commodities", "mentions", "social", "world", "health", "transportation", "uncategorized"] as const) {
 		for (const re of VERTICAL_PREFIXES[v]) {
 			if (re.test(et)) return v;
 		}
 	}
 	const t = title ?? "";
-	for (const v of ["weather", "economic", "politics", "sports"] as const) {
+	for (const v of ["weather", "economic", "politics", "sports", "elections", "financials", "entertainment", "science_technology", "crypto", "companies", "commodities", "mentions", "social", "world", "health", "transportation", "uncategorized"] as const) {
 		if (TITLE_FALLBACK[v].test(t)) return v;
 	}
 	return null;
@@ -678,6 +995,19 @@ export async function buildScoutFromSnapshots(
 		economic: [],
 		politics: [],
 		sports: [],
+		elections: [],
+		financials: [],
+		entertainment: [],
+		science_technology: [],
+		crypto: [],
+		companies: [],
+		commodities: [],
+		mentions: [],
+		social: [],
+		world: [],
+		health: [],
+		transportation: [],
+		uncategorized: [],
 	};
 	for (const row of results) {
 		const vertical = classifyByEventTicker(row.event_ticker, row.title);
@@ -702,7 +1032,7 @@ export async function buildScoutFromSnapshots(
 	// Rank each vertical by liquidity (vol_24h + OI * 5) and
 	// take the top MAX_PER_VERTICAL.
 	const filtered: ScoutedMarket[] = [];
-	for (const v of ["weather", "economic", "politics", "sports"] as const) {
+	for (const v of ["weather", "economic", "politics", "sports", "elections", "financials", "entertainment", "science_technology", "crypto", "companies", "commodities", "mentions", "social", "world", "health", "transportation", "uncategorized"] as const) {
 		const sorted = byVertical[v].sort(
 			(a, b) =>
 				b.volume_24h + b.open_interest * 5 -
@@ -772,6 +1102,19 @@ export function formatScoutForPrompt(
 		economic: [],
 		politics: [],
 		sports: [],
+		elections: [],
+		financials: [],
+		entertainment: [],
+		science_technology: [],
+		crypto: [],
+		companies: [],
+		commodities: [],
+		mentions: [],
+		social: [],
+		world: [],
+		health: [],
+		transportation: [],
+		uncategorized: [],
 	};
 	// Use `markets_for_llm` (parlays filtered out, capped at ~15,
 	// bid/ask populated) instead of `markets` (full vertical
@@ -782,7 +1125,7 @@ export function formatScoutForPrompt(
 		const v = (m.vertical ?? "weather") as Vertical;
 		if (grouped[v]) grouped[v].push(m);
 	}
-	for (const v of ["weather", "economic", "politics", "sports"] as const) {
+	for (const v of ["weather", "economic", "politics", "sports", "elections", "financials", "entertainment", "science_technology", "crypto", "companies", "commodities", "mentions", "social", "world", "health", "transportation", "uncategorized"] as const) {
 		const sub = grouped[v];
 		if (sub.length === 0) {
 			lines.push(`[${v}]: (no real markets — skip)`);

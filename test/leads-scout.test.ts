@@ -164,7 +164,14 @@ describe("leads-scout / fetchAndFilterMarkets", () => {
 		expect(result.markets).toHaveLength(0);
 	});
 
-	it("skips markets that don't match any vertical", async () => {
+	it("classifies unmatched KX* tickers as 'uncategorized' (catch-all)", async () => {
+		// 2026-08-11: the leads-scout now covers all 17 Kalshi
+		// categories. KX* tickers that don't match any specific
+		// prefix (e.g. brand-new market types Kalshi adds) fall
+		// into the "uncategorized" catch-all vertical so the LLM
+		// still gets a chance to evaluate them. The pre-2026-08-11
+		// behavior was to skip these entirely; now they're
+		// surfaced (with vertical=uncategorized) for the LLM.
 		const markets = [
 			makeMarket("KXRANDOM-1", "Will the next iPhone be released in September?", {
 				event_ticker: "KXRANDOM-1",
@@ -172,7 +179,8 @@ describe("leads-scout / fetchAndFilterMarkets", () => {
 		];
 		const client = mockKalshiClient(markets);
 		const result = await fetchAndFilterMarkets({ kalshiClient: client });
-		expect(result.markets).toHaveLength(0);
+		expect(result.markets).toHaveLength(1);
+		expect(result.markets[0].vertical).toBe("uncategorized");
 		expect(result.total_scanned).toBe(1);
 	});
 

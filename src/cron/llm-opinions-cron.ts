@@ -65,11 +65,32 @@ const MIN_CONFIDENCE = 0.0; // 0 = store everything; the strategy filters at run
 // tickers is the manual override.
 const AUTO_PROMOTE_THRESHOLD = 0.5;
 const AUTO_PROMOTE_MAX_PER_RUN = 5;
+// 2026-08-11: expanded from 4 to 17 verticals. The user said
+// "expand coverage to include all" — auto-promote now allows
+// any vertical. A high-confidence LLM verdict on a
+// KXNEWPOPE / KXRAMPBREX / KXBTC market can now join the
+// universe without manual operator intervention. The
+// AUTO_PROMOTE_MAX_PER_RUN=5 cap is the backstop: at most 5
+// new tickers per 30-min cron, regardless of how many
+// high-confidence verdicts the LLM produces.
 const AUTO_PROMOTE_VERTICALS: ReadonlySet<string> = new Set([
 	"weather",
 	"economic",
 	"politics",
 	"sports",
+	"elections",
+	"financials",
+	"entertainment",
+	"science_technology",
+	"crypto",
+	"companies",
+	"commodities",
+	"mentions",
+	"social",
+	"world",
+	"health",
+	"transportation",
+	"uncategorized",
 ]);
 
 interface LLMParsedOpinion {

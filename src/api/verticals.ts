@@ -45,11 +45,29 @@ const KNOWN_VERTICALS: Array<{ id: string; label: string; emoji: string }> = [
 	{ id: "economic", label: "Economic", emoji: "📊" },
 	{ id: "politics", label: "Politics", emoji: "🏛" },
 	{ id: "sports", label: "Sports", emoji: "🏀" },
+	{ id: "elections", label: "Elections", emoji: "🗳" },
+	{ id: "financials", label: "Financials", emoji: "💰" },
+	{ id: "entertainment", label: "Entertainment", emoji: "🎬" },
+	{ id: "science_technology", label: "Sci & Tech", emoji: "🚀" },
+	{ id: "crypto", label: "Crypto", emoji: "🪙" },
+	{ id: "companies", label: "Companies", emoji: "🏢" },
+	{ id: "commodities", label: "Commodities", emoji: "📦" },
+	{ id: "mentions", label: "Mentions", emoji: "💬" },
+	{ id: "social", label: "Social", emoji: "👥" },
+	{ id: "world", label: "World", emoji: "🌍" },
+	{ id: "health", label: "Health", emoji: "🏥" },
+	{ id: "transportation", label: "Transportation", emoji: "✈️" },
+	{ id: "uncategorized", label: "Uncategorized", emoji: "❔" },
 ];
 
 // Strategy → ELI5 wording (the strategy router picks the
 // actual strategy per vertical at runtime, but for the
-// dashboard we report the default per vertical).
+// dashboard we report the default per vertical). 2026-08-11:
+// expanded from 4 to 17 verticals. The four legacy verticals
+// keep their original strategy labels (reversion on weather /
+// economic, naive on politics / sports). The thirteen new
+// verticals default to naive + LLM; the LLM is the primary
+// signal source until a per-vertical model gets trained.
 const VERTICAL_STRATEGY: Record<
 	string,
 	{ strategy: VerticalEntry["strategy"]; label: string; eli5: string }
@@ -77,6 +95,85 @@ const VERTICAL_STRATEGY: Record<
 		label: "Naive baseline",
 		eli5:
 			"Same conservative baseline as politics. Sports markets are liquidity-driven, not statistical.",
+	},
+	// ── 13 new verticals (2026-08-11) ──
+	elections: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"LLM evaluates each election market (KXNEXTNATO, KXNEWPOPE, KXPERSONPRES, etc.) and emits a verdict. Trade only when LLM confidence ≥ 0.6 and the LLM sees real edge.",
+	},
+	financials: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"LLM evaluates IPOs, M&A, earnings, Fed-adjacent. LLM is the signal source; we're collecting trade data so a reversion model can be trained later.",
+	},
+	entertainment: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"Movies, music, awards, celeb gossip. LLM evaluates. Most markets are low-liquidity long-tail; the LLM will produce mostly HOLD.",
+	},
+	science_technology: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"Mars, fusion, AI, AGI, earthquakes. LLM has decent training-data knowledge here; verdicts on AI/Mars tend to be more grounded than long-tail celebrity stuff.",
+	},
+	crypto: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"Token price markets (BTC, ETH, SOL, etc.). LLM evaluates; verdicts are best-effort given volatile pricing. Treat as paper-mode data collection for now.",
+	},
+	companies: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"Single-company events (CEO changes, IPOs, product launches). LLM evaluates. Sparse liquidity, paper-only until we have trade data.",
+	},
+	commodities: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"Gold, silver, oil — and Kalshi's \"AI model token pricing\" bucket (KXGPT, KXOPUS). LLM evaluates. Silver has the most live two-sided liquidity in this group.",
+	},
+	mentions: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"\"What will <company> say during their earnings call?\" — natural-language matching markets. LLM evaluates; expect mostly HOLD (LLM doesn't have transcript-level data).",
+	},
+	social: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"Demographics, geopolitics, leader meetings. LLM evaluates. Sparse trade data; treat as paper-mode exploration.",
+	},
+	world: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"Global events (EU expansion, world leaders, CO2 levels, Elon). LLM evaluates; some markets (KXELONMARS) are LLM-friendly, others (KXCO2) are domain-specific.",
+	},
+	health: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"FDA approvals, vaccines, IVF, polio. LLM evaluates. Most markets are 1-2 events; paper-only until volume data accumulates.",
+	},
+	transportation: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"Currently 1 event (KXBUSHBY — a world-walk attempt). Will expand as Kalshi adds flights, EVs, transit. Paper-only.",
+	},
+	uncategorized: {
+		strategy: "naive",
+		label: "Naive + LLM",
+		eli5:
+			"Catch-all bucket for events Kalshi lists without a category. Currently 1 event (Gold vs Silver 2026). Paper-only.",
 	},
 };
 

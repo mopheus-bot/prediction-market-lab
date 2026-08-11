@@ -1041,10 +1041,9 @@ export class LiveBot implements DurableObject {
 				// Safety:
 				//  - Idempotent: already-in-universe returns
 				//    { ok: true, already_in_universe: true }.
-				//  - Whitelist: only "weather" | "economic" |
-				//    "politics" | "sports" verticals accepted
-				//    (matches the strategy router's allowed
-				//    values; anything else is a no-op).
+				//  - Whitelist: any of the 17 Kalshi verticals
+				//    accepted (matches the strategy router's
+				//    allowed values; anything else is a no-op).
 				//  - No restart needed: state.config.tickers
 				//    is read by the polling alarm on every
 				//    tick, so the new ticker gets picked up
@@ -1052,6 +1051,30 @@ export class LiveBot implements DurableObject {
 				//  - Mirror to D1 so the verticals endpoint
 				//    sees the new ticker without a round-trip
 				//    to the DO.
+				// 2026-08-11: expanded whitelist from 4 → 17
+				// (all Kalshi categories). The user said
+				// "expand coverage to include all" so any
+				// vertical the LLM gives a high-confidence
+				// verdict on can now auto-promote.
+				const ALLOWED_AUTO_PROMOTE_VERTICALS = new Set([
+					"weather",
+					"economic",
+					"politics",
+					"sports",
+					"elections",
+					"financials",
+					"entertainment",
+					"science_technology",
+					"crypto",
+					"companies",
+					"commodities",
+					"mentions",
+					"social",
+					"world",
+					"health",
+					"transportation",
+					"uncategorized",
+				]);
 				const body = (await request.json().catch(() => ({}))) as {
 					ticker?: string;
 					vertical?: string;
@@ -1068,12 +1091,12 @@ export class LiveBot implements DurableObject {
 						{ status: 400 },
 					);
 				}
-				if (!["weather", "economic", "politics", "sports"].includes(vertical)) {
+				if (!ALLOWED_AUTO_PROMOTE_VERTICALS.has(vertical)) {
 					return Response.json(
 						{
 							ok: false,
 							error: "invalid_vertical",
-							message: `vertical must be one of weather|economic|politics|sports, got ${vertical}`,
+							message: `vertical must be one of the 17 Kalshi categories (got ${vertical})`,
 						},
 						{ status: 400 },
 					);

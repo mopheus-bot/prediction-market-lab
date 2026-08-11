@@ -176,11 +176,14 @@ describe("VerticalStrategyRouter", () => {
 		expect(sig?.rationale).toContain("naive_weather");
 	});
 
-	it("falls back to the default profile for unknown verticals", () => {
+	it("dispatches to the per-vertical profile for new verticals", () => {
+		// 2026-08-11: every Kalshi category now has its own
+		// profile (no more "unknown" → default fallback for
+		// known verticals). Crypto dispatches to naive_crypto.
 		const router = new VerticalStrategyRouter();
 		const sig = router.__call(ctx([50, 53], "crypto"));
 		expect(sig).not.toBeNull();
-		expect(sig?.rationale).toContain("naive_default");
+		expect(sig?.rationale).toContain("naive_crypto");
 	});
 
 	it("falls back to default for null vertical", () => {

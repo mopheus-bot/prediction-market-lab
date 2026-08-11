@@ -73,7 +73,34 @@ import { KalshiClient, DEFAULT_PRODUCTION_BASE } from "../kalshi/client.js";
 import { loadPrivateKey, KalshiCredentials } from "../kalshi/auth.js";
 
 const KALSHI_TICKER_RE = /^KX[A-Z0-9][A-Z0-9-]{1,14}$/;
-const VERTICALS: Vertical[] = ["weather", "economic", "politics", "sports"];
+// 2026-08-11: expanded from 4 to 17 verticals. The user said
+// "expand coverage to include all 17 verticals, let the bot
+// settle in (full immediate auto circle)." The leads-cron now
+// considers every Kalshi category in its ADD suggestions,
+// with the LLM spreading picks across the verticals that
+// have real open events right now. The "Weather" and
+// "Sports" rows the cron mentions in its system prompt are
+// now "Climate and Weather" + "Sports" (and so on for the
+// other 13); the prompt update below uses the full list.
+const VERTICALS: Vertical[] = [
+	"weather",
+	"economic",
+	"politics",
+	"sports",
+	"elections",
+	"financials",
+	"entertainment",
+	"science_technology",
+	"crypto",
+	"companies",
+	"commodities",
+	"mentions",
+	"social",
+	"world",
+	"health",
+	"transportation",
+	"uncategorized",
+];
 
 // 30 days. After this long, the cron may re-suggest a
 // ticker the operator previously rejected — markets
@@ -98,13 +125,13 @@ const HARD_MAX_DROP = 5;
 
 export const SYSTEM_PROMPT = `You are the scout for a Kalshi trading bot. Your job is to actively look for new markets the bot has not yet seen, weigh each candidate carefully, and present them with enough detail that a human operator can decide yes/no in five seconds.
 
-The bot runs mean-reversion strategies on weather + economic markets, and naive (high-confidence, near-certainty) strategies on politics + sports. It has a small bankroll and a per-trade notional cap, so we cannot take a hundred markets — every suggestion needs a real reason to be there.
+The bot runs mean-reversion strategies on weather + economic markets (the only two verticals with trained reversion models), and naive (high-confidence, near-certainty) strategies on politics + sports. For the other 13 verticals (elections, financials, entertainment, science_technology, crypto, companies, commodities, mentions, social, world, health, transportation, uncategorized), the LLM is the signal source — there's no reversion model yet, and we're accumulating trade data so we can train one per-vertical. It has a small bankroll and a per-trade notional cap, so we cannot take a hundred markets — every suggestion needs a real reason to be there.
 
 Output STRICT JSON only — no prose, no markdown fences, no commentary, no preamble. Every suggestion must be a real, currently-open Kalshi ticker in the format KX followed by 2-12 uppercase letters, digits, or hyphens (e.g. KXWARMING-50, KXGDP-Q3, KXPRES-26, KXNBA-CHAMP). If you are not confident a ticker exists and is currently open, do not include it. Honest empty arrays > hallucinated tickers.
 
 ─── ADD SUGGESTIONS (target ${TARGET_ADD}, hard cap ${HARD_MAX_ADD}) ───
 
-You will be given a real, current snapshot of every open Kalshi market that matches one of the bot's verticals (weather / economic / politics / sports), grouped by vertical and ranked by liquidity. ONLY suggest tickers that appear in that list — Kalshi's market data uses long UUID-style tickers (e.g. KXMVESPORTSMULTIGAMEEXTENDED-S2026...-XXX), and only ONE short ticker exists (KXWARMING-50, the climate market). If you suggest a short symbolic ticker that's not in the list, it WILL be silently dropped.
+You will be given a real, current snapshot of every open Kalshi market that matches one of the bot's 17 verticals (weather / economic / politics / sports / elections / financials / entertainment / science_technology / crypto / companies / commodities / mentions / social / world / health / transportation / uncategorized), grouped by vertical and ranked by liquidity. ONLY suggest tickers that appear in that list — Kalshi's market data uses long UUID-style tickers (e.g. KXMVESPORTSMULTIGAMEEXTENDED-S2026...-XXX), and only ONE short ticker exists (KXWARMING-50, the climate market). If you suggest a short symbolic ticker that's not in the list, it WILL be silently dropped.
 
 Actively look for *new* markets — categories the bot does not currently cover, timeframes that have launched since the last review, events that have come to Kalshi in the last few days. The current universe is shown below; do not re-suggest anything already in it.
 
@@ -113,7 +140,7 @@ For each candidate, weigh it out across three dimensions and put the result in t
   2. **Edge** — what is the expected trading opportunity? Volume, open interest, time-to-resolution, recent price action.
   3. **Risk** — known thin markets, ambiguous resolution criteria, very long-dated markets, or markets dominated by a single news event.
 
-Spread across all four verticals. Aim for at least one suggestion per vertical unless a vertical truly has nothing open right now. If a vertical is empty in your output, mention that in the 'overall_reasoning' field so the operator knows it was considered.
+Spread across all 17 verticals. Aim for at least one suggestion per vertical unless a vertical truly has nothing open right now. If a vertical is empty in your output, mention that in the 'overall_reasoning' field so the operator knows it was considered.
 
 Prefer markets with non-trivial volume + open interest (liquidity matters for both entry and exit).
 

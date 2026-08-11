@@ -70,16 +70,23 @@ export const FEATURE_NAMES: readonly string[] = [
 export const N_FEATURES = FEATURE_NAMES.length;
 export const N_NUMERIC_FEATURES = 8;
 
-export const VERTICAL_FEATURE_INDEX: Record<Vertical, number> = {
+// 2026-08-11: reversion model is only trained on 4 verticals
+// (politics/sports/weather/economic). The 13 new verticals
+// default to NaiveSignal + LLMOpinionSignal, so they don't
+// need feature indices. Use Partial<Record<...>> so the type
+// system stops demanding 17 entries here. The runtime code
+// (`vertical in VERTICAL_FEATURE_INDEX`) returns false for
+// any of the 13 new verticals, so they get the default
+// zero-fill on the feature vector.
+export const VERTICAL_FEATURE_INDEX: Partial<Record<Vertical, number>> = {
 	politics: 8,
 	sports: 9,
 	weather: 10,
 	economic: 11,
 };
 
-export const FUNDAMENTAL_FEATURES_BY_VERTICAL: Record<
-	Vertical,
-	Record<string, number>
+export const FUNDAMENTAL_FEATURES_BY_VERTICAL: Partial<
+	Record<Vertical, Record<string, number>>
 > = {
 	politics: {
 		poll_margin: 12,
@@ -186,22 +193,27 @@ export function extractFeatures(ctx: SignalContext): FeatureVector {
 	// 7-10. vertical one-hot
 	const verticalOh = [0, 0, 0, 0];
 	const vertical = market?.vertical as Vertical | undefined;
-	if (vertical && vertical in VERTICAL_FEATURE_INDEX) {
-		const idx = VERTICAL_FEATURE_INDEX[vertical] - 8;
-		if (idx >= 0 && idx < 4) verticalOh[idx] = 1;
+	if (vertical) {
+		const idx = VERTICAL_FEATURE_INDEX[vertical];
+		if (idx !== undefined) {
+			const localIdx = idx - 8;
+			if (localIdx >= 0 && localIdx < 4) verticalOh[localIdx] = 1;
+		}
 	}
 
 	// 11-18. per-vertical fundamentals. Live path: no fundamentals
 	// (chunk 6+). Default 0 for all 8; the vertical one-hot lets
 	// the model mask the irrelevant 6.
 	const fundamentalsArr = new Array(8).fill(0);
-	if (market?.fundamentals && vertical && vertical in FUNDAMENTAL_FEATURES_BY_VERTICAL) {
+	if (market?.fundamentals && vertical) {
 		const fundMap = FUNDAMENTAL_FEATURES_BY_VERTICAL[vertical];
-		for (const [name, featureIdx] of Object.entries(fundMap)) {
-			const localIdx = featureIdx - 12;
-			if (localIdx >= 0 && localIdx < 8) {
-				const v = market.fundamentals[name];
-				if (typeof v === "number") fundamentalsArr[localIdx] = v;
+		if (fundMap) {
+			for (const [name, featureIdx] of Object.entries(fundMap)) {
+				const localIdx = featureIdx - 12;
+				if (localIdx >= 0 && localIdx < 8) {
+					const v = market.fundamentals[name];
+					if (typeof v === "number") fundamentalsArr[localIdx] = v;
+				}
 			}
 		}
 	}

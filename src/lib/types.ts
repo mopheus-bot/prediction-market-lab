@@ -10,14 +10,51 @@
 
 // ─── Enumerations ───────────────────────────────────────────────────────
 
-/** What the bot is trading on. Maps 1:1 from Kalshi's category. */
-export type Vertical = "weather" | "economic" | "politics" | "sports";
+/** What the bot is trading on. Maps 1:1 from Kalshi's category.
+ *  2026-08-11: expanded from 4 → 17 to match the full open-trade
+ *  universe. The four legacy verticals (weather / economic /
+ *  politics / sports) keep their names so existing D1 rows +
+ *  dashboard panels don't churn. The thirteen new verticals are
+ *  snake_case versions of Kalshi's category labels. `uncategorized`
+ *  is the catch-all for events that arrive without a category
+ *  (currently 1 event / 2 markets — Gold vs Silver 2026). */
+export type Vertical =
+	| "weather"
+	| "economic"
+	| "politics"
+	| "sports"
+	| "elections"
+	| "financials"
+	| "entertainment"
+	| "science_technology"
+	| "crypto"
+	| "companies"
+	| "commodities"
+	| "mentions"
+	| "social"
+	| "world"
+	| "health"
+	| "transportation"
+	| "uncategorized";
 
 export const VERTICALS: readonly Vertical[] = [
 	"weather",
 	"economic",
 	"politics",
 	"sports",
+	"elections",
+	"financials",
+	"entertainment",
+	"science_technology",
+	"crypto",
+	"companies",
+	"commodities",
+	"mentions",
+	"social",
+	"world",
+	"health",
+	"transportation",
+	"uncategorized",
 ] as const;
 
 /** Trade side — Kalshi markets are binary, you take 'yes' or 'no'. */

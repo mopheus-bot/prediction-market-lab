@@ -141,25 +141,47 @@ describe("jobForCron", () => {
 });
 
 describe("mapCategory", () => {
-	it("maps the four canonical Kalshi categories", () => {
+	it("maps all 17 Kalshi categories", () => {
+		// 2026-08-11: expanded from 4 → 17. Elections and
+		// Politics are now separate verticals (previously
+		// Elections was bucketed under Politics).
 		expect(mapCategory("Climate and Weather")).toBe("weather");
 		expect(mapCategory("Economics")).toBe("economic");
 		expect(mapCategory("Sports")).toBe("sports");
-		expect(mapCategory("Elections")).toBe("politics");
+		expect(mapCategory("Elections")).toBe("elections");
 		expect(mapCategory("Politics")).toBe("politics");
+		expect(mapCategory("Financials")).toBe("financials");
+		expect(mapCategory("Entertainment")).toBe("entertainment");
+		expect(mapCategory("Science and Technology")).toBe("science_technology");
+		expect(mapCategory("Crypto")).toBe("crypto");
+		expect(mapCategory("Companies")).toBe("companies");
+		expect(mapCategory("Commodities")).toBe("commodities");
+		expect(mapCategory("Mentions")).toBe("mentions");
+		expect(mapCategory("Social")).toBe("social");
+		expect(mapCategory("World")).toBe("world");
+		expect(mapCategory("Health")).toBe("health");
+		expect(mapCategory("Transportation")).toBe("transportation");
 	});
 
 	it("is case-insensitive", () => {
 		expect(mapCategory("SPORTS")).toBe("sports");
 		expect(mapCategory("economics")).toBe("economic");
+		expect(mapCategory("CRYPTO")).toBe("crypto");
 	});
 
-	it("returns 'unknown' for unrecognized categories", () => {
-		// Crypto / Finance are bucketed with economic (per the
-		// Python source's category_mapper).
-		expect(mapCategory("Tech")).toBe("unknown");
-		expect(mapCategory("Culture")).toBe("unknown");
-		expect(mapCategory(null)).toBe("unknown");
-		expect(mapCategory(undefined)).toBe("unknown");
+	it("returns 'uncategorized' for unrecognized categories", () => {
+		// 2026-08-11: the bot now covers all 17 Kalshi
+		// categories. Anything not on the list (e.g. a
+		// Kalshi-internal category name the bot hasn't seen,
+		// or a typo) falls through to "uncategorized" — the
+		// bot still evaluates it via the LLM, but the LLM
+		// signal is the only strategy (no reversion model).
+		// The pre-2026-08-11 return value of "unknown" is
+		// now "uncategorized" to match the expanded Vertical
+		// enum.
+		expect(mapCategory("Culture")).toBe("uncategorized");
+		expect(mapCategory("Real Estate")).toBe("uncategorized");
+		expect(mapCategory(null)).toBe("uncategorized");
+		expect(mapCategory(undefined)).toBe("uncategorized");
 	});
 });

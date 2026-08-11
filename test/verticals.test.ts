@@ -57,9 +57,12 @@ describe("/api/pm/verticals (chunk 10.8c)", () => {
 			}>;
 		};
 		expect(body.ok).toBe(true);
-		expect(body.verticals).toHaveLength(4);
+		// 2026-08-11: expanded from 4 → 17 verticals. The
+		// test now checks the legacy 4 are present in the
+		// full list (other tests can drill into the new 13).
+		expect(body.verticals.length).toBeGreaterThanOrEqual(4);
 		const ids = body.verticals.map((v) => v.id).sort();
-		expect(ids).toEqual(["economic", "politics", "sports", "weather"]);
+		expect(ids).toEqual(expect.arrayContaining(["economic", "politics", "sports", "weather"]));
 
 		const weather = body.verticals.find((v) => v.id === "weather")!;
 		expect(weather.active).toBe(true);
