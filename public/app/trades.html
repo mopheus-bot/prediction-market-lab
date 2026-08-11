@@ -9,7 +9,17 @@
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
-	<body>
+	<body data-trading-mode="paper" data-kill-switch="false">
+		<!-- 2026-08-10: mode banner. The data-trading-mode
+		     attribute on <body> is the source of truth; CSS
+		     uses [data-trading-mode="paper"] vs [data-trading-mode="real"]
+		     to swap colors + visibility. SSE `mode_change`
+		     events update the attribute live. -->
+		<div id="trades-mode-banner" class="mode-banner paper">
+			<span class="mode-banner-dot" aria-hidden="true"></span>
+			<span class="mode-banner-text">PAPER TRADING · no real money at risk</span>
+			<span class="mode-banner-kill" id="trades-kill-indicator" hidden>KILL SWITCH ON · no new trades</span>
+		</div>
 		<div class="app-shell">
 			<div class="app-section-header">
 				<h2>Trades</h2>
@@ -65,6 +75,21 @@
 							<div class="kpi-sub" id="trades-signals-sub">model fires</div>
 						</div>
 					</div>
+				</div>
+			</section>
+
+			<!-- ============================================ -->
+			<!-- LIVE SIGNAL STREAM (Phase 2, 2026-08-10)   -->
+			<!-- ============================================ -->
+			<section class="card" id="trades-signal-stream-section" style="margin-bottom: 20px;">
+				<div class="card-title">
+					<span aria-hidden="true">↯</span>
+					<span>Live signal stream</span>
+					<span class="muted mono" id="trades-signal-stream-status" style="margin-left: auto; font-size: 11px;">—</span>
+				</div>
+				<div class="card-blurb">The most recent signals the strategy has fired. Prepended live via SSE — no manual refresh. <span class="paper-only">In paper mode, every signal is hypothetical.</span><span class="real-only">In real mode, every signal may result in a real order.</span></div>
+				<div id="trades-signal-stream" class="trades-signal-stream">
+					<div class="muted" id="trades-signal-stream-empty">no signals yet — wait for the strategy to fire</div>
 				</div>
 			</section>
 
@@ -354,7 +379,11 @@
 
 				const pnlCls = totalPnlCents > 0 ? "ok" : totalPnlCents < 0 ? "bad" : "muted";
 				heroEl.setAttribute("data-color", pnlCls === "muted" ? "ok" : pnlCls);
-				totalPnlEl.textContent = fmtCents(totalPnlCents);
+				// 2026-08-10: every $X.XX gets a (+Y.YY%) next
+				// to it (% of bankroll). fmtCentsPct is provided
+				// by app.js — it uses the global _bankrollCents
+				// which the SSE init event seeds.
+				totalPnlEl.textContent = fmtCentsPct(totalPnlCents);
 				totalPnlEl.className = `pos-hero-num mono ${pnlCls}`;
 				totalPnlSub.textContent = closedTrades.length === 0
 					? "0 closed trades"
@@ -366,11 +395,13 @@
 				modeSplitEl.textContent = `${paperTrades.length} / ${realTrades.length}`;
 				modeSubEl.textContent = "paper / real";
 
-				pnl24hEl.textContent = fmtCents(pnl24h);
+				pnl24hEl.textContent = fmtCentsPct(pnl24h);
 				pnl24hEl.className = `kpi-num mono ${pnl24h > 0 ? "ok" : pnl24h < 0 ? "bad" : ""}`;
-				// Sub-line: paper $X · real $X so the operator can
-				// see the mode split without toggling the filter.
-				const pnl24hSplit = `paper ${fmtCents(pnl24hPaper)} · real ${fmtCents(pnl24hReal)}`;
+				// Sub-line: paper $X · real $X with percentages
+				// so the operator can see the mode split at a
+				// glance without toggling the filter.
+				const pnl24hSplit =
+					`paper ${fmtCentsPct(pnl24hPaper)} · real ${fmtCentsPct(pnl24hReal)}`;
 				pnl24hSub.textContent = pnl24hSplit;
 
 				// Paper/real PnL split (lifetime). Each gets its
@@ -379,11 +410,11 @@
 				// as a muted $0.00, not "—", so the line is
 				// always complete and scannable.
 				if (paperPnlEl) {
-					paperPnlEl.textContent = fmtCents(paperPnlCents);
+					paperPnlEl.textContent = fmtCentsPct(paperPnlCents);
 					paperPnlEl.className = `trades-pnl-split-val mono ${paperPnlCents > 0 ? "ok" : paperPnlCents < 0 ? "bad" : "muted"}`;
 				}
 				if (realPnlEl) {
-					realPnlEl.textContent = fmtCents(realPnlCents);
+					realPnlEl.textContent = fmtCentsPct(realPnlCents);
 					realPnlEl.className = `trades-pnl-split-val mono ${realPnlCents > 0 ? "ok" : realPnlCents < 0 ? "bad" : "muted"}`;
 				}
 
@@ -725,11 +756,109 @@
 				renderSignalsTable();
 			}
 
+			// ─── Live signal stream (Phase 2) ───
+			// SSE-driven: every signal from the bot prepends
+			// a card to this stream. Bounded at 20 entries.
+			const _liveSignals = [];
+			const LIVE_SIGNALS_MAX = 20;
+			function renderLiveSignal(sig) {
+				_liveSignals.unshift(sig);
+				if (_liveSignals.length > LIVE_SIGNALS_MAX) {
+					_liveSignals.length = LIVE_SIGNALS_MAX;
+				}
+				const stream = document.getElementById("trades-signal-stream");
+				const empty = document.getElementById("trades-signal-stream-empty");
+				if (empty) empty.remove();
+				const status = document.getElementById("trades-signal-stream-status");
+				if (status) status.textContent = `${_liveSignals.length} most recent`;
+				const card = document.createElement("div");
+				card.className = `trades-signal-card sig-${sig.side} ${sig.p >= 0.6 ? "high-conf" : "low-conf"}`;
+				const age = sig.ts ? fmtAgo(sig.ts) : "now";
+				card.innerHTML = `
+					<span class="sig-side">${sig.side === "yes" ? "YES" : "NO"}</span>
+					<span class="sig-ticker">${escapeHtml(sig.ticker || "?")}</span>
+					<span class="sig-price">@ ${sig.price}¢</span>
+					<span class="sig-p">conf ${(sig.p * 100).toFixed(0)}%</span>
+					<span class="sig-rationale">${escapeHtml((sig.rationale || "").slice(0, 60))}</span>
+					<span class="sig-age">${age}</span>
+				`;
+				stream.prepend(card);
+				// Trim the DOM to LIVE_SIGNALS_MAX
+				while (stream.children.length > LIVE_SIGNALS_MAX) {
+					stream.removeChild(stream.lastChild);
+				}
+			}
+
+			// ─── SSE handlers (Phase 2 of docs/EVENT-DRIVEN-UI.md) ──
+			//
+			// 2026-08-10: replace the 5s setInterval fallback with
+			// real SSE-driven updates. Initial render is still a
+			// fetch (D1 has the trade history), but ongoing
+			// updates come through the event bus.
+			registerSSEHandler("init", (data) => {
+				// Set the body attrs that drive mode-aware CSS
+				// swaps (paper vs real banner, real-only sections).
+				if (data && data.config) {
+					document.body.setAttribute("data-trading-mode", data.config.trading_mode || "paper");
+					document.body.setAttribute("data-kill-switch", String(!!data.config.kill_switch));
+					window.setBankrollCents(data.config.bankroll_cents);
+				}
+			});
+			registerSSEHandler("mode_change", (data) => {
+				if (data && data.trading_mode) {
+					document.body.setAttribute("data-trading-mode", data.trading_mode);
+				}
+			});
+			registerSSEHandler("kill_switch", (data) => {
+				const on = !!data?.on;
+				document.body.setAttribute("data-kill-switch", String(on));
+				const killIndicator = document.getElementById("trades-kill-indicator");
+				if (killIndicator) {
+					if (on) killIndicator.removeAttribute("hidden");
+					else killIndicator.setAttribute("hidden", "");
+				}
+			});
+			registerSSEHandler("signal", (data) => {
+				if (!data) return;
+				renderLiveSignal(data);
+			});
+			registerSSEHandler("trade_close", (data) => {
+				// Prepend the new closed trade, invalidate the
+				// cache, re-render hero + chart. The trades
+				// table itself refreshes on the next 5s poll
+				// (the SSE is best-effort for the historical
+				// table; the live chart + KPIs are the primary
+				// view).
+				if (!data) return;
+				if (_tradesRaw.data) {
+					_tradesRaw.data.unshift({
+						ticker: data.ticker,
+						side: data.side,
+						action: "close",
+						price_cents: data.exit_price,
+						size: data.size,
+						pnl_cents: data.pnl_cents,
+						ts: data.ts,
+						signal_rationale: data.rationale,
+						vertical: "auto",
+						is_paper: 1, // SSE doesn't carry mode; default paper
+					});
+				}
+				readFilters();
+				_tradesCache = applyFilters(_tradesRaw.data || []);
+				renderTradesHero(_tradesRaw.data || []);
+				renderPnlChart(_tradesRaw.data || []);
+				renderTradesTable();
+			});
+
 			// ─── Wire into app.js ───
 			const _origInit = window.appPageInit;
 			window.appPageInit = function tradesPageInit() {
 				if (_origInit) _origInit();
-				startTimers([{ fn: renderTradesPage, ms: 5000 }]);
+				// Fallback: 30s poll in case SSE drops. The SSE
+				// is the primary channel; this just keeps the
+				// table fresh if the connection is lost.
+				startTimers([{ fn: renderTradesPage, ms: 30_000 }]);
 				renderTradesPage();
 			};
 			window.appPageOnVisible = function () {

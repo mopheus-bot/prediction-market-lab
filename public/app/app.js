@@ -53,6 +53,49 @@ const fmtCents = (c) => {
 	const dollars = (abs / 100).toFixed(2);
 	return `${sign}$${dollars}`;
 };
+// 2026-08-10: every $X.XX should also show a percentage.
+// % of bankroll by default. The bankroll is the only
+// static denominator the dashboard has (it changes on every
+// trade but is otherwise the natural "size of the pot").
+// Returns null on missing bankroll so callers can fall
+// back to fmtCents (the percent rendering is layered on,
+// never blocks the $).
+let _bankrollCents = null;
+window.setBankrollCents = (c) => {
+	if (c !== null && c !== undefined && Number.isFinite(c)) _bankrollCents = c;
+};
+window.getBankrollCents = () => _bankrollCents;
+const fmtCentsPct = (c, opts) => {
+	const base = fmtCents(c);
+	if (c === null || c === undefined) return base;
+	if (_bankrollCents === null || _bankrollCents === 0) return base;
+	const denom = opts?.denom ?? _bankrollCents;
+	const pct = (c / denom) * 100;
+	const pctSign = pct < 0 ? "−" : pct > 0 ? "+" : "";
+	const absPct = Math.abs(pct);
+	let pctStr;
+	if (absPct < 0.001) pctStr = "0.00%";
+	else if (absPct < 1) pctStr = absPct.toFixed(3) + "%";
+	else if (absPct < 10) pctStr = absPct.toFixed(2) + "%";
+	else pctStr = absPct.toFixed(1) + "%";
+	return `${base} (${pctSign}${pctStr})`;
+};
+// Same as fmtCentsPct but ONLY the percentage (no $).
+// For KPIs that already have the $ in a separate element.
+const fmtPctOnly = (c, opts) => {
+	if (c === null || c === undefined) return "—";
+	if (_bankrollCents === null || _bankrollCents === 0) return "—";
+	const denom = opts?.denom ?? _bankrollCents;
+	const pct = (c / denom) * 100;
+	const pctSign = pct < 0 ? "−" : pct > 0 ? "+" : "";
+	const absPct = Math.abs(pct);
+	let pctStr;
+	if (absPct < 0.001) pctStr = "0.00%";
+	else if (absPct < 1) pctStr = absPct.toFixed(3) + "%";
+	else if (absPct < 10) pctStr = absPct.toFixed(2) + "%";
+	else pctStr = absPct.toFixed(1) + "%";
+	return `${pctSign}${pctStr}`;
+};
 const fmtNum = (n) => (n === null || n === undefined ? "—" : n.toLocaleString());
 const fmtTime = (ts) => {
 	if (!ts) return "—";
@@ -1582,6 +1625,114 @@ function stopTimers() {
 	_appTimers = [];
 }
 
+// ─── SSE event bus (Phase 2 of docs/EVENT-DRIVEN-UI.md) ────────
+//
+// Replaces (or supplements) the timer-polling pattern.
+// The LiveBot DO pushes events to /api/pm/bot/stream;
+// we dispatch them to registered handlers. Pages call
+// `registerSSEHandler("trade_close", (data) => { ... })`
+// in their appPageInit, and the events drive DOM updates
+// in place — no manual refresh.
+//
+// EventSource auto-reconnects on disconnect. We track
+// connection state on a small indicator element so the
+// operator can see "live" vs "reconnecting…".
+let _sseSource = null;
+let _sseConnected = false;
+const _sseHandlers = {};
+let _sseReconnectDelay = 1000;
+let _sseReconnectTimer = null;
+
+function _sseDispatch(event, data) {
+	const fns = _sseHandlers[event];
+	if (!fns) return;
+	for (const fn of fns) {
+		try {
+			fn(data);
+		} catch (e) {
+			console.error(`[sse] handler for ${event} threw:`, e);
+		}
+	}
+}
+
+function _sseSetStatus(state) {
+	// Update the connection indicator in the nav (if
+	// present). Pages that don't have it get a no-op.
+	const el = document.getElementById("sse-connection-status");
+	if (!el) return;
+	el.classList.remove("sse-live", "sse-reconnecting", "sse-dead");
+	if (state === "live") el.classList.add("sse-live");
+	else if (state === "reconnecting") el.classList.add("sse-reconnecting");
+	else el.classList.add("sse-dead");
+	el.title = state === "live"
+		? "live event stream connected"
+		: state === "reconnecting"
+			? "reconnecting to event stream…"
+			: "event stream disconnected";
+}
+
+function _sseConnect() {
+	if (_sseSource) {
+		try { _sseSource.close(); } catch (_e) {}
+		_sseSource = null;
+	}
+	try {
+		_sseSource = new EventSource("/api/pm/bot/stream");
+	} catch (e) {
+		// EventSource ctor can throw on bad URL.
+		console.error("[sse] failed to open EventSource:", e);
+		_sseScheduleReconnect();
+		return;
+	}
+	// Per-event listeners. EventSource doesn't have a wildcard;
+	// we wire up listeners for every known event name. New
+	// events that arrive without a listener go to /dev/null.
+	const knownEvents = [
+		"init", "poll", "signal", "trade_open", "trade_close",
+		"unrealized_pnl", "risk", "auto_promote", "universe",
+		"mode_change", "kill_switch",
+	];
+	for (const ev of knownEvents) {
+		_sseSource.addEventListener(ev, (e) => {
+			let data = null;
+			try { data = JSON.parse(e.data); } catch (_err) {}
+			_sseDispatch(ev, data);
+		});
+	}
+	_sseSource.addEventListener("open", () => {
+		_sseConnected = true;
+		_sseReconnectDelay = 1000; // reset backoff on success
+		_sseSetStatus("live");
+	});
+	_sseSource.addEventListener("error", () => {
+		_sseConnected = false;
+		_sseSetStatus("reconnecting");
+		// EventSource auto-reconnects, but in some browser
+		// implementations it gives up after a few tries. We
+		// explicitly close + reopen with backoff to be sure.
+		_sseScheduleReconnect();
+	});
+}
+
+function _sseScheduleReconnect() {
+	if (_sseReconnectTimer !== null) return;
+	_sseReconnectDelay = Math.min(_sseReconnectDelay * 2, 30_000);
+	_sseReconnectTimer = setTimeout(() => {
+		_sseReconnectTimer = null;
+		_sseConnect();
+	}, _sseReconnectDelay);
+}
+
+window.registerSSEHandler = function (event, fn) {
+	if (typeof event !== "string" || typeof fn !== "function") return;
+	if (!_sseHandlers[event]) _sseHandlers[event] = [];
+	_sseHandlers[event].push(fn);
+};
+
+window.connectSSE = function () {
+	_sseConnect();
+};
+
 window.appPageInit = window.appPageInit || function defaultAppPageInit() {
 	// Default = the original single-page refresh cycle. Sub-pages
 	// can override by setting `window.appPageInit = function() {...}`
@@ -1606,6 +1757,13 @@ document.addEventListener("visibilitychange", () => {
 
 document.addEventListener("DOMContentLoaded", () => {
 	injectAppNav();
+	// 2026-08-10: open the SSE event bus. Every open page
+	// gets a live stream of bot events; the EventSource
+	// auto-reconnects on disconnect. Pages register their
+	// own handlers in appPageInit.
+	if (typeof window.connectSSE === "function") {
+		window.connectSSE();
+	}
 	if (typeof window.appPageInit === "function") {
 		window.appPageInit();
 	}
