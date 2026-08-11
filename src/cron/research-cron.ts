@@ -94,6 +94,12 @@ import type { CronEnv, CronResult } from "./dispatcher.js";
 const MAX_PAGES = 30;
 const PAGE_SIZE = 200;
 const REQUEST_TIMEOUT_MS = 8_000;
+// 2026-08-11: cap GETs at 100 per cron. With 4 req/s
+// throttle + 100 GETs = 25s wall-clock for the GET
+// phase + 6s for 30 LIST pages = ~31s — just over
+// the 30s limit. Bump throttle to 5 to fit. See
+// buildKalshiClientAsync below.
+const MAX_GETS = 100;
 // Skip the parlay block at the LIST level. These are
 // the 60k+ multi-leg bundles Kalshi pushes — the bot's
 // strategies (naive, reversion, LLM) don't price them,
@@ -176,7 +182,7 @@ async function buildKalshiClientAsync(env: CronEnv): Promise<KalshiClient | null
 			return new KalshiClient({
 				baseUrl: DEFAULT_PRODUCTION_BASE,
 				credentials: creds,
-				requestsPerSecond: 4,
+				requestsPerSecond: 5,
 			});
 		} catch (e) {
 			console.warn("[research] failed to load Kalshi prod creds", e);
@@ -189,7 +195,7 @@ async function buildKalshiClientAsync(env: CronEnv): Promise<KalshiClient | null
 			return new KalshiClient({
 				baseUrl: "https://demo-api.kalshi.co/trade-api/v2",
 				credentials: creds,
-				requestsPerSecond: 4,
+				requestsPerSecond: 5,
 			});
 		} catch (e) {
 			console.warn("[research] failed to load Kalshi demo creds", e);
@@ -291,6 +297,26 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 			});
 		}
 		nLookedActive = looksActiveMarkets.length;
+		// 2026-08-11 (Phase 4, followup #3): cap the GET
+		// workload. Even after the parlay skip, there are
+		// 1,000+ single-event markets. With 4 req/s
+		// throttle, 1,000 GETs × 250ms = 250s wall-clock —
+		// 8x over the 30s Worker limit. Sort by liquidity
+		// (vol_24h + OI*5, same as the leads-scout) and
+		// take the top 100. These are the markets most
+		// likely to have real two-sided quotes AND matter
+		// to the bot's decisions. The bot's own universe
+		// (~40 tickers) is always included via the 3b
+		// pass below (which adds the universe BEFORE
+		// the cap is applied).
+		looksActiveMarkets.sort(
+			(a, b) =>
+				(b.volume_24h + b.open_interest * 5) -
+				(a.volume_24h + a.open_interest * 5),
+		);
+		if (looksActiveMarkets.length > MAX_GETS) {
+			looksActiveMarkets.length = MAX_GETS;
+		}
 
 		// 3b. 2026-08-10: also pull the bot's current ticker
 		//     universe from the LiveBot DO and add those to
