@@ -398,26 +398,55 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	// Filter to the union of (bot universe ∪ live markets) so
 	// the LLM gets verdicts on every tradeable market, not
 	// just the bot's current tickers.
-	const placeholders = allTickers.map((_, i) => `?${i + 2}`).join(",");
-	const latestRows = await env.DB
-		.prepare(
-			`SELECT * FROM (
-			  SELECT *, ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ts DESC) AS rn
-			  FROM live_market_snapshots
-			  WHERE user_id = ?1 AND ticker IN (${placeholders})
-			) WHERE rn = 1`,
-		)
-		.bind(userId, ...allTickers)
-		.all<{
-			ticker: string;
-			event_ticker: string | null;
-			title: string | null;
-			yes_bid_cents: number;
-			yes_ask_cents: number;
-			last_price_cents: number | null;
-		} & { rn: number }>();
-	const snapByTicker = new Map<string, (typeof latestRows.results)[number]>();
-	for (const row of latestRows.results ?? []) snapByTicker.set(row.ticker, row);
+	//
+	// 2026-08-11 (Phase 4, expansion): chunked the
+	// snapshot query to match the price-history query.
+	// Previously the IN-clause had a single placeholders
+	// string with all allTickers, which hit D1's 100-param
+	// bind cap (D1_ERROR: variable number must be between
+	// ?1 and ?100) when allTickers exceeded ~99 tickers.
+	// At LLM_LOOP_CAP=200 + the bot universe of 40
+	// KXMVECROSSCATEGORY parlays, that crash was every
+	// run. Now: chunk the same way the price-history
+	// query does (CHUNK=90) and merge the results into a
+	// single Map.
+	const snapByTicker = new Map<string, {
+		ticker: string;
+		event_ticker: string | null;
+		title: string | null;
+		yes_bid_cents: number;
+		yes_ask_cents: number;
+		last_price_cents: number | null;
+		volume_24h: number | null;
+		open_interest: number | null;
+	}>();
+	{
+		const SNAP_CHUNK = 90;
+		for (let i = 0; i < allTickers.length; i += SNAP_CHUNK) {
+			const slice = allTickers.slice(i, i + SNAP_CHUNK);
+			const placeholders = slice.map((_, j) => `?${j + 2}`).join(",");
+			const latestRows = await env.DB
+				.prepare(
+					`SELECT * FROM (
+					  SELECT *, ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ts DESC) AS rn
+					  FROM live_market_snapshots
+					  WHERE user_id = ?1 AND ticker IN (${placeholders})
+					) WHERE rn = 1`,
+				)
+				.bind(userId, ...slice)
+				.all<{
+					ticker: string;
+					event_ticker: string | null;
+					title: string | null;
+					yes_bid_cents: number;
+					yes_ask_cents: number;
+					last_price_cents: number | null;
+					volume_24h: number | null;
+					open_interest: number | null;
+				} & { rn: number }>();
+			for (const row of latestRows.results ?? []) snapByTicker.set(row.ticker, row);
+		}
+	}
 
 	// 2026-08-11 (Phase 3, all-three): also pull the last 1h
 	// of snapshots per ticker so the LLM can see price
