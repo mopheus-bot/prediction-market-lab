@@ -192,6 +192,15 @@ export default {
 		}
 
 		// ─── API: /api/pm/bot/* → live bot DO (chunk 3) ─────────────────
+		// 2026-08-10: SSE stream. Live push of bot events
+		// (poll, signal, trade_open, trade_close, mode_change,
+		// kill_switch, auto_promote). See docs/EVENT-DRIVEN-UI.md
+		// for the full event vocabulary. Long-lived
+		// text/event-stream; the DO pushes events as side
+		// effects of the polling feed + trade lifecycle.
+		if (path === "/api/pm/bot/stream" && request.method === "GET") {
+			return forwardToBot(env, request, "/stream");
+		}
 		if (path === "/api/pm/bot/status" && request.method === "GET") {
 			return forwardToBot(env, request, "/status");
 		}

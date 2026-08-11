@@ -318,6 +318,15 @@ export class LiveBot implements DurableObject {
 	private _nPollErrors = 0;
 	/** Last poll error (network, 429, parse). Cleared on next success. */
 	private _lastPollError: { ts_ms: number; code: string; message: string } | null = null;
+	// 2026-08-10: SSE event bus. Each open dashboard page
+	// subscribes via /stream; the polling feed + trade
+	// lifecycle + control endpoints fan out events as side
+	// effects. Clients are in-memory only — DO evictions
+	// wipe the Set, which is fine (the next page-load gets
+	// a fresh `init` event from /stream).
+	// See docs/EVENT-DRIVEN-UI.md for the full event vocabulary.
+	private _sseClients: Set<ReadableStreamDefaultController<Uint8Array>> = new Set();
+	private _sseKeepalive: ReturnType<typeof setInterval> | null = null;
 	// Model cache (chunk 4). Loaded from R2 on /start, reused
 	// across every signal call. Re-loaded if the model_version
 	// changes via a subsequent /start call. We don't persist
@@ -596,6 +605,59 @@ export class LiveBot implements DurableObject {
 		}
 	}
 
+	// ─── SSE event bus ────────────────────────────────────────────
+	//
+	// 2026-08-10: see docs/EVENT-DRIVEN-UI.md. Each connected
+	// dashboard page holds one WritableStreamDefaultWriter;
+	// the DO pushes events as side effects of the polling
+	// feed + trade lifecycle + control endpoints. Clients
+	// that throw on enqueue are dropped (their connection is
+	// dead). The first event a client sees is `init` (the
+	// full current state) so they can render immediately
+	// without waiting for a state change.
+	//
+	// SSE format:
+	//   event: <name>\n
+	//   data: <json>\n
+	//   \n
+	// Comments (": keepalive\n\n") every 15s prevent proxies
+	// from killing the connection.
+
+	private _sseEncode(event: string, data: unknown): Uint8Array {
+		const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+		return new TextEncoder().encode(payload);
+	}
+
+	private _sseEmit(event: string, data: unknown): void {
+		if (this._sseClients.size === 0) return;
+		const frame = this._sseEncode(event, data);
+		const dead: ReadableStreamDefaultController<Uint8Array>[] = [];
+		for (const controller of this._sseClients) {
+			try {
+				controller.enqueue(frame);
+			} catch (_e) {
+				dead.push(controller);
+			}
+		}
+		for (const controller of dead) this._sseClients.delete(controller);
+	}
+
+	private _sseEnsureKeepalive(): void {
+		if (this._sseKeepalive !== null) return;
+		this._sseKeepalive = setInterval(() => {
+			// Comment line keeps proxies + browsers from
+			// killing the connection during quiet periods.
+			const keepalive = new TextEncoder().encode(": keepalive\n\n");
+			for (const controller of this._sseClients) {
+				try {
+					controller.enqueue(keepalive);
+				} catch (_e) {
+					this._sseClients.delete(controller);
+				}
+			}
+		}, 15_000);
+	}
+
 	// ─── fetch() — control endpoint ──────────────────────────────
 
 	async fetch(request: Request): Promise<Response> {
@@ -615,6 +677,56 @@ export class LiveBot implements DurableObject {
 		const state = await this.ensureState();
 
 		switch (path) {
+			case "/stream": {
+				// 2026-08-10: Server-Sent Events stream.
+				// Returns a long-lived text/event-stream
+				// response. The DO pushes events as side
+				// effects of the polling feed + trade
+				// lifecycle; the SSE client in the UI
+				// updates DOM in place.
+				// We use a ReadableStream + its controller
+				// directly: the controller.enqueue() is the
+				// "write" side, and we add the controller
+				// to _sseClients for the rest of the bus to
+				// push into.
+				const stateForInit = await this.loadState();
+				const initPayload = stateForInit
+					? { ok: true, config: stateForInit.config }
+					: { ok: false, error: "no_state" };
+				const encoder = new TextEncoder();
+				let controllerRef: ReadableStreamDefaultController<Uint8Array> | null = null;
+				const stream = new ReadableStream<Uint8Array>({
+					start: (controller) => {
+						controllerRef = controller;
+						this._sseClients.add(controller);
+					},
+					cancel: () => {
+						if (controllerRef) this._sseClients.delete(controllerRef);
+					},
+				});
+				this._sseEnsureKeepalive();
+				// Send the initial `init` frame so the
+				// client can render immediately. queueMicrotask
+				// defers until after the stream is wired so
+				// the controller is set.
+				queueMicrotask(() => {
+					if (controllerRef) {
+						try {
+							controllerRef.enqueue(encoder.encode(`event: init\ndata: ${JSON.stringify(initPayload)}\n\n`));
+						} catch (_e) {
+							this._sseClients.delete(controllerRef);
+						}
+					}
+				});
+				return new Response(stream, {
+					headers: {
+						"content-type": "text/event-stream",
+						"cache-control": "no-cache, no-transform",
+						"connection": "keep-alive",
+						"x-accel-buffering": "no",
+					},
+				});
+			}
 			case "/status": {
 				// Compute unrealized PnL per open position.
 				// Mark is the latest of: orderbook mid, last
@@ -810,6 +922,13 @@ export class LiveBot implements DurableObject {
 				const s = await this.ensureState();
 				const previous = s.config.trading_mode;
 				s.config.trading_mode = mode;
+				// 2026-08-10: SSE fan-out. UI pages swap their
+				// mode banner + visibility of real-mode-only
+				// sections on this event.
+				this._sseEmit("mode_change", {
+					trading_mode: mode,
+					previous_mode: previous,
+				});
 				// Chunk 10.8c: when going to "real", re-pull
 				// bankroll from Kalshi so position sizing matches
 				// the operator's actual balance. Failure to pull
@@ -857,6 +976,8 @@ export class LiveBot implements DurableObject {
 				const on = body.on !== false; // default: activate
 				const s = await this.ensureState();
 				s.config.kill_switch = on;
+				// 2026-08-10: SSE fan-out.
+				this._sseEmit("kill_switch", { on });
 				await this.saveState(s);
 				return Response.json({
 					ok: true,
@@ -945,6 +1066,14 @@ export class LiveBot implements DurableObject {
 					...(s.config.ticker_verticals ?? {}),
 					[ticker]: vertical,
 				};
+				// 2026-08-10: SSE fan-out. UI pages add the
+				// new ticker to the universe list instantly.
+				this._sseEmit("auto_promote", {
+					ticker,
+					vertical,
+					confidence,
+					universe_size: s.config.tickers.length,
+				});
 				// Initialise the per-ticker state. Mirror the
 				// shape of an existing ticker in state.tickers
 				// so the polling feed doesn't have to handle
@@ -1163,6 +1292,18 @@ export class LiveBot implements DurableObject {
 				s.risk_state.daily_notional_history = notionalHistory;
 				s.n_trades += 1;
 				await this.saveState(s);
+
+				// 2026-08-10: SSE fan-out. UI updates the
+				// positions table + open PnL instantly. This
+				// path is /place-test-order (manual) — the
+				// signal-driven path emits in maybeRecordTrade.
+				this._sseEmit("trade_open", {
+					ticker,
+					side,
+					size,
+					entry_price: priceCents,
+					rationale: "manual",
+				});
 
 				// Chunk 10.8: Telegram on manual test orders too.
 				// The Telegram send in maybeRecordTrade only
@@ -1808,6 +1949,17 @@ export class LiveBot implements DurableObject {
 				this._nPolls += 1;
 				this._lastPollMs = Date.now() - pollStart;
 				this._lastPollError = null;
+				// 2026-08-10: SSE fan-out. UI dashboards
+				// update per-ticker price cells + sparklines
+				// on every poll. Keep this lightweight (single
+				// integer mid) — the UI caches the rest.
+				this._sseEmit("poll", {
+					ticker,
+					mid,
+					has_book: t.book !== null,
+					trade_count: t.trade_count,
+					ts: Date.now(),
+				});
 				// 2026-08-10: write the orderbook to D1 so the
 				// dashboard's "live markets" view reflects what
 				// the bot is actually polling in <SNAPSHOT_DEBOUNCE_MS
@@ -2056,6 +2208,17 @@ export class LiveBot implements DurableObject {
 			const sig = router.__call(ctx);
 			if (sig === null) continue;
 			state.n_signals += 1;
+			// 2026-08-10: SSE fan-out. Every signal — filled
+			// or rejected — emits a `signal` event so the
+			// UI can show a live "signal stream" panel.
+			this._sseEmit("signal", {
+				ticker,
+				side: sig.side,
+				price: sig.price,
+				p: sig.p,
+				rationale: sig.rationale,
+				ts: Date.now(),
+			});
 			await this.maybeRecordTrade(state, ticker, sig);
 		}
 	}
@@ -2603,6 +2766,18 @@ export class LiveBot implements DurableObject {
 			vertical: String(t.vertical),
 			pnl_cents: closed.pnl_cents,
 		}).catch((e) => console.error("[live-bot] trade write failed", e));
+		// 2026-08-10: SSE fan-out. UI updates the PnL
+		// chart + KPIs + positions table on the close.
+		this._sseEmit("trade_close", {
+			ticker,
+			side: pos.side,
+			size: pos.size,
+			entry_price: pos.entry_price_cents,
+			exit_price: markCents,
+			pnl_cents: closed.pnl_cents,
+			rationale,
+			ts: Date.now(),
+		});
 		return closed.pnl_cents;
 	}
 
