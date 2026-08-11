@@ -112,13 +112,33 @@ export async function runTrainCron(env: CronEnv): Promise<CronResult> {
 					const parsed = parseModelKey(obj.key);
 					if (!parsed) continue;
 					const { vertical, version } = parsed;
-					if (knownVersions.has(version)) {
+					// 2026-08-11: dedup key is now
+					// (vertical, version) instead of version
+					// alone. A single train run produces one
+					// model per vertical with the same
+					// version (e.g. "weather-20260811" and
+					// "elections-20260811" both produced by
+					// the 2026-08-11 wrapper run). The old
+					// dedup would register the first one and
+					// silently skip the rest. To match the
+					// D1 PRIMARY KEY (user_id, version) we
+					// also suffix the version with the
+					// vertical so each row is unique.
+					const dedupKey = `${vertical}:${version}`;
+					if (knownVersions.has(dedupKey)) {
 						artifacts.skipped.push(`${vertical}:${version}`);
 						continue;
 					}
 					await modelsDb.upsert(env.DB, {
 						user_id: DEFAULT_USER_ID,
-						version,
+						// Synthesize a unique D1 version from
+						// the (vertical, version) pair. The
+						// R2 key keeps the natural
+						// `reversion-{vertical}-{version}.json`
+						// naming; the D1 version is what the
+						// rest of the system (status API,
+						// /promote) addresses models by.
+						version: `${vertical}-${version}`,
 						vertical,
 						artifact_path: obj.key,
 						trained_on_data_until: null,
@@ -129,7 +149,7 @@ export async function runTrainCron(env: CronEnv): Promise<CronResult> {
 						notes: "registered by train-cron",
 					});
 					artifacts.registered.push(`${vertical}:${version}`);
-					knownVersions.add(version);
+					knownVersions.add(dedupKey);
 				}
 				if (!listed.truncated || !listed.cursor) break;
 				cursor = listed.cursor;
