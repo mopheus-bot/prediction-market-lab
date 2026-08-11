@@ -41,8 +41,10 @@ describe("RiskConfig", () => {
 	});
 
 	it("rejects position_size_pct > max_per_market_pct", () => {
+		// 2026-08-10: max_per_market_pct bumped 0.05 → 0.15 for
+		// paper-mode expansion. Use a value above the new cap.
 		expect(() =>
-			validateRiskConfig({ ...defaultRiskConfig(), position_size_pct: 0.10 }),
+			validateRiskConfig({ ...defaultRiskConfig(), position_size_pct: 0.20 }),
 		).toThrow();
 	});
 

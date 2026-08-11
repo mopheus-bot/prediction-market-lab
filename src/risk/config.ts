@@ -16,8 +16,14 @@
 
 export const DEFAULT_STARTING_BANKROLL_CENTS = 1_000_000; // $10K
 export const DEFAULT_POSITION_SIZE_PCT = 0.01;
-export const DEFAULT_MAX_PER_MARKET_PCT = 0.05;
-export const DEFAULT_MAX_CONCURRENT_POSITIONS = 3;
+export const DEFAULT_MAX_PER_MARKET_PCT = 0.15;
+// 2026-08-10 21:00 (paper-mode expansion): the bot's universe
+// is 23 markets but max_concurrent_positions=3 was locking the
+// rest out. Bumped 3 → 10 so the bot can actually hold positions
+// across the expanded universe. With 10 positions × $50/trade
+// max, peak open exposure is $500 = 5% of $10k bankroll. Still
+// well within the 15% per-market cap and 10% drawdown pause.
+export const DEFAULT_MAX_CONCURRENT_POSITIONS = 10;
 export const DEFAULT_DRAWDOWN_PAUSE_PCT = 0.10;
 export const DEFAULT_DRAWDOWN_PAUSE_TICKS = 86_400; // 24h @ 1 tick/s
 export const DEFAULT_LOSS_STREAK_LIMIT = 3;

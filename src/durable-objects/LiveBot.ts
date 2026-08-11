@@ -473,8 +473,15 @@ export class LiveBot implements DurableObject {
 				// balance. Operators bump via /start when
 				// ready to test with a bigger bag.
 				trading_mode: "paper",
-				max_notional_cents_per_trade: 25, // $0.25
-				daily_notional_cents_cap: 150, // $1.50
+				// 2026-08-10 21:00 (paper-mode expansion): bumped
+				// defaults. Per-trade from $0.25 to $50; daily cap
+				// from $1.50 to $2,500. The user wants the bot to
+				// actually move with the >5% signals it finds
+				// instead of being locked out by the conservative
+				// defaults. The 10% drawdown pause + 3-loss
+				// cooldown + kill switch remain as the safety net.
+				max_notional_cents_per_trade: 5000, // $50
+				daily_notional_cents_cap: 250000, // $2,500
 				kill_switch: false,
 				// Chunk 11b: per-vertical caps + per-ticker
 				// blocklist. Default to "no override" (null)
