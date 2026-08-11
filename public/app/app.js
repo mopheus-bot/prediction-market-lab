@@ -1646,6 +1646,15 @@ function injectModeBanner() {
 		<span class="mode-banner-kill" id="mode-banner-kill" hidden>KILL SWITCH ON · no new trades</span>
 	`;
 	document.body.insertBefore(banner, document.body.firstChild);
+	// Phase 5: real-money warning strip. Shown only when
+	// trading_mode is "real" (CSS hides it in paper mode).
+	// The SSE init + mode_change handlers update its text
+	// dynamically via setModeBannerState() below.
+	const warn = document.createElement("div");
+	warn.id = "real-money-warning";
+	warn.className = "real-money-warning";
+	warn.textContent = "REAL MONEY MODE · every fill is a live order on Kalshi";
+	document.body.insertBefore(warn, banner.nextSibling);
 }
 
 function setModeBannerState(mode, killOn) {
@@ -1666,6 +1675,15 @@ function setModeBannerState(mode, killOn) {
 	if (killIndicator) {
 		if (killOn) killIndicator.removeAttribute("hidden");
 		else killIndicator.setAttribute("hidden", "");
+	}
+	// Phase 5: real-money warning text updates too.
+	const warn = document.getElementById("real-money-warning");
+	if (warn) {
+		if (mode === "real") {
+			warn.textContent = killOn
+				? "REAL MONEY MODE · KILL SWITCH ACTIVE · no new orders will be placed"
+				: "REAL MONEY MODE · every fill is a live order on Kalshi";
+		}
 	}
 }
 

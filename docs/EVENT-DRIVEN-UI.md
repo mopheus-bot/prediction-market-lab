@@ -166,3 +166,54 @@ Other live charts:
 - WebSockets. SSE is the right fit for one-way push from server to client. The client doesn't need to send events back over the same channel.
 - Replacing the existing JSON `/api/pm/bot/*` endpoints. They stay. The SSE stream is additive.
 - A framework like React/Vue. The current vanilla JS pattern is fine for this scale; the EventSource + DOM-update pattern is what the existing app.js already does (just with a different transport).
+
+## Phase 5 — Mode-aware rendering contract
+
+The UI looks different in paper vs real mode. The contract:
+
+### Body attributes (set by SSE `init` / `mode_change` / `kill_switch` handlers)
+
+- `body[data-trading-mode="paper"]` — default. Blue mode banner, kill switch desaturated, no real-money warning.
+- `body[data-trading-mode="real"]` — amber mode banner + red real-money warning strip, kill switch pulses, "Go live" button has an amber outline.
+- `body[data-trading-mode="off"]` — gray banner, "no new signals" copy.
+- `body[data-kill-switch="true"]` — red banner, "KILL SWITCH ON" badge in the banner, real-money warning text becomes "KILL SWITCH ACTIVE".
+
+### CSS classes
+
+- `.paper-only` — visible only in paper mode. Use for "(simulated)", "(hypothetical)", etc.
+- `.real-only` — visible only in real mode. Use for "real money", "live order" callouts.
+- `.real-only-col` — hidden in paper mode. Use for `<td>` cells that show `real_order_id` or other real-mode-only fields.
+- `.real-money-warning` — shown only in real mode (CSS). The text is updated by `setModeBannerState()` based on mode + kill switch.
+
+### Hero KPI copy
+
+The label and sub-line flip per `trading_mode`:
+- `bankroll`: paper="Paper bankroll (simulated capital)" / real="Real bankroll (real money on Kalshi)" / off="Bankroll (paused)"
+- `pnl-24h`: paper / real / off variants
+- `fees`: paper="Paper fees paid (simulated Kalshi fees)" / real="Real fees paid (Kalshi taker fees)" / off="fees paid (paused)"
+
+The implementation lives in `public/app/index.html` (DASH_KPI_COPY) and `public/app/bot.html` (KPI_COPY). Both must stay in sync.
+
+### Per-page guidance
+
+- **trades.html**: trade detail drawer shows `real_order_id`. In paper mode, the value is always `—` (no real orders are placed). The cancel-button column is hidden in paper mode because no real orders exist to cancel.
+- **bot.html**: kill switch is always visible. The `data-trading-mode` CSS makes it more prominent (pulse animation) in real mode. The "Go live" button is disabled in real mode (you can't "go live" twice — use the kill switch to return to paper).
+- **positions.html**: the close-position button is always visible. The trade's `real_order_id` (if any) is shown in the trade detail drawer; in paper mode it's always `—`.
+- **dev.html**: no mode-aware changes beyond the global mode banner. The endpoint list is the same for both modes; the operator can POST to `/trading-mode` or `/kill-switch` from dev regardless of mode.
+
+### Connection status chip
+
+In the top nav: a small chip that shows the SSE connection state.
+- Green pulsing dot + "live" — EventSource is connected, the DO is sending events.
+- Amber dot + "reconnecting…" — EventSource lost the connection, auto-reconnect with exponential backoff (1s → 30s).
+- Red dot + "disconnected" — connection failed, the fallback poll takes over.
+
+This is the operator's "is the live feed working" indicator. The data updates only when this is green.
+
+### Implementation rules
+
+- **Don't use JavaScript conditionals for mode-aware rendering.** CSS selectors on `body[data-trading-mode=...]` are the source of truth. JS only updates the attribute. This keeps the rendering logic out of every renderer.
+- **Don't re-render the whole page on mode change.** Just set the attribute; CSS does the rest.
+- **Percentages are non-negotiable.** Every dollar value in any KPI, hero, table cell, or detail row gets a `(±Y.YY%)` next to it (% of bankroll). The `fmtCentsPct()` helper in `app.js` does this.
+- **Live data over cached data.** Every page renders a 30s fallback poll for the historical tables. The SSE handlers drive the live updates. If SSE is down, the page still works (stale, but works).
+

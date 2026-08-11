@@ -2879,3 +2879,77 @@ body[data-trading-mode="real"] .real-only { display: inline; }
 .health-bar-fill[data-fill="bad"] {
   background: #ef4444;
 }
+
+/* ─── Mode-aware emphasis (Phase 5) ─── */
+
+/* In paper mode, soften the kill switch (it can't hurt real money) */
+body[data-trading-mode="paper"] #btn-killswitch {
+  opacity: 0.7;
+  filter: saturate(0.6);
+}
+body[data-trading-mode="paper"] #btn-killswitch:hover {
+  opacity: 1;
+  filter: none;
+}
+
+/* In real mode, make the kill switch + "go live" buttons pulse */
+body[data-trading-mode="real"] #btn-killswitch {
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+  animation: killswitch-pulse 2.4s ease-out infinite;
+}
+@keyframes killswitch-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+  50%      { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+/* "Go live" button — confirm dialog is mandatory in real mode.
+   The handler in bot.html already does confirm(); the CSS just
+   adds visual emphasis so the operator doesn't fat-finger. */
+body[data-trading-mode="real"] #btn-live {
+  border: 2px solid #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+
+/* Real-mode money warning: a strip below the mode banner.
+   In paper mode it's hidden. */
+.real-money-warning {
+  display: none;
+}
+body[data-trading-mode="real"] .real-money-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  background: linear-gradient(
+    90deg,
+    rgba(239, 68, 68, 0.18),
+    rgba(239, 68, 68, 0.06) 50%,
+    rgba(239, 68, 68, 0.18)
+  );
+  border-bottom: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-align: center;
+  justify-content: center;
+}
+body[data-trading-mode="real"] .real-money-warning::before {
+  content: "⚠";
+  font-size: 14px;
+}
+
+/* Real-mode-only columns (e.g. real_order_id in trades table) */
+body[data-trading-mode="paper"] .real-only-col {
+  display: none !important;
+}
+
+/* In real mode, hide the "hypothetical" copy on the signal
+   stream (we already showed it in paper; the operator
+   shouldn't need to see both flavors). */
+body[data-trading-mode="real"] .paper-only {
+  display: none !important;
+}
+body[data-trading-mode="paper"] .real-only {
+  display: none !important;
+}
