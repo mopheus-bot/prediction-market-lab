@@ -2353,7 +2353,35 @@ export class LiveBot implements DurableObject {
 		}
 
 		// Same-side check: skip (no pyramid).
-		if (pos !== null && pos.side === signal.side) return;
+		// 2026-08-11 (Phase 3, all-three): the no-pyramid
+		// rule short-circuited the ADD path. Now we let the
+		// ADD candidate check (further down) decide —
+		// same-side signals with higher conf + 1h hold
+		// become an ADD instead of being silently dropped.
+		// If the ADD criteria aren't met (low conf or
+		// recent entry), we return here so the bot doesn't
+		// fall through to the close-and-flip block.
+		if (pos !== null && pos.side === signal.side) {
+			const holdMsSameSide = Date.now() - pos.entry_ts_ms;
+			const minAddHoldMsSameSide = 60 * 60 * 1000; // 1h
+			const minAddConfMultipleSameSide = 1.2;
+			const isAddCandidateEarly =
+				holdMsSameSide >= minAddHoldMsSameSide &&
+				pos.entry_signal_p > 0 &&
+				signal.p >= pos.entry_signal_p * minAddConfMultipleSameSide;
+			if (!isAddCandidateEarly) {
+				// Same-side signal but doesn't meet ADD
+				// criteria (low conf, recent entry, or no
+				// entry conf to compare against). Don't
+				// fall through to the close-and-flip block
+				// — the bot shouldn't be re-evaluating
+				// the same position on every tick.
+				return;
+			}
+			// Falls through to the ADD candidate check
+			// below, which will execute the add path and
+			// return.
+		}
 
 		// Min entry-p threshold.
 		if (
@@ -2392,18 +2420,221 @@ export class LiveBot implements DurableObject {
 		// minimum hold blocks ANY flip in the first 6h of a
 		// position's life, regardless of how confident the new
 		// signal is — gives the entry thesis time to play out.
+		//
+		// 2026-08-11 (Phase 3, all-three): re-examination path.
+		// The user pointed out that "the more allowance thing
+		// either isn't working or we're not re-examining
+		// already-bought tickers." Both were true: the
+		// $200 per-trade cap was inert for the bot's existing
+		// positions because the only signal-handling path for
+		// an open position was close-and-flip. The 6h hold
+		// blocked everything. New behavior:
+		//
+		//   1. SAME-SIDE, higher-conf signals ADD to the
+		//      position (after 1h hold, conf >= entry conf
+		//      × 1.2). This is the "we got more confirmation,
+		//      scale up" path. The judge sizes the additional
+		//      fill; the per-market cap is enforced before
+		//      the add.
+		//   2. OPPOSING signals can FLIP earlier when the new
+		//      signal is high-confidence (>= 0.85): 1h hold
+		//      instead of 6h. Below 0.85, the 6h hold stays
+		//      (we don't want to churn on every LLM refresh
+		//      at the same confidence level).
 		if (pos !== null) {
-			const minFlipProfitCents = 5;
-			const minFlipSignalRatio = 2.5;
-			const minHoldMs = 6 * 60 * 60 * 1000; // 6h
 			const holdMs = Date.now() - pos.entry_ts_ms;
-			if (holdMs < minHoldMs) {
-				// Position is too young to flip. The entry thesis
-				// needs time to play out. Skip the flip regardless
-				// of how confident the new signal is.
+			const minAddHoldMs = 60 * 60 * 1000; // 1h
+			const minAddConfMultiple = 1.2; // 1.2x the entry conf
+
+			// 1) ADD path: same side + high-conf + held >= 1h.
+			// 2) FLIP path: opposing side, with two sub-rules:
+			//    a) high-conf opposing (>= 0.85): 1h hold
+			//    b) otherwise: 6h hold + 2.5x conf multiple
+			//       (the old 2026-08-10 rule, kept for low-conf
+			//       "the LLM is just refreshing" cases)
+			const isSameSide = signal.side === pos.side;
+			const isHighConfOpposing = !isSameSide && signal.p >= 0.85;
+			const isLowConfOpposing = !isSameSide && signal.p < 0.85;
+			const isAddCandidate =
+				isSameSide &&
+				holdMs >= minAddHoldMs &&
+				pos.entry_signal_p > 0 &&
+				signal.p >= pos.entry_signal_p * minAddConfMultiple;
+
+			if (isAddCandidate) {
+				// ADD path: scale up the existing position.
+				// We let the LLM give us a more confident
+				// opinion and use it to size an additional
+				// fill. Skip the close-and-flip below.
+				const addRisk = this.makeRiskEngine(state);
+				const addJudge = addRisk.judgeSize(
+					signal.price,
+					signal.p,
+					state.risk_state.pnl_history.slice(-5).map((p) => ({ pnl_cents: p })),
+				);
+				// Compute the static computeSize limit so
+				// the per-trade bankroll-pct cap still wins
+				// (mirrors the new-position path).
+				const staticLimit = addRisk.computeSize(signal.price);
+				let addSize = Math.min(addJudge.size, staticLimit);
+
+				// Per-market cap check: the additional cost
+				// must not push the position over the cap.
+				// Compute existing cost from the per-ticker
+				// position (which has entry_price_cents +
+				// size, side-aware cost = (price or
+				// 100-price) × size).
+				const existingCostCents =
+					pos.side === "yes"
+						? pos.entry_price_cents * pos.size
+						: (100 - pos.entry_price_cents) * pos.size;
+				const capCents = Math.floor(
+					state.risk_state.bankroll_cents * 0.15,
+				);
+				const additionalCostCents =
+					signal.side === "yes"
+						? signal.price * addSize
+						: (100 - signal.price) * addSize;
+				if (existingCostCents + additionalCostCents > capCents) {
+					const remaining = capCents - existingCostCents;
+					if (remaining <= 0) {
+						state.last_reject = {
+							ts_ms: Date.now(),
+							ticker,
+							code: "per_market_cap_full",
+							message: `cannot add to ${ticker}: existing cost ${existingCostCents}c already at cap ${capCents}c`,
+						};
+						return;
+					}
+					addSize = Math.floor(
+						signal.side === "yes"
+							? remaining / signal.price
+							: remaining / (100 - signal.price),
+					);
+					if (addSize <= 0) {
+						state.last_reject = {
+							ts_ms: Date.now(),
+							ticker,
+							code: "per_market_cap_no_room",
+							message: `cannot add to ${ticker}: ${remaining}c of room at cap ${capCents}c is too small for one contract`,
+						};
+						return;
+					}
+				}
+
+				// Per-trade cap: the new add's notional must
+				// fit the max_notional_cents_per_trade.
+				const newCostCents =
+					signal.side === "yes"
+						? signal.price * addSize
+						: (100 - signal.price) * addSize;
+				if (newCostCents > state.config.max_notional_cents_per_trade) {
+					addSize = Math.floor(
+						state.config.max_notional_cents_per_trade /
+							(signal.side === "yes" ? signal.price : 100 - signal.price),
+					);
+					if (addSize <= 0) {
+						state.last_reject = {
+							ts_ms: Date.now(),
+							ticker,
+							code: "per_trade_cap_too_tight",
+							message: `cannot add to ${ticker}: per-trade cap too tight to add at price ${signal.price}c`,
+						};
+						return;
+					}
+				}
+
+				// Daily notional cap.
+				const nowMs0 = Date.now();
+				const currentDaily0 = dailyNotionalCents(state.risk_state, nowMs0);
+				const addFinalCostCents =
+					signal.side === "yes"
+						? signal.price * addSize
+						: (100 - signal.price) * addSize;
+				if (currentDaily0 + addFinalCostCents > state.config.daily_notional_cents_cap) {
+					state.last_reject = {
+						ts_ms: nowMs0,
+						ticker,
+						code: "daily_cap_exceeded",
+						message: `add would deploy ${currentDaily0 + addFinalCostCents}c in 24h > cap=${state.config.daily_notional_cents_cap}c`,
+					};
+					return;
+				}
+
+				// Record the add: update the per-ticker
+				// position (size += add, entry_price_cents
+				// is the new mark), debit the bankroll via
+				// the risk engine, write a D1 trade row
+				// with action='open' and rationale=
+				// 'replay_add' so the audit log
+				// distinguishes an add from a fresh entry.
+				const newSize = pos.size + addSize;
+				pos.size = newSize;
+				pos.entry_price_cents = signal.price;
+				pos.entry_signal_p = signal.p;
+				pos.rationale = signal.rationale;
+				const addFeeCents = kalshiTakerFeeCents(
+					signal.side,
+					addSize,
+					signal.price,
+				);
+				addRisk.state.bankroll_cents -= addFinalCostCents + addFeeCents;
+				state.total_fees_cents += addFeeCents;
+				const { history: addNotionalHistory } = recordNotionalCents(
+					state.risk_state,
+					addFinalCostCents,
+					nowMs0,
+				);
+				state.risk_state.daily_notional_history = addNotionalHistory;
+				state.risk_state = addRisk.state;
+				state.n_trades += 1;
+				await this.writeTradeRow(state, {
+					action: "open",
+					ticker,
+					side: signal.side,
+					price: signal.price,
+					size: addSize,
+					rationale: "replay_add",
+					signal_p: signal.p,
+					vertical: String(t.vertical),
+					trading_mode: state.config.trading_mode,
+					real_order_id: null,
+				});
+				this._sseEmit("trade_open", {
+					ticker,
+					side: signal.side,
+					size: addSize,
+					entry_price: signal.price,
+					judge_size: addJudge.size,
+					judge_reasoning: addJudge.reasoning,
+					rationale: "replay_add",
+				});
+				// Add path is exclusive: skip the
+				// close-and-flip below. The polling feed
+				// will see the updated position on the
+				// next tick.
 				return;
 			}
-			if (t.book) {
+
+			// FLIP path: opposing side, two sub-rules.
+			const minHoldMs = isHighConfOpposing
+				? 60 * 60 * 1000 // 1h for high-conf opposing
+				: 6 * 60 * 60 * 1000; // 6h for the rest
+			if (holdMs < minHoldMs) {
+				// Position is too young to flip. Skip the
+				// flip regardless of how confident the new
+				// signal is (unless the high-conf path
+				// already cleared above, which it didn't).
+				return;
+			}
+			if (isLowConfOpposing && t.book) {
+				// The 2026-08-10 profit + ratio check, kept
+				// for the "LLM is just refreshing at the
+				// same confidence" case. High-conf opposing
+				// (>= 0.85) skips this and just respects the
+				// 1h hold.
+				const minFlipProfitCents = 5;
+				const minFlipSignalRatio = 2.5;
 				const mark = orderbookMidCents({
 					ticker,
 					yes_levels: t.book.yes_levels,
@@ -2423,7 +2654,6 @@ export class LiveBot implements DurableObject {
 					isStrongEnough = false;
 				}
 				if (hasProfit && !isStrongEnough) {
-					// Skip the flip; keep the open position.
 					return;
 				}
 			}

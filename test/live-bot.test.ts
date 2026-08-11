@@ -225,13 +225,14 @@ describe("LiveBot Durable Object", () => {
 
 	it("/place-test-order enforces the per-trade cap", async () => {
 		const stub = botStub();
-		// Default cap is 100c ($1.00). A 2c * 100 contract = 200c
-		// trade exceeds it. The endpoint refuses before calling
-		// Kalshi at all.
+		// Default cap (after 2026-08-11 paper-mode expansion)
+		// is 20000c ($200). A 2c * 11000 contract = 22000c
+		// trade exceeds it. The endpoint refuses before
+		// calling Kalshi at all.
 		const r = await stub.fetch("https://bot/place-test-order", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ ticker: "KXWARMING-50", side: "yes", price_cents: 2, size: 100 }),
+			body: JSON.stringify({ ticker: "KXWARMING-50", side: "yes", price_cents: 2, size: 11000 }),
 		});
 		expect(r.status).toBe(400);
 		const body = (await r.json()) as Record<string, unknown>;
@@ -374,7 +375,7 @@ describe("LiveBot Durable Object", () => {
 		};
 		expect(typeof risk.daily_notional_cents).toBe("number");
 		expect(risk.daily_notional_cents).toBe(0);
-		expect(risk.daily_notional_cap_cents).toBe(150); // chunk 9.6 default ($1.50 for a $9.73 account)
+		expect(risk.daily_notional_cap_cents).toBe(1_000_000); // 2026-08-11 default ($10,000 paper-mode)
 		expect(risk.daily_notional_history_len).toBe(0);
 	});
 

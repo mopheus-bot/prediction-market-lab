@@ -120,16 +120,64 @@ Rules:
 
 If you're shown a market you genuinely don't know, default to {side: "hold", confidence: 0.3, reasoning: "I don't have a strong view on this market."} Be conservative. The bot's risk engine will gate low-confidence verdicts anyway.`;
 
+// 2026-08-11 (Phase 3, all-three): richer context per call.
+// The previous version of askLLMForOpinion only sent ticker + title
+// + current YES price. The LLM had no way to evaluate parlays
+// (KXMVECROSSCATEGORY bundles it can't see the legs of), no
+// sense of momentum, no orderbook context, and no vertical cue
+// (so it didn't know whether it was looking at climate / sports /
+// econ / politics). This struct carries everything we can cheaply
+// read from D1 + the research worker's snapshots. Fresh orderbook
+// is intentionally NOT fetched here (extra 200ms API call per
+// ticker × 200/run = 40s of serial work) — the snapshot's bid/
+// ask is < 15 min stale, good enough for a directional view.
+export interface LLMOpinionContext {
+	ticker: string;
+	title: string;
+	vertical: string;
+	currentYesPriceCents: number;
+	yesBidCents: number | null;
+	yesAskCents: number | null;
+	lastPriceCents: number | null;
+	volume24h: number | null;
+	openInterest: number | null;
+	// Last-1h bid/ask trend (oldest → newest). Length 0-4 depending
+	// on how many research-cron snapshots landed in the last hour.
+	// The LLM uses this to see momentum vs mean-revert pressure.
+	priceHistory1h: Array<{
+		ts_minutes_ago: number;
+		yes_bid_cents: number;
+		yes_ask_cents: number;
+	}>;
+}
+
 async function askLLMForOpinion(
 	env: CronEnv,
-	ticker: string,
-	title: string,
-	currentPriceCents: number,
+	ctx: LLMOpinionContext,
 ): Promise<{ parsed: LLMParsedOpinion | null; raw: string; ok: boolean; duration_ms: number; input_tokens: number | null; output_tokens: number | null; error_message: string | null }> {
-	const prompt = `Market: ${ticker}
-Title: ${title}
-Current YES price: ${currentPriceCents}¢ (NO = ${100 - currentPriceCents}¢)
+	// Build the trend lines for the prompt. The LLM sees the
+	// sequence of bid/ask over the last hour so it can reason
+	// about momentum (price drifting up = "yes is getting more
+	// expensive = market thinks YES is more likely") vs snap-
+	// backs. We only show the bid/ask — full orderbook depth
+	// would be too much for a 200-token user prompt.
+	const trendLines = ctx.priceHistory1h
+		.slice(-4) // last 4 snapshots
+		.map((p) => {
+			const mid = p.yes_bid_cents > 0 && p.yes_ask_cents > p.yes_bid_cents
+				? Math.round((p.yes_bid_cents + p.yes_ask_cents) / 2)
+				: p.yes_bid_cents > 0 ? p.yes_bid_cents : p.yes_ask_cents;
+			return `${p.ts_minutes_ago}m ago: ${mid}¢ (bid ${p.yes_bid_cents} / ask ${p.yes_ask_cents})`;
+		})
+		.join("\n  ");
+	const trendBlock = trendLines ? `\nLast hour trend (oldest → newest):\n  ${trendLines}\n` : "";
 
+	const prompt = `Market: ${ctx.ticker}
+Title: ${ctx.title}
+Vertical: ${ctx.vertical}
+Current YES price: ${ctx.currentYesPriceCents}¢ (NO = ${100 - ctx.currentYesPriceCents}¢)
+Current orderbook: bid ${ctx.yesBidCents ?? "?"}¢ / ask ${ctx.yesAskCents ?? "?"}¢ / last trade ${ctx.lastPriceCents ?? "?"}¢
+24h volume: ${ctx.volume24h ?? "?"} contracts · open interest: ${ctx.openInterest ?? "?"}${trendBlock}
 What's your view? Reply JSON: {"side": "yes" | "no" | "hold", "confidence": 0.0-1.0, "reasoning": "..."}`;
 
 	const result = await chat(env, SYSTEM_PROMPT, prompt, { max_tokens: 500 });
@@ -142,6 +190,40 @@ What's your view? Reply JSON: {"side": "yes" | "no" | "hold", "confidence": 0.0-
 		output_tokens: result.output_tokens ?? null,
 		error_message: result.error_message ?? null,
 	};
+}
+
+// 2026-08-11 (Phase 3, all-three): per-domain confidence caps.
+// The user pointed out that an LLM confidence of 0.85 on a
+// KXMVECROSSCATEGORY multi-leg parlay is a hallucination, not
+// an edge. The LLM doesn't see the legs of the bundle; it
+// can't reason about whether the YES side is mispriced.
+//
+// The fix is two-fold:
+//   1. Feed the LLM more context (price history, orderbook
+//      depth, vertical) so its verdicts are grounded — see
+//      askLLMForOpinion above.
+//   2. Cap the confidence it can STORE for markets the LLM
+//      can't reason about. Parlays (KXMVECROSSCATEGORY,
+//      KXMVESPORTSMULTIGAME) cap at 0.6. The strategy already
+//      requires conf >= 0.6 to fire, so a parlay capped at
+//      0.6 only fires when the LLM is at the upper bound —
+//      a strong signal that even with the cap, the LLM
+//      genuinely thinks the bundle is mispriced.
+//
+// Single-event markets (KXWARMING, KXGDP, KXNBA, KXPRES, etc.)
+// are uncapped because the LLM has decent training-data
+// knowledge of these verticals. If the LLM gives 0.85 on
+// KXWARMING-50, that 0.85 is grounded in real climate science
+// context, not a hallucination.
+const PARLAY_PREFIXES = [/^KXMVECROSSCATEGORY/i, /^KXMVESPORTSMULTIGAME/i, /^KXMVESPORTS/i];
+const PARLAY_CONFIDENCE_CAP = 0.6;
+function isParlay(ticker: string): boolean {
+	for (const re of PARLAY_PREFIXES) if (re.test(ticker)) return true;
+	return false;
+}
+function capConfidenceByDomain(ticker: string, rawConfidence: number): number {
+	if (!isParlay(ticker)) return rawConfidence;
+	return Math.min(rawConfidence, PARLAY_CONFIDENCE_CAP);
 }
 
 async function readBotUniverse(env: CronEnv): Promise<string[]> {
@@ -239,7 +321,15 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	// parameterised IN-clause. Just query the top 200 by
 	// volume directly from live_market_snapshots, then take
 	// the first LLM_LOOP_CAP of those.
-	const LLM_LOOP_CAP = 50;
+	// 2026-08-11 (Phase 3, all-three): bumped 50 → 200. The
+	// user is on MiniMax Ultra (cost is bundled) and wants
+	// the LLM to evaluate enough of the catalog to actually
+	// find edge. At 200/run × */2 = 144K calls/day, the full
+	// 2,184-market catalog cycles through in 22 min (vs 1.5
+	// days at 50/run). Each LLM call gets a richer prompt
+	// (price history + orderbook depth + vertical) — see
+	// `askLLMForOpinion` for the new shape.
+	const LLM_LOOP_CAP = 200;
 	const CANDIDATE_POOL = 200;
 	if (allTickers.length > LLM_LOOP_CAP) {
 		const rankedRows = await env.DB
@@ -308,6 +398,53 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	const snapByTicker = new Map<string, (typeof latestRows.results)[number]>();
 	for (const row of latestRows.results ?? []) snapByTicker.set(row.ticker, row);
 
+	// 2026-08-11 (Phase 3, all-three): also pull the last 1h
+	// of snapshots per ticker so the LLM can see price
+	// momentum (bid/ask trend), not just the current quote.
+	// One round-trip, grouped by ticker. The single D1
+	// parameter cap of 100 limits us to ~99 tickers per
+	// IN-clause, so we chunk the query.
+	const priceHistoryByTicker = new Map<
+		string,
+		Array<{
+			ts_ms: number;
+			yes_bid_cents: number;
+			yes_ask_cents: number;
+		}>
+	>();
+	{
+		const CHUNK = 90; // stay under the 100-param D1 cap
+		for (let i = 0; i < allTickers.length; i += CHUNK) {
+			const slice = allTickers.slice(i, i + CHUNK);
+			const placeholders = slice.map((_, j) => `?${j + 2}`).join(",");
+			const rows = await env.DB
+				.prepare(
+					`SELECT ticker, ts, yes_bid_cents, yes_ask_cents
+					 FROM live_market_snapshots
+					 WHERE user_id = ?1 AND ticker IN (${placeholders})
+					   AND ts >= ?${slice.length + 2}
+					 ORDER BY ticker, ts ASC`,
+				)
+				.bind(userId, ...slice, now - 60 * 60 * 1000)
+				.all<{
+					ticker: string;
+					ts: number;
+					yes_bid_cents: number;
+					yes_ask_cents: number;
+				}>();
+			for (const row of rows.results ?? []) {
+				if (!priceHistoryByTicker.has(row.ticker)) {
+					priceHistoryByTicker.set(row.ticker, []);
+				}
+				priceHistoryByTicker.get(row.ticker)!.push({
+					ts_ms: row.ts,
+					yes_bid_cents: row.yes_bid_cents,
+					yes_ask_cents: row.yes_ask_cents,
+				});
+			}
+		}
+	}
+
 	for (const ticker of allTickers) {
 		try {
 			const snap = snapByTicker.get(ticker) ?? null;
@@ -352,7 +489,24 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 					? "sports"
 					: "unknown"
 			);
-			const llm = await askLLMForOpinion(env, ticker, title, midCents);
+			const llm = await askLLMForOpinion(env, {
+				ticker,
+				title,
+				vertical,
+				currentYesPriceCents: midCents,
+				yesBidCents: snap.yes_bid_cents > 0 ? snap.yes_bid_cents : null,
+				yesAskCents: snap.yes_ask_cents > 0 ? snap.yes_ask_cents : null,
+				lastPriceCents: snap.last_price_cents,
+				volume24h: (snap as { volume_24h?: number | null }).volume_24h ?? null,
+				openInterest: (snap as { open_interest?: number | null }).open_interest ?? null,
+				priceHistory1h: (priceHistoryByTicker.get(ticker) ?? []).map(
+					(p) => ({
+						ts_minutes_ago: Math.max(0, Math.round((now - p.ts_ms) / 60_000)),
+						yes_bid_cents: p.yes_bid_cents,
+						yes_ask_cents: p.yes_ask_cents,
+					}),
+				),
+			});
 			totalInputTokens += llm.input_tokens ?? 0;
 			totalOutputTokens += llm.output_tokens ?? 0;
 			// Record the LLM call regardless of parse success.
@@ -378,13 +532,27 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 				skipped.push(`${ticker}: low_confidence`);
 				continue;
 			}
+			// 2026-08-11 (Phase 3, all-three): per-domain
+			// confidence cap. Parlays get capped at 0.6 so
+			// the LLM's confident hallucination on a
+			// multi-leg bundle (0.85 on a 4-leg parlay with
+			// no ground truth) can't auto-promote into the
+			// universe. The strategy still requires conf
+			// >= 0.6, so a parlay capped at 0.6 only fires
+			// at the upper bound — a strong signal.
+			const cappedConfidence = capConfidenceByDomain(
+				ticker,
+				llm.parsed.confidence,
+			);
 			await llmOpinionsDb.insert(env.DB, {
 				user_id: userId,
 				ts: now,
 				ticker,
 				side: llm.parsed.side,
-				confidence: llm.parsed.confidence,
-				reasoning: llm.parsed.reasoning,
+				confidence: cappedConfidence,
+				reasoning: cappedConfidence < llm.parsed.confidence
+					? `[capped ${llm.parsed.confidence.toFixed(2)}→${cappedConfidence.toFixed(2)} for parlay] ${llm.parsed.reasoning}`
+					: llm.parsed.reasoning,
 				current_price_cents: midCents,
 				vertical,
 				model: DEFAULT_MODEL,
@@ -403,15 +571,25 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 			// call + lead_suggestion write happens after
 			// the main loop (so we can sort by confidence
 			// and cap at AUTO_PROMOTE_MAX_PER_RUN).
+			// 2026-08-11 (Phase 3, all-three): use the CAPPED
+			// confidence for the auto-promote gate. A parlay
+			// with raw conf 0.7 (capped to 0.6) doesn't clear
+			// the 0.5 threshold on raw conf AND it doesn't clear
+			// it on capped conf — either way, 0.6 is the floor
+			// for a parlay to auto-promote. The user pointed
+			// out that 0.85 hallucination confidence was
+			// auto-promoting parlays into the universe; this
+			// is the fix on both the per-domain cap AND the
+			// gate uses the capped value.
 			if (
-				llm.parsed.confidence >= AUTO_PROMOTE_THRESHOLD &&
+				cappedConfidence >= AUTO_PROMOTE_THRESHOLD &&
 				AUTO_PROMOTE_VERTICALS.has(vertical) &&
 				!botUniverseOnly.has(ticker)
 			) {
 				autoPromoteCandidates.push({
 					ticker,
 					vertical,
-					confidence: llm.parsed.confidence,
+					confidence: cappedConfidence,
 					reasoning: llm.parsed.reasoning,
 				});
 			}
