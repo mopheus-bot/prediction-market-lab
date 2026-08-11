@@ -126,3 +126,92 @@ The bot has to make at least $0.40-2.40/mo in net PnL after fees, or we have no 
 - `GET /api/pm/cadence` — every service with last-ran + next-scheduled.
 - `GET /api/pm/bot/stage` — single badge: what is the bot doing right now.
 - `wrangler tail pm-bot` — live Worker logs.
+
+---
+
+## Auto-retrain pipeline (2026-08-11, weekly)
+
+**What it does:** every Saturday 22:00 UTC, the GitHub Action
+`.github/workflows/retrain.yml` runs `scripts/retrain.py` to:
+
+1. Pull the bot's current ticker universe from D1 (via wrangler).
+2. Fetch the last 7 days of Kalshi public trades for each ticker
+   (paginated `GET /markets/trades`).
+3. Write per-ticker JSONL files in the format the Python trainer
+   expects.
+4. Run the live reversion trainer (Prediction Market Lab's
+   `scripts/live/train_reversion.py`) once per legacy vertical —
+   weather / economic / politics / sports. Walk-forward
+   validation (3 folds, 20-sample embargo).
+5. Convert each `.joblib` to the JSON tree format the TS port
+   consumes via `scripts/convert-models-to-json.py`.
+6. Upload each `<vertical>-v2.json` to R2 at
+   `pm-bot/models/reversion-<vertical>-v2.json` via
+   `wrangler r2 object put`.
+
+The Sunday 00:00 UTC `train-cron` (`src/cron/train-cron.ts`)
+then auto-registers the new R2 artifact in the D1 `models`
+table with `status=candidate`. **Operator promotes** via
+the Dev page (`/pm/models` → click Promote on the new
+version) or via `POST /api/pm/models/:version/promote`.
+
+**Operator flow after the Saturday run:**
+
+1. **Wait for Sunday 00:30 UTC** (when the train-cron has
+   finished) — the cadence panel shows the cron run.
+2. **Open `/pm/models`** — the new `v2` row appears for
+   each vertical the trainer produced output for. The
+   model card shows: train accuracy, test accuracy, top
+   feature importances, walk-forward metrics.
+3. **Compare to v1** — if v2's walk-forward test accuracy
+   is better than v1's, click Promote. If worse, leave
+   v1 active. (Promotion is a D1 update; the next
+   LiveBot poll picks up the new model_version.)
+4. **The Sunday night polling** uses the new model. The
+   model's first real-money trades are paper by default.
+
+**When auto-retrain returns 0 samples (current state):**
+
+The paper bot only has ~18 public trades on KXWARMING-50
+(the only single-event market with real activity in the
+last 7 days). The reversion trainer needs `lookback +
+future_window` samples (30 + 20 = 50 minimum) to produce
+a model. The script handles this gracefully:
+- Logs `RuntimeError: Live training produced 0 samples`
+  for the affected vertical.
+- Skips that vertical (no `.joblib` produced, no
+  upload).
+- Continues with the other verticals.
+- Exits 0 if any vertical succeeded, 2 if all failed.
+
+**Expected behavior over time:** as the bot accumulates
+real trades (paper or real), the trainer will start
+producing models. Estimate: 200+ trades per vertical
+needed for a useful model. At 10 trades/day across
+all verticals (current pace), that's ~3 weeks per
+vertical. **The pipeline is wired but currently
+idle on the data side** — same as before, just
+without the manual trainer invocation step.
+
+**Manual trigger:** `gh workflow run retrain.yml` (or the
+Actions tab → "Run workflow"). Useful for ad-hoc
+retraining when trade data spikes (e.g. after a
+sharp regime change) or when you change the trainer
+hyperparameters and want to test them on fresh data.
+
+**Required GitHub secrets:**
+
+- `CLOUDFLARE_API_TOKEN` — scoped to D1 read + R2
+  write on the pm-bot account. **Do not reuse the
+  deploy token** (broader scope than this needs).
+- `CLOUDFLARE_ACCOUNT_ID` — the pm-bot account ID
+  (`8c995c329fee2ee6ab33d9d3d6a30e55`).
+- `GH_PAT` — Personal Access Token with `repo` scope
+  on `` (the action checks
+  out the Prediction Market Lab repo as a sibling to run the
+  Python trainer).
+
+**Cost:** ~280 Kalshi API calls (7 pages × 40 tickers)
++ 4 trainer runs (~5s each, 20s total) + 4 R2 uploads
++ 5 min wall-clock on a GitHub-hosted runner. Well
+under the free tier.
