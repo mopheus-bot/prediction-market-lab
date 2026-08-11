@@ -30,7 +30,6 @@ import {
 	cronRuns as cronRunsDb,
 } from "../lib/db.js";
 import { DEFAULT_USER_ID } from "../lib/types.js";
-import { readDailyRecap } from "./daily-recap.js";
 
 // Re-export the cron-runs helper (kept here so the API
 // handlers + the cron jobs share the same env-passing
@@ -123,33 +122,19 @@ export async function handleSummary(
 ): Promise<Response> {
 	if (!env.DB) return err("DB binding missing");
 	try {
-		// The summary endpoint reads today's R2 daily-recap
-		// if available, falls back to a live aggregate.
-		const recap = await readDailyRecap(env);
-		if (recap) {
-			// 2026-08-11: R2 recap uses {trades: {n_total,
-			// realized_pnl_cents}, verticals: {v: {n_trades,
-			// pnl_cents}}}. The dashboard + app.js read the
-			// flat legacy keys (n_trades_24h, last_24h_cents,
-			// realized_cents). Without these aliases, the
-			// hero shows 24h PnL = $0.00 even when the R2
-			// recap clearly has the numbers. Add the
-			// aliases so both shapes work — keep the R2
-			// fields too so future callers can use the
-			// richer shape.
-			return json({
-				ok: true,
-				source: "r2",
-				recap: {
-					...recap,
-					n_trades_24h: recap.trades.n_total,
-					pnl_24h_cents: recap.trades.realized_pnl_cents,
-					last_24h_cents: recap.trades.realized_pnl_cents,
-					realized_cents: recap.trades.realized_pnl_cents,
-				},
-			});
-		}
-		// Fallback: live aggregate for the last 24h.
+		// 2026-08-11: the summary endpoint used to read
+		// the R2 daily-recap first (frozen at 06:00 UTC
+		// every day) and fall back to a live aggregate.
+		// That was wrong for the dashboard: the R2 file
+		// captures the 06:00-to-06:00 window, so the
+		// hero "24h PnL" was stuck at the previous
+		// daily run's value for 24h. The live aggregate
+		// is a rolling 24h from now (which is what the
+		// label actually promises). The R2 file is kept
+		// as a pure archive (daily-cron still writes it,
+		// readDailyRecap is still exported for any
+		// historical caller); it just doesn't drive the
+		// live dashboard anymore.
 		const since = Date.now() - 24 * 60 * 60 * 1000;
 		const tradesAgg = await env.DB
 			.prepare(

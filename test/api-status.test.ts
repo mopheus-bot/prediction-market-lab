@@ -127,25 +127,41 @@ describe("/api/pm/signals", () => {
 });
 
 describe("/api/pm/summary", () => {
-	it("returns live fallback when R2 has no recap", async () => {
+	// 2026-08-11: handleSummary used to read the R2 daily-recap
+	// first (frozen at 06:00 UTC) and fall back to the live
+	// aggregate. That was wrong for the dashboard — the R2
+	// file's window is 06:00-to-06:00, so the "24h PnL" hero
+	// KPI was stuck at the previous daily run's value for 24h.
+	// Now the endpoint always uses the rolling-24h live
+	// aggregate. The R2 file remains a pure archive (the
+	// daily-cron still writes it; readDailyRecap is exported
+	// for any historical caller).
+	it("always uses the live rolling-24h aggregate, never R2", async () => {
+		// Even with a BUCKET bound, the response is "live".
+		const fakeBucket = {
+			get: async (_key: string) => ({
+				text: async () => JSON.stringify({
+					date: "2026-08-11",
+					lookback_hours: 24,
+					trades: { n_total: 999, realized_pnl_cents: 99999 },
+				}),
+			}),
+		};
+		const fakeEnv = { DB: env.DB, BUCKET: fakeBucket as any };
 		const url = new URL("https://x/pm/summary");
-		const r = await handleSummary({ DB: env.DB }, url);
-		const body = (await r.json()) as { source: string; recap: { n_trades: number } };
-		// Either r2 or live — both are valid responses.
-		expect(["r2", "live"]).toContain(body.source);
-		expect(typeof body.recap.n_trades).toBe("number");
+		const r = await handleSummary(fakeEnv, url);
+		const body = (await r.json()) as { source: string };
+		expect(body.source).toBe("live");
 	});
 
-	// 2026-08-11: legacy aliases (n_trades_24h, last_24h_cents,
-	// realized_cents) added to the recap regardless of source.
-	// The dashboard's hero "24h PnL" + "X trades 24h" KPIs read
-	// these keys; before the aliases they were always 0 because
-	// the R2 shape uses {trades: {n_total, realized_pnl_cents}}
-	// and the live shape uses {n_trades, pnl_cents}.
 	it("exposes legacy aliases on the live recap", async () => {
-		// Force the live path by passing no BUCKET.
+		// 2026-08-11: legacy aliases (n_trades_24h,
+		// pnl_24h_cents, last_24h_cents, realized_cents)
+		// are set on the live aggregate so the dashboard's
+		// hero "24h PnL" / "X trades 24h" KPIs read
+		// the right numbers.
 		const url = new URL("https://x/pm/summary");
-		const r = await handleSummary({ DB: env.DB } as any, url);
+		const r = await handleSummary({ DB: env.DB }, url);
 		const body = (await r.json()) as {
 			source: string;
 			recap: {
@@ -157,65 +173,11 @@ describe("/api/pm/summary", () => {
 				realized_cents: number;
 			};
 		};
-		// Live path (no R2): the legacy keys must mirror the
-		// native keys so the dashboard's 24h PnL sub works.
-		if (body.source === "live") {
-			expect(body.recap.n_trades_24h).toBe(body.recap.n_trades);
-			expect(body.recap.pnl_24h_cents).toBe(body.recap.pnl_cents);
-			expect(body.recap.last_24h_cents).toBe(body.recap.pnl_cents);
-			expect(body.recap.realized_cents).toBe(body.recap.pnl_cents);
-		}
-	});
-
-	it("exposes legacy aliases on the R2 recap", async () => {
-		// Force the R2 path by passing a mock BUCKET that
-		// returns a well-formed daily-recap JSON.
-		const today = new Date().toISOString().slice(0, 10);
-		const r2Recap = {
-			date: today,
-			lookback_hours: 24,
-			generated_at: new Date().toISOString(),
-			user_id: "default",
-			trades: {
-				n_total: 42,
-				n_opens: 20,
-				n_closes: 22,
-				realized_pnl_cents: 1234,
-			},
-			signals: { n_total: 5, n_filled: 3 },
-			open_positions: 7,
-			verticals: {
-				sports: { n_trades: 30, pnl_cents: 1000 },
-				weather: { n_trades: 12, pnl_cents: 234 },
-			},
-		};
-		const fakeBucket = {
-			get: async (_key: string) => ({
-				text: async () => JSON.stringify(r2Recap),
-			}),
-		};
-		const fakeEnv = { DB: env.DB, BUCKET: fakeBucket as any };
-		const url = new URL("https://x/pm/summary");
-		const r = await handleSummary(fakeEnv, url);
-		const body = (await r.json()) as {
-			source: string;
-			recap: {
-				trades: { n_total: number; realized_pnl_cents: number };
-				n_trades_24h: number;
-				pnl_24h_cents: number;
-				last_24h_cents: number;
-				realized_cents: number;
-			};
-		};
-		expect(body.source).toBe("r2");
-		// Native R2 fields preserved (future callers can use them).
-		expect(body.recap.trades.n_total).toBe(42);
-		expect(body.recap.trades.realized_pnl_cents).toBe(1234);
-		// Legacy aliases set so the dashboard reads non-zero.
-		expect(body.recap.n_trades_24h).toBe(42);
-		expect(body.recap.pnl_24h_cents).toBe(1234);
-		expect(body.recap.last_24h_cents).toBe(1234);
-		expect(body.recap.realized_cents).toBe(1234);
+		expect(body.source).toBe("live");
+		expect(body.recap.n_trades_24h).toBe(body.recap.n_trades);
+		expect(body.recap.pnl_24h_cents).toBe(body.recap.pnl_cents);
+		expect(body.recap.last_24h_cents).toBe(body.recap.pnl_cents);
+		expect(body.recap.realized_cents).toBe(body.recap.pnl_cents);
 	});
 
 	it("includes per-vertical breakdown in the live recap (chunk 10.8)", async () => {
