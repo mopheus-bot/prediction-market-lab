@@ -378,15 +378,26 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 			)
 			.bind(userId, now - 60 * 60 * 1000, CANDIDATE_POOL)
 			.all<{ ticker: string; vol: number | null; oi: number | null }>();
-		// Bot universe first (always), then top LLM_LOOP_CAP - universe
-		// by volume/OI. Stable across runs (deterministic ordering).
+		// 2026-08-11 (Phase 4, followup): priority order
+		// flipped. With LLM_LOOP_CAP=3 and a universe of
+		// 40 KXMVECROSSCATEGORY parlays, the OLD order
+		// (universe first) ate all 3 calls on the parlays
+		// — markets the LLM can't even price (no bid/ask).
+		// The auto-promote pipeline needs to see NEW
+		// markets in the 13 newly-expanded verticals
+		// (elections, financials, crypto, etc.), not
+		// re-evaluate the parlay universe every 2 min.
+		// New order: live markets OUTSIDE the bot's
+		// universe first (i.e. potential new additions),
+		// then the bot's own universe as a tie-breaker.
+		// With 3 calls per run, the first 3 go to fresh
+		// discovery and the rest to existing universe
+		// re-evaluation.
 		const universe = new Set(tickers);
-		const universeFirst = allTickers.filter((t) => universe.has(t));
 		const others = (rankedRows.results ?? []).map((r) => r.ticker);
-		allTickers = [
-			...universeFirst,
-			...others.filter((t) => !universe.has(t)).slice(0, Math.max(0, LLM_LOOP_CAP - universeFirst.length)),
-		];
+		const freshFirst = others.filter((t) => !universe.has(t));
+		const universeFirst = allTickers.filter((t) => universe.has(t));
+		allTickers = [...freshFirst, ...universeFirst].slice(0, LLM_LOOP_CAP);
 	}
 
 	const errors: Array<{ ticker: string; message: string }> = [];
