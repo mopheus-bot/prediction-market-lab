@@ -58,6 +58,48 @@ deploy):**
 - **STRATEGY-PARLAYS Phase 2** (leg-probability model) is still
   deferred. The per-domain confidence cap is the interim.
 
+## What landed later 2026-08-11 (dashboard live-data + PnL fix)
+
+Same day, after Phase 4. Four commits that fixed the dashboard
+showing stale data and the "24h PnL" being stuck. **Full
+changelog:** [`docs/changelog/2026-08-11-dashboard-live-pnl-fixes.md`](./changelog/2026-08-11-dashboard-live-pnl-fixes.md).
+
+**TL;DR:**
+
+- **Dashboard not live** — `Cache-Control: public, max-age=30`
+  on `/api/pm/bot/balance`, `/api/pm/verticals`, `/api/pm/cadence`
+  was being honored by browser + CF edge, so the 5s dashboard
+  poll was getting cached responses. Switched to `no-store`
+  on all three. `cf-analytics` / `cost` stay at `max-age=60`.
+
+- **Research cron 37s** — universe grew to 53 tickers and the
+  3b universe pass was adding them on top of the `MAX_GETS=100`
+  LIST cap, so total GETs=153. Restructured: universe pass
+  BEFORE the cap, sort (universe first, then LIST by
+  liquidity), cap total at 100. Extracted to a pure function
+  `sortAndCapSnapshots(markets, cap)` and added a real ticker
+  tiebreaker. Wall-clock now bounded at ~22s regardless of
+  universe size.
+
+- **"24h PnL" stuck at $1.35 all day** — `handleSummary` was
+  reading the R2 daily-recap as the source of truth. The R2
+  file is overwritten at 06:00 UTC every day with the
+  06:00-to-06:00 window, so the dashboard's "24h PnL" was
+  frozen at the previous daily run's value for 24h. **Fix:**
+  `handleSummary` now always uses the live rolling-24h
+  aggregate from D1. The R2 file is kept as a pure archive
+  (daily-cron still writes it; `readDailyRecap` stays exported
+  for any historical caller).
+
+**Lesson (worth remembering for future API design):** if a
+data source is overwritten on a schedule, that's the
+effective freshness — even if the response shape suggests
+"live". The dashboard label said "24h PnL" (rolling), so the
+data source has to be rolling too. Reading an anchored daily
+snapshot for a rolling KPI is the kind of bug that's invisible
+until you compare the actual rolling value against the
+displayed value.
+
 ## The cadence (every auto-running service)
 
 | Service        | Cadence              | What it does                                          | Where the math lives              |
