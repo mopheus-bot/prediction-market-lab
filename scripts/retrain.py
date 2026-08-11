@@ -14,8 +14,13 @@ Weekly GitHub Action runs this script to:
    one KalshiTrade per line).
 4. Run the live reversion trainer from
    `Prediction Market Lab/.../scripts/live/train_reversion.py`
-   once per legacy vertical (weather / economic /
-   politics / sports). Outputs `<output_dir>/reversion_live-<vertical>.joblib`.
+   once per ALL 17 Kalshi verticals (weather /
+   economic / politics / sports / elections /
+   financials / entertainment / science_technology /
+   crypto / companies / commodities / mentions /
+   social / world / health / transportation /
+   uncategorized). Outputs
+   `<output_dir>/reversion_live-<vertical>.joblib`.
 5. Convert each `.joblib` to the JSON tree format
    the TS port consumes via
    `scripts/convert-models-to-json.py`.
@@ -118,7 +123,41 @@ PM_BOT_REPO = os.environ.get("PM_BOT_REPO", str(Path(__file__).resolve().parent.
 DATA_DIR = Path(os.environ.get("RETRAIN_DATA_DIR", "/tmp/retrain-data"))
 OUTPUT_DIR = Path(os.environ.get("RETRAIN_OUTPUT_DIR", "/tmp/retrain-models"))
 LOOKBACK_DAYS = int(os.environ.get("RETRAIN_LOOKBACK_DAYS", "7"))
-LEGACY_VERTICALS = ("weather", "economic", "politics", "sports")
+# 2026-08-11: ALL 17 Kalshi verticals, not just the
+# 4 legacy ones. The user pushed back on the
+# 4-only coverage: "the whole point" of the
+# 17-vertical expansion is to capture all
+# verticals, so the auto-retrain pipeline should
+# too. The trainer (Prediction Market Lab/.../train_reversion.py)
+# was updated to accept all 17 via its
+# VALID_VERTICALS choices list, and the
+# category_mapper was updated to map every Kalshi
+# category to a specific vertical (no more
+# bucketing). The new verticals (elections,
+# financials, etc.) currently have very thin
+# trade data so the trainer will return 0
+# samples and skip them — but the pipeline is
+# ready, and as the bot accumulates trades in
+# those verticals, models will start producing.
+ALL_VERTICALS = (
+    "weather",
+    "economic",
+    "politics",
+    "sports",
+    "elections",
+    "financials",
+    "entertainment",
+    "science_technology",
+    "crypto",
+    "companies",
+    "commodities",
+    "mentions",
+    "social",
+    "world",
+    "health",
+    "transportation",
+    "uncategorized",
+)
 
 
 def pull_bot_universe_from_d1() -> list[str]:
@@ -340,13 +379,13 @@ def main() -> int:
     # 3. Write JSONL for the trainer.
     write_trades_jsonl(trades_by_ticker)
 
-    # 4. Train per legacy vertical.
+    # 4. Train per vertical (all 17).
     version = os.environ.get("MODEL_VERSION", "v2")
     results: dict[str, str] = {}  # vertical → R2 key
-    for vertical in LEGACY_VERTICALS:
+    for vertical in ALL_VERTICALS:
         joblib = run_trainer_for_vertical(vertical)
         if joblib is None:
-            print(f"[retrain] {vertical}: skipped (no output)")
+            print(f"[retrain] {vertical}: skipped (no output / 0 samples)")
             continue
         try:
             json_path = convert_joblib_to_json(joblib, version)

@@ -140,9 +140,16 @@ The bot has to make at least $0.40-2.40/mo in net PnL after fees, or we have no 
 3. Write per-ticker JSONL files in the format the Python trainer
    expects.
 4. Run the live reversion trainer (Prediction Market Lab's
-   `scripts/live/train_reversion.py`) once per legacy vertical —
-   weather / economic / politics / sports. Walk-forward
-   validation (3 folds, 20-sample embargo).
+   `scripts/live/train_reversion.py`) once per ALL 17
+   Kalshi verticals (weather / economic / politics /
+   sports / elections / financials / entertainment /
+   science_technology / crypto / companies /
+   commodities / mentions / social / world / health /
+   transportation / uncategorized). Walk-forward
+   validation (3 folds, 20-sample embargo). The 4
+   legacy verticals have actual trade data; the 13
+   new verticals will produce models as the bot
+   accumulates trades in them.
 5. Convert each `.joblib` to the JSON tree format the TS port
    consumes via `scripts/convert-models-to-json.py`.
 6. Upload each `<vertical>-v2.json` to R2 at

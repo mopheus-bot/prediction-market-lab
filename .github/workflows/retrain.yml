@@ -1,7 +1,15 @@
 name: retrain
 
-# Weekly retrain of the 4 legacy reversion-quality
-# models (weather / economic / politics / sports).
+# Weekly retrain of the reversion-quality models for
+# ALL 17 Kalshi verticals pm-bot covers (weather /
+# economic / politics / sports / elections /
+# financials / entertainment / science_technology /
+# crypto / companies / commodities / mentions /
+# social / world / health / transportation /
+# uncategorized). The 4 legacy verticals have actual
+# trade data and produce models immediately; the 13
+# new verticals will produce models as the bot
+# accumulates trades in them.
 #
 # Flow (per scripts/retrain.py):
 #   1. Pull the bot's current ticker universe from D1
