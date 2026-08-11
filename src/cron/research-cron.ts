@@ -297,27 +297,6 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 			});
 		}
 		nLookedActive = looksActiveMarkets.length;
-		// 2026-08-11 (Phase 4, followup #3): cap the GET
-		// workload. Even after the parlay skip, there are
-		// 1,000+ single-event markets. With 4 req/s
-		// throttle, 1,000 GETs × 250ms = 250s wall-clock —
-		// 8x over the 30s Worker limit. Sort by liquidity
-		// (vol_24h + OI*5, same as the leads-scout) and
-		// take the top 100. These are the markets most
-		// likely to have real two-sided quotes AND matter
-		// to the bot's decisions. The bot's own universe
-		// (~40 tickers) is always included via the 3b
-		// pass below (which adds the universe BEFORE
-		// the cap is applied).
-		looksActiveMarkets.sort(
-			(a, b) =>
-				(b.volume_24h + b.open_interest * 5) -
-				(a.volume_24h + a.open_interest * 5),
-		);
-		if (looksActiveMarkets.length > MAX_GETS) {
-			looksActiveMarkets.length = MAX_GETS;
-		}
-
 		// 3b. 2026-08-10: also pull the bot's current ticker
 		//     universe from the LiveBot DO and add those to
 		//     the snapshot list — bypassing the looksActive
@@ -330,12 +309,12 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 		//     is actively trading on the ticker. De-dup
 		//     against the list-sourced entries.
 		//
-		//     We do this AFTER the list pass so a market that's
-		//     already in `looksActiveMarkets` (with a
-		//     list-sourced event_ticker / title) keeps the
-		//     better metadata. Universe-only entries get
-		//     empty event_ticker / title until the GET fills
-		//     them in.
+		//     We do this BEFORE the cap so universe tickers
+		//     always get a fresh orderbook snapshot (the bot
+		//     is trading on these — they MUST be in the
+		//     snapshot). Universe-only entries get empty
+		//     event_ticker / title until the GET fills them
+		//     in.
 		if (env.LIVE_BOT) {
 			try {
 				const id = env.LIVE_BOT.idFromName(`user:${DEFAULT_USER_ID}`);
@@ -368,6 +347,46 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 					e instanceof Error ? e.message : String(e),
 				);
 			}
+		}
+
+		// 2026-08-11 (Phase 4, followup #3): cap the GET
+		// workload. Even after the parlay skip, there are
+		// 1,000+ single-event markets. With 5 req/s
+		// throttle, 1,000 GETs × 200ms = 200s wall-clock —
+		// 6x over the 30s Worker limit.
+		//
+		// 2026-08-11 06:08: universe grew to 53 tickers.
+		// Previous flow capped LIST at MAX_GETS=100, then
+		// the 3b pass added universe ON TOP of that —
+		// total = 153 GETs = 37s wall-clock. Fix: do the
+		// universe pass BEFORE the cap, then sort
+		// (universe first, then LIST by liquidity) and
+		// cap the TOTAL at MAX_GETS. Universe is always
+		// prioritized (the bot is actively trading on
+		// these — a missing snapshot here is a real
+		// correctness bug, not just a freshness issue).
+		// LIST-sourced markets fill the remaining budget,
+		// best-liquidity first. If universe grows further
+		// the wall-clock stays bounded at MAX_GETS.
+		looksActiveMarkets.sort((a, b) => {
+			// Universe first.
+			if (a.source !== b.source) {
+				return a.source === "bot_universe" ? -1 : 1;
+			}
+			// Within the same source: LIST sorted by liquidity.
+			// Universe entries have 0/0/0 so this is a no-op
+			// for them, but the stable secondary key is
+			// ticker for deterministic ordering (so the
+			// same N universe tickers always make the cut
+			// when universe > MAX_GETS — which it isn't
+			// today but might be in a year).
+			return (
+				(b.volume_24h + b.open_interest * 5) -
+				(a.volume_24h + a.open_interest * 5)
+			);
+		});
+		if (looksActiveMarkets.length > MAX_GETS) {
+			looksActiveMarkets.length = MAX_GETS;
 		}
 
 		// 4. For each "looks active" market, GET the real

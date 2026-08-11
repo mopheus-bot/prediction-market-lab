@@ -374,6 +374,13 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 
 	return Response.json(
 		{ ok: true, ts_ms, services, summary },
-		{ headers: { "cache-control": "public, max-age=30" } },
+		// 2026-08-11: was `public, max-age=30` but the
+		// dashboard's stage panel "next: … in Nm" line
+		// reads this endpoint and the cron state can
+		// change any time a run completes. The 30s
+		// cache made the schedule grid lag visibly.
+		// Don't cache — the cost is one D1 read per
+		// 5s poll, which is negligible.
+		{ headers: { "cache-control": "no-store" } },
 	);
 }

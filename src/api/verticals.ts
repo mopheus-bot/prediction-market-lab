@@ -286,6 +286,12 @@ export async function handleVerticals(
 
 	return Response.json(
 		{ ok: true, ts_ms: Date.now(), verticals },
-		{ headers: { "cache-control": "public, max-age=30" } },
+		// 2026-08-11: was `public, max-age=30` but the
+		// per-vertical PnL table on the dashboard
+		// updates on every trade, and the dashboard
+		// polls every 5s. The 30s cache made the
+		// per-vertical column lag visibly. Real-time
+		// display data — don't cache.
+		{ headers: { "cache-control": "no-store" } },
 	);
 }

@@ -99,7 +99,13 @@ export async function handleBotBalance(
 		};
 		return Response.json(result, {
 			headers: {
-				"Cache-Control": "public, max-age=30",
+				// 2026-08-11: was `public, max-age=30` but the
+				// dashboard polls every 5s and the bankroll
+				// changes on every fill. The 30s browser+edge
+				// cache made the hero lag visibly behind
+				// the stage panel + signals. Real-time data —
+				// don't cache anywhere.
+				"Cache-Control": "no-store",
 			},
 		});
 	} catch (e) {
