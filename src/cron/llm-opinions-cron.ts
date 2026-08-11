@@ -261,54 +261,67 @@ async function readBotUniverse(env: CronEnv): Promise<string[]> {
 	}
 }
 
-// 2026-08-11 (Phase 4, followup): fresh-market
-// discovery for new verticals. The research-cron
-// (which normally snapshots every market) has been
-// timing out at the 30s Worker limit (5+ min wall-
-// clock per run), so the live_market_snapshots table
-// is stale — no new-vertical markets show up there
-// because Kalshi's elections/financials/crypto/etc.
-// markets currently have 0 last_price / 0 OI and
-// were only being snapshotted via the "known prefix"
-// fallback, which also depends on the (slow) research
-// cron. To unblock the LLM from seeing the 13 new
-// verticals, this function calls Kalshi's /markets
-// directly for a single 200-market page, filters to
-// the new verticals via the prefix map, and returns
-// the candidate list. 1 API call per 2-min cron = 720
-// calls/day. The full catalog cycles in ~1.5 days
-// (9610 markets / 200 per cron × 30 runs/hour = 2.4
-// hours, but in practice the cron only sees the first
-// 200 which Kalshi returns sorted by some default).
+// 2026-08-11 (Phase 4, followup #3): fresh-market
+// discovery for new verticals, using /events instead
+// of /markets. The /markets endpoint is dominated by
+// the KXMVESPORTS* / KXMVECROSSCATEGORY parlay block
+// (119k of the 120k open markets) — the first 200
+// markets are all parlays, so the per-vertical filter
+// returns 0 fresh candidates. /events?status=open
+// returns a balanced mix (Elections, Climate, Sci/
+// Tech, World, Politics, etc. in the first 10). And
+// with with_nested_markets=true, the response includes
+// the markets under each event, so we don't need a
+// second API call to discover them. 1 API call per
+// 2-min cron = 720 calls/day, well under the rate
+// limit. The /events response also gives us the
+// canonical `category` field, which is more reliable
+// than the prefix-regex guess.
 async function discoverFreshNewVerticalMarkets(
 	env: CronEnv,
-): Promise<Array<{ ticker: string; event_ticker: string; title: string }>> {
+): Promise<Array<{ ticker: string; event_ticker: string; title: string; category: string }>> {
 	if (!env.KALSHI_PROD_KEY_ID || !env.KALSHI_PROD_PRIVATE_KEY) return [];
 	try {
-		const { KalshiClient, DEFAULT_PRODUCTION_BASE } = await import("../kalshi/client.js");
-		const { loadPrivateKey, KalshiCredentials } = await import("../kalshi/auth.js");
+		const baseUrl = "https://api.elections.kalshi.com/trade-api/v2";
+		const queryPath = "/events?status=open&limit=200&with_nested_markets=true";
+		const { loadPrivateKey, KalshiCredentials, buildAuthHeaders } = await import("../kalshi/auth.js");
 		const pk = await loadPrivateKey(env.KALSHI_PROD_PRIVATE_KEY);
 		const creds = new KalshiCredentials(env.KALSHI_PROD_KEY_ID, pk);
-		const client = new KalshiClient({
-			baseUrl: DEFAULT_PRODUCTION_BASE,
-			credentials: creds,
-			requestsPerSecond: 4, // a bit higher than the research cron's 2 — this is a single-page call
-		});
-		const { markets } = await client.listMarkets({
-			status: "open",
-			limit: 200,
-		});
-		const out: Array<{ ticker: string; event_ticker: string; title: string }> = [];
-		for (const m of markets) {
-			const et = (m as unknown as { event_ticker?: string }).event_ticker ?? "";
-			const v = classifyByEventTicker(et, m.title ?? "");
-			if (v === null) continue; // cross-category parlay
-			if (v === "uncategorized") continue; // already in the catch-all
-			if (v === "weather" || v === "economic" || v === "politics" || v === "sports") continue; // legacy 4 already in bot universe
+		const headers = await buildAuthHeaders(creds.privateKey, creds.keyId, "GET", `/trade-api/v2${queryPath}`);
+		const resp = await fetch(`${baseUrl}${queryPath}`, { method: "GET", headers: { ...headers } });
+		if (!resp.ok) {
+			console.warn(`[llm-opinions] fresh-discovery /events returned ${resp.status}`);
+			return [];
+		}
+		const data = await resp.json() as {
+			events?: Array<{
+				category?: string;
+				event_ticker?: string;
+				title?: string;
+				markets?: Array<{ ticker: string; title?: string }>;
+			}>;
+		};
+		const events = data.events ?? [];
+		const out: Array<{ ticker: string; event_ticker: string; title: string; category: string }> = [];
+		for (const ev of events) {
+			const cat = ev.category || "";
+			// Filter to the 13 new verticals only. The
+			// legacy 4 are already in the bot universe
+			// via the auto-promote pipeline.
+			if (!["Elections", "Financials", "Entertainment", "Science and Technology",
+				"Crypto", "Companies", "Commodities", "Mentions", "Social", "World",
+				"Health", "Transportation"].includes(cat)) continue;
+			const markets = ev.markets ?? [];
+			if (markets.length === 0) continue;
+			// Take the first market in the event (usually
+			// the highest-volume one). The loop will
+			// follow up with a GET for the orderbook.
+			const m = markets[0];
 			out.push({
 				ticker: m.ticker,
-				event_ticker: et,
-				title: m.title ?? m.ticker,
+				event_ticker: ev.event_ticker ?? "",
+				title: m.title ?? ev.title ?? m.ticker,
+				category: cat,
 			});
 		}
 		return out;
