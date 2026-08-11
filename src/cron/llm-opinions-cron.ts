@@ -261,9 +261,81 @@ async function readBotUniverse(env: CronEnv): Promise<string[]> {
 	}
 }
 
+// 2026-08-11 (Phase 4, followup): fresh-market
+// discovery for new verticals. The research-cron
+// (which normally snapshots every market) has been
+// timing out at the 30s Worker limit (5+ min wall-
+// clock per run), so the live_market_snapshots table
+// is stale — no new-vertical markets show up there
+// because Kalshi's elections/financials/crypto/etc.
+// markets currently have 0 last_price / 0 OI and
+// were only being snapshotted via the "known prefix"
+// fallback, which also depends on the (slow) research
+// cron. To unblock the LLM from seeing the 13 new
+// verticals, this function calls Kalshi's /markets
+// directly for a single 200-market page, filters to
+// the new verticals via the prefix map, and returns
+// the candidate list. 1 API call per 2-min cron = 720
+// calls/day. The full catalog cycles in ~1.5 days
+// (9610 markets / 200 per cron × 30 runs/hour = 2.4
+// hours, but in practice the cron only sees the first
+// 200 which Kalshi returns sorted by some default).
+async function discoverFreshNewVerticalMarkets(
+	env: CronEnv,
+): Promise<Array<{ ticker: string; event_ticker: string; title: string }>> {
+	if (!env.KALSHI_PROD_KEY_ID || !env.KALSHI_PROD_PRIVATE_KEY) return [];
+	try {
+		const { KalshiClient, DEFAULT_PRODUCTION_BASE } = await import("../kalshi/client.js");
+		const { loadPrivateKey, KalshiCredentials } = await import("../kalshi/auth.js");
+		const pk = await loadPrivateKey(env.KALSHI_PROD_PRIVATE_KEY);
+		const creds = new KalshiCredentials(env.KALSHI_PROD_KEY_ID, pk);
+		const client = new KalshiClient({
+			baseUrl: DEFAULT_PRODUCTION_BASE,
+			credentials: creds,
+			requestsPerSecond: 4, // a bit higher than the research cron's 2 — this is a single-page call
+		});
+		const { markets } = await client.listMarkets({
+			status: "open",
+			limit: 200,
+		});
+		const out: Array<{ ticker: string; event_ticker: string; title: string }> = [];
+		for (const m of markets) {
+			const et = (m as unknown as { event_ticker?: string }).event_ticker ?? "";
+			const v = classifyByEventTicker(et, m.title ?? "");
+			if (v === null) continue; // cross-category parlay
+			if (v === "uncategorized") continue; // already in the catch-all
+			if (v === "weather" || v === "economic" || v === "politics" || v === "sports") continue; // legacy 4 already in bot universe
+			out.push({
+				ticker: m.ticker,
+				event_ticker: et,
+				title: m.title ?? m.ticker,
+			});
+		}
+		return out;
+	} catch (e) {
+		console.warn(
+			"[llm-opinions] fresh-market discovery failed (non-fatal):",
+			e instanceof Error ? e.message : String(e),
+		);
+		return [];
+	}
+}
+
 export interface LLMOpinionsEnv extends LLMEnv {
 	DB?: D1Database;
 	LIVE_BOT?: DurableObjectNamespace;
+	// 2026-08-11 (Phase 4, followup #2): Kalshi creds
+	// for fresh-market discovery (call /markets?status=open
+	// directly when the snapshots table is stale). Inherited
+	// from CronEnv in production; declared here so the type
+	// checker doesn't reject the access in the loop.
+	KALSHI_PROD_KEY_ID?: string;
+	KALSHI_PROD_PRIVATE_KEY?: string;
+	// Internal: stashed by the fresh-discovery step so the
+	// per-ticker loop can find markets that don't have a
+	// snapshot row yet. NOT part of the production Env —
+	// populated at runtime by the cron.
+	__freshDiscovery?: Array<{ ticker: string; event_ticker: string; title: string }>;
 }
 
 export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResult> {
@@ -393,11 +465,42 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 		// With 3 calls per run, the first 3 go to fresh
 		// discovery and the rest to existing universe
 		// re-evaluation.
+		//
+		// 2026-08-11 (Phase 4, followup #2): pull from
+		// Kalshi's /markets DIRECTLY for new verticals.
+		// The previous Phase 4 order (snapshots-first)
+		// was still bottlenecked on the research-cron,
+		// which has been timing out at the 30s Worker
+		// wall-clock limit (5+ min wall-clock per run)
+		// since 01:10 — the snapshots table is stale
+		// and shows no new-vertical markets. To unblock
+		// the LLM from seeing the 13 new verticals, this
+		// step now ALSO calls Kalshi's /markets?status=open
+		// for a single 200-market page, filters to the
+		// 13 new verticals (skipping the 4 legacy ones
+		// already in the bot universe), and prepends
+		// those to the freshFirst list. 1 extra API call
+		// per 2-min cron, well under the rate limit.
+		const freshNewVerticals = await discoverFreshNewVerticalMarkets(env);
+		const freshNewVerticalsTickers = freshNewVerticals.map((f) => f.ticker);
 		const universe = new Set(tickers);
 		const others = (rankedRows.results ?? []).map((r) => r.ticker);
-		const freshFirst = others.filter((t) => !universe.has(t));
+		const freshFirst = [
+			...freshNewVerticalsTickers,
+			...others.filter((t) => !universe.has(t)),
+		].filter((t, i, arr) => arr.indexOf(t) === i); // dedupe
 		const universeFirst = allTickers.filter((t) => universe.has(t));
 		allTickers = [...freshFirst, ...universeFirst].slice(0, LLM_LOOP_CAP);
+		// 2026-08-11 (Phase 4, followup #2): stash the
+		// fresh-discovery markets on the env so the
+		// per-ticker loop can find them in the snapshot
+		// map even if they don't have a snapshot row yet
+		// (they were just discovered via /markets). Without
+		// this, the loop would skip the fresh markets
+		// because the snapshot query returns nothing.
+		if (freshNewVerticals.length > 0) {
+			env.__freshDiscovery = freshNewVerticals;
+		}
 	}
 
 	const errors: Array<{ ticker: string; message: string }> = [];
@@ -522,7 +625,64 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 
 	for (const ticker of allTickers) {
 		try {
-			const snap = snapByTicker.get(ticker) ?? null;
+			let snap = snapByTicker.get(ticker) ?? null;
+			// 2026-08-11 (Phase 4, followup #2): the
+			// fresh-discovery step pulls markets directly
+			// from Kalshi's /markets, but those markets
+			// don't have a snapshot row yet (the research
+			// cron is timing out at the 30s Worker limit
+			// and not writing snapshots for new verticals).
+			// Synthesize a minimal "snapshot" from the
+			// fresh-discovery data so the LLM still gets
+			// a price + title. We have to call /markets
+			// again for the bid/ask — the list endpoint
+			// returns 0 for those — so the LLM prompt
+			// for a fresh-discovery market will have
+			// "?" for bid/ask/last. That's OK: the LLM
+			// can still see the title and last trade, and
+			// the LLMOpinionSignal will skip on the
+			// strategy side if no price is available.
+			if (!snap) {
+				const fresh = (env as CronEnv).__freshDiscovery?.find(
+					(f) => f.ticker === ticker,
+				);
+				if (fresh) {
+					// Try a quick GET to get the real orderbook.
+					// If it fails, fall back to the title-only
+					// synthesised snapshot.
+					try {
+						const { KalshiClient, DEFAULT_PRODUCTION_BASE } = await import("../kalshi/client.js");
+						const { loadPrivateKey, KalshiCredentials } = await import("../kalshi/auth.js");
+						if (env.KALSHI_PROD_KEY_ID && env.KALSHI_PROD_PRIVATE_KEY) {
+							const pk = await loadPrivateKey(env.KALSHI_PROD_PRIVATE_KEY);
+							const creds = new KalshiCredentials(env.KALSHI_PROD_KEY_ID, pk);
+							const client = new KalshiClient({
+								baseUrl: DEFAULT_PRODUCTION_BASE,
+								credentials: creds,
+								requestsPerSecond: 4,
+							});
+							const m = await client.getMarket(ticker);
+							snap = {
+								ticker: m.ticker,
+								event_ticker: fresh.event_ticker,
+								title: fresh.title,
+								yes_bid_cents: m.yes_bid_cents,
+								yes_ask_cents: m.yes_ask_cents,
+								last_price_cents: m.last_price_cents,
+								volume_24h: m.volume_24h ?? null,
+								open_interest: m.open_interest ?? null,
+							};
+						}
+					} catch {
+						// GET failed — skip
+						skipped.push(`${ticker}: fresh_discovery_get_failed`);
+						continue;
+					}
+				} else {
+					skipped.push(`${ticker}: no_snapshot`);
+					continue;
+				}
+			}
 			if (!snap) {
 				skipped.push(`${ticker}: no_snapshot`);
 				continue;

@@ -88,6 +88,12 @@ export interface CronEnv extends LLMEnv, TelegramEnv {
 	BUCKET?: R2Bucket;
 	ENVIRONMENT?: string;
 	SERVICE_NAME?: string;
+	// 2026-08-11 (Phase 4, followup #2): the LLM cron
+	// stashes fresh-discovery markets here so the per-
+	// ticker loop can find them even if they don't have
+	// a snapshot row yet. Populated at runtime by
+	// discoverFreshNewVerticalMarkets in llm-opinions-cron.
+	__freshDiscovery?: Array<{ ticker: string; event_ticker: string; title: string }>;
 	// Optional worker-level overrides for the scan cron.
 	SCAN_TOP_N?: string;        // string-encoded int (env vars are strings)
 	SCAN_LOOKBACK_HOURS?: string;
