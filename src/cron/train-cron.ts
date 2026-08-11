@@ -37,16 +37,17 @@
  * `promote` endpoint as the manual gate.
  */
 
-import { DEFAULT_USER_ID, type Vertical } from "../lib/types.js";
+import { DEFAULT_USER_ID, VERTICALS, type Vertical } from "../lib/types.js";
 import { models as modelsDb } from "../lib/db.js";
 import type { CronEnv, CronResult } from "./dispatcher.js";
 
-const KNOWN_VERTICALS: ReadonlyArray<Vertical> = [
-	"weather",
-	"economic",
-	"politics",
-	"sports",
-];
+// 2026-08-11: use the canonical VERTICALS list from lib/types.ts
+// (17 verticals) instead of a hardcoded 4-vertical subset. The old
+// list silently dropped models for the 13 new verticals — when a
+// `models/reversion-elections-{version}.json` was uploaded, the
+// parser would match the key but `isVertical("elections")` would
+// return false, so the model was discarded as "unknown vertical."
+const KNOWN_VERTICALS: ReadonlyArray<Vertical> = VERTICALS;
 
 function isVertical(s: string): s is Vertical {
 	return (KNOWN_VERTICALS as ReadonlyArray<string>).includes(s);
