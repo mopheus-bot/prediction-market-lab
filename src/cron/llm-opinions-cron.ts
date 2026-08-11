@@ -342,15 +342,29 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	// parameterised IN-clause. Just query the top 200 by
 	// volume directly from live_market_snapshots, then take
 	// the first LLM_LOOP_CAP of those.
-	// 2026-08-11 (Phase 3, all-three): bumped 50 → 200. The
-	// user is on MiniMax Ultra (cost is bundled) and wants
-	// the LLM to evaluate enough of the catalog to actually
-	// find edge. At 200/run × */2 = 144K calls/day, the full
-	// 2,184-market catalog cycles through in 22 min (vs 1.5
-	// days at 50/run). Each LLM call gets a richer prompt
-	// (price history + orderbook depth + vertical) — see
-	// `askLLMForOpinion` for the new shape.
-	const LLM_LOOP_CAP = 200;
+	// 2026-08-11 (Phase 4, expansion): dropped 200 → 3.
+	// The Phase 3 bump from 50 to 200 assumed ~1s per LLM
+	// call; with the Phase 3 rich prompt (price history +
+	// orderbook depth + vertical), measured latency is
+	// 10.5s avg / 45s max. 200 calls × 10s = 2,000s wall-
+	// clock, well over the 30s Worker wall-clock limit.
+	// The cron was timing out mid-loop and not even writing
+	// a cron_run row (no runs in 12+ min after deploy).
+	//
+	// At LLM_LOOP_CAP=3 + 10s/call, each run takes ~30s
+	// wall-clock (tight against the limit but survives).
+	// 3 calls × 30 runs/hour = 90 calls/hour = 2,160/day.
+	// The 2,184-market catalog cycles in ~24 hours. Not
+	// "22 min" as the user originally wanted, but realistic
+	// given the LLM latency we have. The bot's own
+	// universe (~40 tickers) gets first-priority in the
+	// sort, so it cycles in 40/3 × 2 min = 27 min — well
+	// under the LLM verdict TTL of 1h.
+	//
+	// Future: parallelize with Promise.all + rate-limit
+	// aware batching to fit 30+ calls per run. Out of
+	// scope for the Phase 4 vertical expansion.
+	const LLM_LOOP_CAP = 3;
 	const CANDIDATE_POOL = 200;
 	if (allTickers.length > LLM_LOOP_CAP) {
 		const rankedRows = await env.DB
