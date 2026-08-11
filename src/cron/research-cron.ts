@@ -18,12 +18,17 @@
  * if there's a real two-sided quote. This cron does the
  * bulk GET in the background and surfaces the live view.
  *
- * **What "live" means here:** a market is `is_live = 1` if
- * it has a real two-sided orderbook (yes_bid_cents > 0 AND
- * yes_ask_cents > 0 AND yes_ask_cents > yes_bid_cents) on
- * the most recent snapshot. One-sided quotes (asks but no
- * bids, or bids but no asks) are NOT live — Kalshi is
- * offering to take the other side but no one's trading.
+ * **What "live" means here (2026-08-10, paper-mode relaxation):**
+ * a market is `is_live = 1` if EITHER yes_bid_cents > 0 OR
+ * yes_ask_cents > 0 — i.e. Kalshi is quoting it on at least
+ * one side. The previous definition required BOTH sides with
+ * a sane spread (yes_ask > yes_bid), which correctly filtered
+ * to markets with real two-sided liquidity but capped the
+ * bot's tradable universe at 2 markets. Widening lets the
+ * LLM auto-promote pipeline see all 2,254 listed markets
+ * (most of them one-sided parlays) and pick up any that
+ * actually have edge. Strategies filter on price quality
+ * downstream — see `computeIsLive` for the full rationale.
  *
  * **Cost:** ~30 LIST calls (1 page = 200 markets × 30 pages
  * = 6,000 markets) + N GET calls where N = number of
@@ -74,16 +79,41 @@ function looksActive(
 	return false;
 }
 
-/** A snapshot is "live" (real two-sided quote) if:
- *  - yes_bid > 0 (someone is bidding to buy yes)
- *  - yes_ask > 0 (someone is offering to sell yes)
- *  - yes_ask > yes_bid (the ask is genuinely above the bid —
- *    not a default 0/0 or 0/100 placeholder) */
+/** A snapshot is "live" (Kalshi is quoting this market) if EITHER
+ *  side has a non-zero price — yes_bid > 0 OR yes_ask > 0.
+ *
+ *  2026-08-10 19:48 (paper-mode exploration): the previous
+ *  definition required both sides (yes_bid > 0 AND yes_ask > 0
+ *  AND yes_ask > yes_bid) — a strict "real two-sided
+ *  orderbook" test. That correctly filtered out 2247 of 2254
+ *  Kalshi markets (only KXWARMING-50 and one cross-category
+ *  parlay have actual two-sided liquidity right now), but it
+ *  also capped the bot's tradable universe at 2 markets in
+ *  paper mode.
+ *
+ *  The user wants to push hard in paper mode. Widening to
+ *  "either side has a quote" unlocks all 2,254 listed
+ *  markets. The downstream strategies (NaiveSignal,
+ *  LLMOpinionSignal) will see weird prices on the one-sided
+ *  markets (Kalshi offering to take the other side at
+ *  1¢–99¢) — most LLM verdicts will be "hold" because the
+ *  LLM doesn't trust the implied price, and the strategies'
+ *  computeMid() requires both sides so they no-op on
+ *  one-sided books. Net effect: the LLM gets to evaluate
+ *  every market, the auto-promote pipeline can pick up any
+ *  market that genuinely has edge, and the strategies still
+ *  filter on price quality. Cheap experiment.
+ *
+ *  If a market has yes_bid=0 AND yes_ask=0, last_price_cents
+ *  is the only price signal — the snapshot still gets
+ *  written, is_live=0, and the LLM cron skips it (no usable
+ *  price to compare fair value against).
+ */
 function computeIsLive(
 	yes_bid_cents: number,
 	yes_ask_cents: number,
 ): 0 | 1 {
-	if (yes_bid_cents > 0 && yes_ask_cents > 0 && yes_ask_cents > yes_bid_cents) {
+	if (yes_bid_cents > 0 || yes_ask_cents > 0) {
 		return 1;
 	}
 	return 0;
