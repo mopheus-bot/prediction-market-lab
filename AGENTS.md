@@ -44,6 +44,17 @@ If the application uses Durable Objects or Workflows, refer to the relevant best
 
 # pm-bot — project context
 
+## Doc index
+
+| Doc | What it covers |
+|---|---|
+| [`docs/PLAN.md`](./docs/PLAN.md) | Architecture, chunk plan, decisions, cost-at-scale |
+| [`docs/ONBOARDING.md`](./docs/ONBOARDING.md) | New-dev setup, env vars, deploy |
+| [`docs/STRATEGY-PARLAYS.md`](./docs/STRATEGY-PARLAYS.md) | Parlay strategy rationale (note: 2026-08-11 LLM hallucinates on parlays — see `docs/LLM-PIPELINE.md`) |
+| [`docs/EVENT-DRIVEN-UI.md`](./docs/EVENT-DRIVEN-UI.md) | SSE event vocabulary + render contract for the live dashboard |
+| [`docs/operations.md`](./docs/operations.md) | Day-to-day runbook (kill switch, restart, cron triggers) |
+| [`docs/LLM-PIPELINE.md`](./docs/LLM-PIPELINE.md) | **Read this before debugging the bot.** The three real bugs in the LLM-driven pipeline as of 2026-08-11: (A) research worker feeds the LLM ticker+title+price only, no parlay component data → LLM hallucinates; (B) LLM cron caps at 50/run, doesn't cover the full 2,184-market catalog in any reasonable window; (C) the 6h flip-filter hold blocks re-examination of open positions, so the "more allowance" (per-trade cap bump) is inert for positions the bot already has. Plus the cost / safety math, the action items, and the lesson that the "judge" was a sizing function downstream of the LLM, not the layer that decided whether to trade. |
+
 Serverless port of the Kalshi trading bot. Source of truth for strategy: `~/Documents/GitHub/the Python reference engine/` (Python). **Full architecture, chunk plan, decisions, and cost-at-scale analysis: see [`docs/PLAN.md`](./docs/PLAN.md).**
 
 ## Infrastructure
