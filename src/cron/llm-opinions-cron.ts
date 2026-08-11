@@ -232,20 +232,26 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	// (b) markets with real volume, (c) markets with real OI.
 	// The auto-promote pipeline still surfaces the long tail:
 	// a different ticker's turn comes around every ~30 runs.
+	//
+	// 2026-08-10 20:30: D1 binds cap is 100 parameters per
+	// query. The earlier "IN (...) with all 2,184 tickers" approach
+	// crashed. New approach: don't pass allTickers to a
+	// parameterised IN-clause. Just query the top 200 by
+	// volume directly from live_market_snapshots, then take
+	// the first LLM_LOOP_CAP of those.
 	const LLM_LOOP_CAP = 50;
+	const CANDIDATE_POOL = 200;
 	if (allTickers.length > LLM_LOOP_CAP) {
-		// Look up volume + OI for all candidates in one query.
 		const rankedRows = await env.DB
 			.prepare(
 				`SELECT ticker, MAX(volume_24h) as vol, MAX(open_interest) as oi
 				 FROM live_market_snapshots
-				 WHERE user_id = ?1 AND ts >= ?2 AND ticker IN (${allTickers
-					.map((_, i) => `?${i + 3}`)
-					.join(",")})
+				 WHERE user_id = ?1 AND ts >= ?2 AND is_live = 1
 				 GROUP BY ticker
-				 ORDER BY vol DESC, oi DESC`,
+				 ORDER BY vol DESC, oi DESC
+				 LIMIT ?3`,
 			)
-			.bind(userId, now - 60 * 60 * 1000, ...allTickers)
+			.bind(userId, now - 60 * 60 * 1000, CANDIDATE_POOL)
 			.all<{ ticker: string; vol: number | null; oi: number | null }>();
 		// Bot universe first (always), then top LLM_LOOP_CAP - universe
 		// by volume/OI. Stable across runs (deterministic ordering).
