@@ -482,15 +482,19 @@ export class LiveBot implements DurableObject {
 				// balance. Operators bump via /start when
 				// ready to test with a bigger bag.
 				trading_mode: "paper",
-				// 2026-08-10 21:00 (paper-mode expansion): bumped
-				// defaults. Per-trade from $0.25 to $50; daily cap
-				// from $1.50 to $2,500. The user wants the bot to
-				// actually move with the >5% signals it finds
-				// instead of being locked out by the conservative
-				// defaults. The 10% drawdown pause + 3-loss
-				// cooldown + kill switch remain as the safety net.
-				max_notional_cents_per_trade: 5000, // $50
-				daily_notional_cents_cap: 250000, // $2,500
+				// 2026-08-11 (paper-mode, no-caps push): the user
+				// wants "constantly and continuously updating and
+				// running, one after the other, boom boom boom".
+				// Bumped per-trade $50 → $200 and daily $2,500 →
+				// $10,000. With the judge (conf × upper, no
+				// perSlotCap, no recentWinRate shrink) the bot
+				// will now size: conf=0.55 → $110/trade; conf=0.70
+				// → $140/trade; conf=1.0 → $200/trade. The
+				// drawdown-pause circuit (10%) + 3-loss cooldown
+				// + kill switch are still the safety net; this
+				// is purely an upper-bound bump.
+				max_notional_cents_per_trade: 20000, // $200
+				daily_notional_cents_cap: 1000000, // $10,000
 				kill_switch: false,
 				// Chunk 11b: per-vertical caps + per-ticker
 				// blocklist. Default to "no override" (null)
@@ -2459,12 +2463,17 @@ export class LiveBot implements DurableObject {
 		// confidence + drawdown + recent win rate, bounded by
 		// the same per-trade cap. Use the min of the two so the
 		// hard cap still wins.
-		const recentClosed = Object.values(state.risk_state.open_positions)
-			.slice(-5) // crude: just use the last 5 entries (the open
-			// ones for now, since closed history isn't on the
-			// polling-feed hot path; the judge will improve once
-			// recentClosed is fed properly)
-			.map((p) => ({ pnl_cents: 0 }));
+		//
+		// 2026-08-11: feed the judge the REAL pnl_history. The
+		// previous code passed `Object.values(open_positions)
+		// .map(p => ({ pnl_cents: 0 }))` — every "trade" was a
+		// zero, so recentWinRate was always 0, so the judge
+		// always shrunk the trade by 0.7 (the < 40% branch in
+		// engine.ts:judgeSize). That deterministic shrink is
+		// why the operator saw "the number didn't change".
+		const recentClosed = state.risk_state.pnl_history
+			.slice(-5)
+			.map((pnl_cents) => ({ pnl_cents }));
 		const judge = risk.judgeSize(signal.price, signal.p, recentClosed);
 		const size = Math.min(decision.size, judge.size);
 		// Note: judge.reasoning is exposed via the next /status

@@ -159,21 +159,32 @@ export class RiskEngine {
 	 * between is free game" — a dynamic range the bot can
 	 * sweep through based on conditions.
 	 *
-	 * Algorithm:
+	 * 2026-08-11 (paper-mode, no-caps push): the previous version
+	 * had two extra caps that were silently shrinking every trade:
+	 *   1. `recentWinRate < 0.4` → ×0.7. With the upstream bug
+	 *      that fed `pnl_cents: 0` for every "recent trade", this
+	 *      branch fired on every signal. Even with real data, the
+	 *      cold-streak shrink is fighting the operator's intent
+	 *      ("we shouldn't cap, this should be constantly and
+	 *      continuously updating"). Removed: the drawdown circuit
+	 *      breakers in canOpenPosition already handle catastrophic
+	 *      cold streaks via drawdown_pause_pct + consecutive_losses.
+	 *   2. `perSlotCap = dailyRemaining / slotsLeft` — divided the
+	 *      full daily budget by the position-slot count, capping
+	 *      each slot at a few dollars. That made "$27 from the
+	 *      judge become $3 in practice". Removed: the daily cap
+	 *      itself is the ceiling; no per-slot division.
+	 *
+	 * Algorithm (now):
 	 *   baseCents = signal.confidence × upperCents
-	 *   - drawdown > 5%       → halve
-	 *   - recent win rate > 60% → 1.2× boost
-	 *   - recent win rate < 40% → 0.7× shrink
+	 *   - drawdown > 10% → ×0.25   (in drawdown-pause zone anyway)
+	 *   - drawdown > 5%  → ×0.5
 	 *   - clamp to [lowerCents, upperCents]
-	 *   - clamp to remaining daily notional
-	 *   - clamp to remaining position slots
+	 *   - clamp to remaining daily notional (the only remaining cap)
 	 *
 	 * Outputs the size in contracts and a reasoning string for
 	 * the cadence panel / dashboard to display. NOT a replacement
-	 * for computeSize — this is layered on top: the judge produces
-	 * a target notional, then the per-trade cap + bankroll-pct
-	 * floors/caps are applied. Use this for the signal-driven
-	 * path; keep computeSize for the /place-test-order endpoint.
+	 * for computeSize — this is layered on top.
 	 */
 	judgeSize(
 		entryPrice: number,
@@ -189,10 +200,15 @@ export class RiskEngine {
 		const upperCents = this._config.max_notional_cents_per_trade;
 		const lowerCents = 10; // 10¢ floor — always have some skin in the game
 
-		// Base: confidence × upper
+		// Base: confidence × upper. The user's "upper and lower
+		// threshold, any value in between is free game" maps to
+		// this directly: conf=1.0 → upper; conf=0.55 → ~half of
+		// upper; conf=0.20 → ~quarter of upper.
 		let baseCents = upperCents * signalConfidence;
 
-		// Drawdown adjustment
+		// Drawdown adjustment only — recent-win-rate shrink
+		// removed (see comment block). The drawdown_pause circuit
+		// in canOpenPosition already blocks trades past 10% DD.
 		const drawdown =
 			this._state.peak_bankroll_cents > 0
 				? (this._state.peak_bankroll_cents - this._state.bankroll_cents) /
@@ -200,13 +216,6 @@ export class RiskEngine {
 				: 0;
 		if (drawdown > 0.10) baseCents *= 0.25; // in drawdown-pause zone anyway
 		else if (drawdown > 0.05) baseCents *= 0.5;
-
-		// Recent win rate (last 5 closed trades)
-		const recent = recentClosed.slice(-5);
-		const recentWins = recent.filter((t) => t.pnl_cents > 0).length;
-		const recentWinRate = recent.length > 0 ? recentWins / recent.length : 0.5;
-		if (recentWinRate > 0.6) baseCents *= 1.2;
-		if (recentWinRate < 0.4) baseCents *= 0.7;
 
 		// Clamp to [lower, upper]
 		let finalCents = Math.max(lowerCents, Math.min(upperCents, baseCents));
@@ -222,15 +231,11 @@ export class RiskEngine {
 		);
 		finalCents = Math.min(finalCents, dailyRemainingCents);
 
-		// Clamp to remaining position slots
+		// Position-slot check (no perSlotCap division — see above).
 		const openCount = Object.keys(this._state.open_positions).length;
-		const slotsLeft = Math.max(0, this._config.max_concurrent_positions - openCount);
-		if (slotsLeft <= 0) {
+		if (openCount >= this._config.max_concurrent_positions) {
 			return { size: 0, notional_cents: 0, reasoning: "no_position_slots" };
 		}
-		// Split the remaining daily notional across remaining slots
-		const perSlotCap = Math.floor(dailyRemainingCents / slotsLeft);
-		finalCents = Math.min(finalCents, perSlotCap);
 
 		// Final clamp to [lower, upper] (in case daily cap was tight)
 		finalCents = Math.max(lowerCents, Math.min(upperCents, finalCents));
@@ -239,8 +244,7 @@ export class RiskEngine {
 		const reasoning =
 			`judge: conf=${(signalConfidence * 100).toFixed(0)}% ` +
 			`dd=${(drawdown * 100).toFixed(1)}% ` +
-			`wr=${(recentWinRate * 100).toFixed(0)}% ` +
-			`slots=${slotsLeft} → ${finalCents}¢ (${size} @ ${entryPrice}¢)`;
+			`→ ${finalCents}¢ (${size} @ ${entryPrice}¢)`;
 		return { size, notional_cents: finalCents, reasoning };
 	}
 

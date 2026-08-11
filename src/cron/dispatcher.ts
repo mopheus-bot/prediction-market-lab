@@ -59,7 +59,7 @@ export const CRON_TABLE = {
 	auto_pilot: "30 5 * * *", // 05:30 UTC daily (before daily recap)
 	heartbeat: "0 7 * * *",   // 07:00 UTC daily (after daily recap; passive health check)
 	leads: "30 */6 * * *",    // every 6 hours +30min (00:30/06:30/12:30/18:30 UTC). 2026-08-09: tightened from daily 02:00 UTC to 6h. Offset by 30min from news so the LLM has fresh news data; unique expression so jobForCron can dispatch correctly.
-	llm_opinions: "15,45 * * * *", // every 30 min (15, 45 minutes past the hour). 2026-08-10: chunk 15, asks the LLM for per-ticker verdicts. LLMOpinionSignal reads from llm_opinions. Unique expression (not 0,30) so jobForCron dispatch works without colliding with other "every-30" patterns.
+	llm_opinions: "*/2 * * * *", // every 2 min. 2026-08-10 21:00: tightened from 30 min to 2 min so the bot sees new market data within a couple polls of it appearing. 2026-08-11: aligned CRON_TABLE with wrangler.jsonc (which has been on */2 since commit 56c3c79); the previous `15,45` here caused jobForCron to label most `*/2` fires as the unknown-cron fallback ("scan"), so the LLM loop only ran at HH:15/HH:45.
 	train: "0 0 * * SUN",     // 00:00 UTC Sunday (day-of-week as name, not 0)
 	backtest: "0 1 * * SUN",  // 01:00 UTC Sunday (after train)
 } as const;

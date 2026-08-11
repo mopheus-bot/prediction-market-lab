@@ -134,11 +134,20 @@ describe("RiskEngine — sizing", () => {
 describe("RiskEngine — judgeSize (dynamic sizing)", () => {
 	// 2026-08-10 21:00: the dynamic judge. Bounds: upper =
 	// max_notional_cents_per_trade, lower = 10¢. Scales by
-	// signal confidence + drawdown + recent win rate. This
-	// is the "upper/lower threshold with anything in between
-	// free" feature the user asked for.
+	// signal confidence + drawdown. The "upper/lower
+	// threshold with anything in between free" feature the
+	// user asked for.
+	//
+	// 2026-08-11 (paper-mode, no-caps push): removed the
+	// recentWinRate-based hot/cold streak multipliers
+	// (×1.2 hot, ×0.7 cold). The user wants "constantly and
+	// continuously updating, one after the other, boom boom
+	// boom" — no shrinking on cold streaks. The drawdown
+	// circuit breakers in canOpenPosition still kill
+	// catastrophic runs. Confidence is now the only size
+	// driver, plus the drawdown-safety multiplier.
 
-	it("high confidence + no drawdown + neutral win rate = base notional", () => {
+	it("high confidence + no drawdown = base notional", () => {
 		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
 		const r = eng.judgeSize(50, 0.9, []);
 		// 0.9 × 5000c = 4500c, clamped to [10, 5000] = 4500c.
@@ -164,7 +173,22 @@ describe("RiskEngine — judgeSize (dynamic sizing)", () => {
 		expect(r.size).toBe(0); // 10c / 50c = 0.2, floor 0
 	});
 
-	it("hot streak boosts size 1.2x", () => {
+	it("cold streak no longer shrinks (per 2026-08-11 no-caps push)", () => {
+		// Previously: 0.8 × 5000 × 0.7 = 2800c. Now: 0.8 × 5000 = 4000c.
+		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
+		const recent = [
+			{ pnl_cents: -50 },
+			{ pnl_cents: -30 },
+			{ pnl_cents: -80 },
+		];
+		const r = eng.judgeSize(50, 0.8, recent);
+		expect(r.notional_cents).toBe(4000);
+		// Reasoning no longer carries the wr= segment.
+		expect(r.reasoning).not.toContain("wr=");
+	});
+
+	it("hot streak no longer boosts (per 2026-08-11 simplification)", () => {
+		// Previously: 0.8 × 5000 × 1.2 = 4800c. Now: 0.8 × 5000 = 4000c.
 		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
 		const recent = [
 			{ pnl_cents: 100 },
@@ -172,24 +196,9 @@ describe("RiskEngine — judgeSize (dynamic sizing)", () => {
 			{ pnl_cents: 30 },
 			{ pnl_cents: 80 },
 			{ pnl_cents: 20 },
-		]; // 5/5 wins = 100% > 60%
+		];
 		const r = eng.judgeSize(50, 0.8, recent);
-		// 0.8 × 5000 × 1.2 = 4800c, clamped to [10, 5000] = 4800c.
-		expect(r.notional_cents).toBe(4800);
-		expect(r.reasoning).toContain("wr=100%");
-	});
-
-	it("cold streak shrinks size 0.7x", () => {
-		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
-		const recent = [
-			{ pnl_cents: -50 },
-			{ pnl_cents: -30 },
-			{ pnl_cents: -80 },
-		]; // 0/3 wins = 0% < 40%
-		const r = eng.judgeSize(50, 0.8, recent);
-		// 0.8 × 5000 × 0.7 = 2800c
-		expect(r.notional_cents).toBe(2800);
-		expect(r.reasoning).toContain("wr=0%");
+		expect(r.notional_cents).toBe(4000);
 	});
 
 	it("5%+ drawdown halves size", () => {
@@ -214,14 +223,28 @@ describe("RiskEngine — judgeSize (dynamic sizing)", () => {
 
 	it("caps at max_notional_cents_per_trade (upper bound)", () => {
 		const eng = makeEngine({ max_notional_cents_per_trade: 5000 });
-		// Even at 100% confidence + perfect streak, can't
-		// exceed the cap.
 		const r = eng.judgeSize(50, 1.0, [
 			{ pnl_cents: 100 },
 			{ pnl_cents: 100 },
 			{ pnl_cents: 100 },
 		]);
 		expect(r.notional_cents).toBeLessThanOrEqual(5000);
+	});
+
+	it("perSlotCap removed: full daily budget flows to a single trade", () => {
+		// 2026-08-11: the old perSlotCap was dailyRemaining / slotsLeft,
+		// which divided the daily budget by 10 and capped each slot at
+		// ~$3-30. Now the daily cap itself is the only ceiling.
+		const eng = makeEngine({
+			max_notional_cents_per_trade: 20_000,
+			max_concurrent_positions: 10,
+		});
+		eng.state.bankroll_cents = 1_000_000;
+		eng.state.peak_bankroll_cents = 1_000_000;
+		// No open positions, no daily usage. conf=0.7 → 0.7 × 20000 = 14000c.
+		const r = eng.judgeSize(50, 0.7, []);
+		expect(r.notional_cents).toBe(14000);
+		expect(r.size).toBe(280); // 14000/50
 	});
 
 	it("rejects invalid inputs", () => {
