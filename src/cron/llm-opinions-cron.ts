@@ -162,6 +162,14 @@ export interface LLMOpinionContext {
 	lastPriceCents: number | null;
 	volume24h: number | null;
 	openInterest: number | null;
+	// 2026-08-11: true when the snapshot has no live
+	// price (no bid/ask, no last trade). The LLM
+	// prompt tells the model to evaluate on title +
+	// event context alone — the verdict can still be
+	// confident enough to auto-promote the market
+	// into the universe so the polling feed starts
+	// tracking it. A price may appear later.
+	noPrice?: boolean;
 	// Last-1h bid/ask trend (oldest → newest). Length 0-4 depending
 	// on how many research-cron snapshots landed in the last hour.
 	// The LLM uses this to see momentum vs mean-revert pressure.
@@ -266,7 +274,7 @@ async function askLLMForOpinion(
 	const prompt = `Market: ${ctx.ticker}
 Title: ${ctx.title}
 Vertical: ${ctx.vertical}${eventContext}
-Current YES price: ${ctx.currentYesPriceCents}¢ (NO = ${100 - ctx.currentYesPriceCents}¢)
+${ctx.noPrice ? "(no live price yet — evaluate on title + event context alone)\n" : ""}Current YES price: ${ctx.currentYesPriceCents}¢ (NO = ${100 - ctx.currentYesPriceCents}¢)
 Current orderbook: bid ${ctx.yesBidCents ?? "?"}¢ / ask ${ctx.yesAskCents ?? "?"}¢ / last trade ${ctx.lastPriceCents ?? "?"}¢
 24h volume: ${ctx.volume24h ?? "?"} contracts · open interest: ${ctx.openInterest ?? "?"}${trendBlock}
 What's your view? Reply JSON: {"side": "yes" | "no" | "hold", "confidence": 0.0-1.0, "reasoning": "..."}`;
@@ -575,20 +583,22 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	// The cron was timing out mid-loop and not even writing
 	// a cron_run row (no runs in 12+ min after deploy).
 	//
-	// At LLM_LOOP_CAP=3 + 10s/call, each run takes ~30s
-	// wall-clock (tight against the limit but survives).
-	// 3 calls × 30 runs/hour = 90 calls/hour = 2,160/day.
-	// The 2,184-market catalog cycles in ~24 hours. Not
-	// "22 min" as the user originally wanted, but realistic
-	// given the LLM latency we have. The bot's own
-	// universe (~40 tickers) gets first-priority in the
-	// sort, so it cycles in 40/3 × 2 min = 27 min — well
-	// under the LLM verdict TTL of 1h.
+	// 2026-08-11 (Phase 4, followup #4): parallelized.
+	// The LLM call is I/O-bound (waiting on the model),
+	// so concurrent calls don't add CPU cost — just
+	// batch the wait. With MAX_CONCURRENT_LLM=5 inside
+	// the pMap, 15 LLM calls = 3 batches × 10s = 30s
+	// wall-clock (just at the limit). 15 calls × 30
+	// runs/hour = 450 calls/hour = 10,800/day. The
+	// 9,610-event catalog cycles in ~21 hours. The bot's
+	// own universe (~40 tickers) gets first-priority in
+	// the sort, so it cycles in 40/15 × 2 min = 5.3 min
+	// — well under the LLM verdict TTL of 1h.
 	//
-	// Future: parallelize with Promise.all + rate-limit
-	// aware batching to fit 30+ calls per run. Out of
-	// scope for the Phase 4 vertical expansion.
-	const LLM_LOOP_CAP = 3;
+	// The user pushed back: "this number isn't moving,
+	// it isn't being exposed to anything." 3 was
+	// starving the LLM. 15 puts real coverage on.
+	const LLM_LOOP_CAP = 15;
 	const CANDIDATE_POOL = 200;
 	if (allTickers.length > LLM_LOOP_CAP) {
 		const rankedRows = await env.DB
@@ -775,7 +785,51 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 		}
 	}
 
-	for (const ticker of allTickers) {
+	// 2026-08-11: parallelize the LLM loop. Previously
+	// this was a sequential for-loop (3 LLM calls × 10.5s
+	// = 30s wall-clock, the whole Worker budget). The
+	// LLM call is I/O-bound (waiting on the model), so
+	// running them concurrently doesn't add CPU cost —
+	// just batches the wait. With MAX_CONCURRENT_LLM=5,
+	// 15 LLM calls = 3 batches × 10s = 30s, just at
+	// the limit. If the LLM latency is slower than
+	// expected, the cron will start timing out and the
+	// CF runtime will return whatever the dispatcher
+	// records. The cron_run is written at the end so
+	// the heartbeat stays accurate.
+	//
+	// The user pointed out: 'why is the bot not trading
+	// if it's seeing the new markets? this number isn't
+	// moving, it isn't being exposed to anything.' The
+	// 3-call cap was starving the LLM — the bot was
+	// seeing the same 4 single-event markets every 28
+	// minutes. With 15 calls/run, the LLM cycles through
+	// ~450 markets/hour. The 9,610-event catalog cycles
+	// in ~21 hours. Auto-promote fires on the markets
+	// the LLM actually has a view on, regardless of
+	// whether they have a live price yet.
+	const MAX_CONCURRENT_LLM = 5;
+	async function pMap<T, R>(
+		items: T[],
+		concurrency: number,
+		fn: (item: T, index: number) => Promise<R>,
+	): Promise<R[]> {
+		const results: R[] = new Array(items.length);
+		let cursor = 0;
+		async function worker() {
+			while (true) {
+				const idx = cursor;
+				cursor += 1;
+				if (idx >= items.length) return;
+				results[idx] = await fn(items[idx]!, idx);
+			}
+		}
+		const workerCount = Math.min(concurrency, items.length);
+		await Promise.all(Array.from({ length: workerCount }, () => worker()));
+		return results;
+	}
+
+	await pMap(allTickers, MAX_CONCURRENT_LLM, async (ticker) => {
 		try {
 			let snap = snapByTicker.get(ticker) ?? null;
 			// 2026-08-11 (Phase 4, followup #2): the
@@ -828,29 +882,44 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 					} catch {
 						// GET failed — skip
 						skipped.push(`${ticker}: fresh_discovery_get_failed`);
-						continue;
+						return;
 					}
 				} else {
 					skipped.push(`${ticker}: no_snapshot`);
-					continue;
+					return;
 				}
 			}
 			if (!snap) {
 				skipped.push(`${ticker}: no_snapshot`);
-				continue;
+				return;
 			}
 			// Compute the mid price the LLM will see.
 			// The snapshot has yes_bid and yes_ask; mid = (bid+ask)/2.
+			//
+			// 2026-08-11: don't skip markets with no live
+			// price. The previous behavior was to skip
+			// (logged as `no_price`) because the LLM was
+			// assumed to need a price to compare against.
+			// But the LLM is also a DISCOVERY signal — it
+			// can give a directional view on a market's
+			// title alone ("this is interesting, add to
+			// the universe") even when no two-sided quote
+			// exists. For those markets we pass 50¢ as
+			// the assumed fair value (binary default) and
+			// the prompt tells the LLM to evaluate on
+			// title alone. The auto-promote path is the
+			// actual goal — once a market is in the
+			// universe, the polling feed will start
+			// tracking it and a price may appear later.
 			let midCents: number;
+			let noPrice = false;
 			if (snap.yes_bid_cents > 0 && snap.yes_ask_cents > 0 && snap.yes_ask_cents > snap.yes_bid_cents) {
 				midCents = Math.round((snap.yes_bid_cents + snap.yes_ask_cents) / 2);
 			} else if (snap.last_price_cents && snap.last_price_cents > 0) {
 				midCents = snap.last_price_cents;
 			} else {
-				// No usable price. Skip — the LLM can't evaluate
-				// without a price to compare to fair value.
-				skipped.push(`${ticker}: no_price`);
-				continue;
+				midCents = 50; // binary default; prompt notes this
+				noPrice = true;
 			}
 			const title = snap.title ?? ticker;
 			// 2026-08-10 19:48: fix vertical inference. The
@@ -896,6 +965,14 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 				title,
 				vertical,
 				currentYesPriceCents: midCents,
+				// 2026-08-11: tell the LLM when there's no
+				// live price so the prompt can say "evaluate
+				// on title + event context alone". The verdict
+				// can still be confident enough to auto-promote
+				// (e.g., "KXNEWPOPE next Pope is 8%? — yes 0.7
+				// confidence, add to universe, track when
+				// price appears").
+				noPrice,
 				yesBidCents: snap.yes_bid_cents > 0 ? snap.yes_bid_cents : null,
 				yesAskCents: snap.yes_ask_cents > 0 ? snap.yes_ask_cents : null,
 				lastPriceCents: snap.last_price_cents,
@@ -916,6 +993,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 			totalInputTokens += llm.input_tokens ?? 0;
 			totalOutputTokens += llm.output_tokens ?? 0;
 			// Record the LLM call regardless of parse success.
+			if (!env.DB) return;  // shouldn't happen in the worker
 			await llmCallsDb
 				.insert(env.DB, {
 					user_id: userId,
@@ -932,11 +1010,11 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 				.catch(() => undefined);
 			if (!llm.parsed) {
 				errors.push({ ticker, message: llm.error_message ?? "parse_failed" });
-				continue;
+				return;
 			}
 			if (llm.parsed.confidence < MIN_CONFIDENCE) {
 				skipped.push(`${ticker}: low_confidence`);
-				continue;
+				return;
 			}
 			// 2026-08-11 (Phase 3, all-three): per-domain
 			// confidence cap. Parlays get capped at 0.6 so
@@ -950,6 +1028,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 				ticker,
 				llm.parsed.confidence,
 			);
+			if (!env.DB) return;
 			await llmOpinionsDb.insert(env.DB, {
 				user_id: userId,
 				ts: now,
@@ -1002,7 +1081,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 		} catch (e) {
 			errors.push({ ticker, message: e instanceof Error ? e.message : String(e) });
 		}
-	}
+	});
 
 	// 2026-08-10: auto-promote the top-N high-confidence
 	// non-universe tickers. Sort by confidence DESC so
