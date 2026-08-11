@@ -9,7 +9,7 @@
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
-	<body>
+	<body data-trading-mode="paper" data-kill-switch="false">
 		<div class="app-shell">
 			<div class="app-section-header">
 				<h2>Models</h2>
@@ -217,7 +217,7 @@
 					const pnl24Cls = (v.pnl_cents_24h ?? 0) > 0 ? "ok" : (v.pnl_cents_24h ?? 0) < 0 ? "bad" : "muted";
 					const pnlLifeCls = (v.pnl_cents_total ?? 0) > 0 ? "ok" : (v.pnl_cents_total ?? 0) < 0 ? "bad" : "muted";
 					const capTxt = v.cap_cents != null
-						? `$${(v.cap_cents / 100).toFixed(2)}`
+						? fmtCentsPct(v.cap_cents)
 						: `<span class="muted">global</span>`;
 					const tickersTxt = (v.tickers || []).length === 0
 						? `<span class="muted">—</span>`
@@ -249,23 +249,24 @@
 				modeEl.textContent = config.trading_mode ?? "—";
 				modeEl.setAttribute("data-color", config.trading_mode === "real" ? "warn" : "muted");
 
-				// Use a "neutral" money formatter for non-PnL values (no "+" sign)
-				const fmtDollars = (c) => c == null ? "—" : `$${(c / 100).toFixed(2)}`;
-				$("models-config-bankroll").textContent = fmtDollars(config.bankroll_cents);
+				// Use the global fmtCentsPct (bankroll-as-base;
+				// shows % of bankroll which is intentionally 100%
+				// — gives the operator a unit-aware read).
+				$("models-config-bankroll").textContent = fmtCentsPct(config.bankroll_cents);
 				$("models-config-trading-mode").textContent = config.trading_mode ?? "—";
 				$("models-config-model-version").textContent = config.model_version ?? "—";
 				$("models-config-max-notional").textContent = config.max_notional_cents_per_trade != null
-					? fmtDollars(config.max_notional_cents_per_trade)
+					? fmtCentsPct(config.max_notional_cents_per_trade)
 					: "—";
 				$("models-config-daily-cap").textContent = config.daily_notional_cents_cap != null
-					? fmtDollars(config.daily_notional_cents_cap)
+					? fmtCentsPct(config.daily_notional_cents_cap)
 					: "—";
 				// Daily used: prefer live risk.daily_notional_cents over config's static counter
 				const dailyUsed = risk.daily_notional_cents ?? config.daily_notional_cents ?? 0;
 				const dailyCap = config.daily_notional_cents_cap ?? 0;
 				const pct = dailyCap > 0 ? Math.round((dailyUsed / dailyCap) * 100) : 0;
 				const usedEl = $("models-config-daily-used");
-				usedEl.textContent = `${fmtDollars(dailyUsed)} · ${pct}% of cap`;
+				usedEl.textContent = `${fmtCentsPct(dailyUsed)} · ${pct}% of cap`;
 				usedEl.setAttribute("data-color", pct >= 90 ? "bad" : pct >= 70 ? "warn" : "ok");
 				$("models-config-lookback").textContent = config.lookback != null
 					? `${config.lookback} frames`

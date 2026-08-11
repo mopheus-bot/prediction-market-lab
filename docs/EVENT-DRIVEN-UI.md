@@ -217,3 +217,58 @@ This is the operator's "is the live feed working" indicator. The data updates on
 - **Percentages are non-negotiable.** Every dollar value in any KPI, hero, table cell, or detail row gets a `(±Y.YY%)` next to it (% of bankroll). The `fmtCentsPct()` helper in `app.js` does this.
 - **Live data over cached data.** Every page renders a 30s fallback poll for the historical tables. The SSE handlers drive the live updates. If SSE is down, the page still works (stale, but works).
 
+
+## Phase 5 audit log
+
+The Phase 5 spec called for: (a) audit every page for paper/real visual differences, (b) audit API responses for mode-specific fields, (c) document the rendering contract. The audit + fixes below happened on 2026-08-11, after the initial Phase 5 commit (`842b297`).
+
+### Audit findings
+
+1. **SAFETY BUG — body attribute depended on SSE only.** The `data-trading-mode` + `data-kill-switch` attrs on `<body>` were only written by SSE event handlers (`init`, `mode_change`, `kill_switch` in `app.js`). If the EventSource dropped while in real mode, the polling `refresh()` was still returning `botStatus.config.trading_mode = "real"`, but the body attribute was never set — so the CSS rule `body[data-trading-mode="real"] .real-money-warning` never fired, and the operator lost the "real money on the line" visual while trades were actually live.
+
+   **Fix:** `renderTradingControls(status)` in `app.js` now writes the body attributes on every polling refresh (and on SSE, for symmetry). Defense-in-depth: SSE-down no longer hides the warning.
+
+2. **FOUC on 5 of 6 pages.** Only `trades.html` had `data-trading-mode="paper" data-kill-switch="false"` set on the initial `<body>` tag. The other five (`bot.html`, `positions.html`, `dev.html`, `index.html`, `models.html`, `schedule.html`) had plain `<body>`. The CSS rule `body[data-trading-mode="real"] .real-money-warning` couldn't match until the SSE `init` event fired (a few hundred ms), so a real-mode page render had a brief flash of "no warning."
+
+   **Fix:** all six pages now have `data-trading-mode="paper" data-kill-switch="false"` on the initial `<body>`. The SSE `init` event then overwrites the attribute with the actual values.
+
+3. **Money renderings without `% of bankroll`.** The contract says "every `$X.XX` value in any KPI, hero, table cell, or detail row gets a `(±Y.YY%)` next to it." The audit found 11 places in `positions.html` + 4 in `bot.html` + 3 in `index/models/dev` that rendered raw `$X.XX` via `(cents/100).toFixed(2)` or template strings, without the percent suffix:
+
+   - `positions.html:435` (total exposure), `445` (largest exposure), `509` (per-vertical exposure), `541` (per-position value), `711` (bankroll / peak)
+   - `bot.html:468` (per-trade cap), `528` (bankroll), `533` (daily deployed), `569` (peak bankroll)
+   - `index.html:416` (live Kalshi balance — converted from dollar string to cents)
+   - `models.html:220` (vertical cap), `259`/`262`/`269` (max-notional, daily-cap, daily-used)
+   - `dev.html:945`/`948`/`949`/`955` (config: bankroll, max-notional, daily-cap, daily-used)
+
+   **Fix:** every one now calls `fmtCentsPct()` from `app.js` (the global, script-scope-shared helper).
+
+4. **Duplicated `fmtCentsShort` in `positions.html`.** The inline script had its own 11-line local copy of the percent-aware formatter. Trades/bot were using the global `fmtCentsPct` from `app.js`; positions was using its local clone. Two sources of truth for the same render.
+
+   **Fix:** local `fmtCentsShort` deleted from `positions.html`; all 9 call sites switched to `fmtCentsPct`.
+
+5. **API audit — clean.** Every endpoint the pages consume carries the mode-aware fields the contract expects:
+   - `/api/pm/bot/status` returns `config.trading_mode` + `config.kill_switch` (LiveBot.ts:411, 1019).
+   - `/api/pm/bot/positions` returns `real_order_id` per open position.
+   - `/api/pm/trades` returns `real_order_id` + `trading_mode` per trade (D1 `trades` table has both columns; queries use `SELECT *`).
+   - `/api/pm/bot/stream` emits `mode_change` + `kill_switch` events when those flip.
+
+   No API changes were needed.
+
+### Verification
+
+- `npx tsc --noEmit` — clean
+- `npx vitest run --project unit` — 269/269 pass
+- Manual SSE smoke: `curl -N api/pm/bot/stream` returns `init` frame with `config.trading_mode="paper"`, `config.kill_switch=false`, followed by `poll` + `unrealized_pnl` events for KXWARMING-50 + KXMVECROSSCAT-...CE50C27.
+
+### Per-page audit summary
+
+| Page | Body attr | Mode banner | Connection chip | fmtCentsPct everywhere | Status |
+|---|---|---|---|---|---|
+| `index.html` | ✓ (audit fix) | ✓ (DASH_KPI_COPY per-mode) | ✓ (injectAppNav) | ✓ (audit fix on balance) | ready |
+| `bot.html` | ✓ (audit fix) | ✓ (inline `#mode-banner`) | ✓ (injectAppNav) | ✓ (audit fix on bankroll/deployed/peak/cap) | ready |
+| `positions.html` | ✓ (audit fix) | ✓ (injectModeBanner) | ✓ (injectAppNav) | ✓ (audit fix + dedup) | ready |
+| `trades.html` | ✓ (had from Phase 2) | ✓ (inline `#trades-mode-banner`) | ✓ (injectAppNav) | ✓ (had from Phase 2) | ready |
+| `dev.html` | ✓ (audit fix) | ✓ (injectModeBanner) | ✓ (injectAppNav) | ✓ (audit fix on config panel) | ready |
+| `models.html` | ✓ (audit fix) | ✓ (injectModeBanner) | ✓ (injectAppNav) | ✓ (audit fix on cap + config) | ready |
+| `schedule.html` | ✓ (audit fix) | ✓ (injectModeBanner) | ✓ (injectAppNav) | n/a (no $ values rendered) | ready |
+

@@ -9,7 +9,7 @@
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
-	<body>
+	<body data-trading-mode="paper" data-kill-switch="false">
 		<div class="app-shell">
 			<div class="app-section-header">
 				<h2>Bot</h2>
@@ -465,7 +465,7 @@
 				// static copy + the dynamic fragment both end up in
 				// the right place.
 				const capC = window._lastBotStatus?.risk?.daily_notional_cap_cents || 0;
-				const capStr = `of $${(capC / 100).toFixed(2)} cap`;
+				const capStr = `of ${fmtCentsPct(capC)} cap`;
 				const nTrades = window._lastBotStatus?.counts?.n_trades || 0;
 				const tradesSub = nTrades ? `${nTrades} trade${nTrades === 1 ? "" : "s"}` : "no trades yet";
 
@@ -525,12 +525,12 @@
 				if (fEl) fEl.textContent = fmtCount(s.counts?.n_frames);
 				// Bankroll — same field for both modes; label flips.
 				const bEl = document.getElementById("bot-bankroll");
-				if (bEl) bEl.textContent = "$" + ((s.risk?.bankroll_cents || 0) / 100).toFixed(2);
+				if (bEl) bEl.textContent = fmtCentsPct(s.risk?.bankroll_cents || 0);
 				// Deployed today
 				const dEl = document.getElementById("bot-deployed");
 				const capC = s.risk?.daily_notional_cap_cents || 0;
 				const dC = s.risk?.daily_notional_cents || 0;
-				if (dEl) dEl.textContent = "$" + (dC / 100).toFixed(2);
+				if (dEl) dEl.textContent = fmtCentsPct(dC);
 				// (sub copy is set by applyModeCopy; no need to overwrite here)
 				// Signals
 				const sigEl = document.getElementById("bot-signals");
@@ -566,7 +566,7 @@
 
 				// Peak bankroll + consec losses
 				const peakEl = document.getElementById("caps-peak");
-				if (peakEl) peakEl.textContent = "$" + ((s.risk?.peak_bankroll_cents || 0) / 100).toFixed(2);
+				if (peakEl) peakEl.textContent = fmtCentsPct(s.risk?.peak_bankroll_cents || 0);
 				const lossEl = document.getElementById("caps-consec-loss");
 				if (lossEl) lossEl.textContent = String(s.risk?.consecutive_losses ?? "—");
 				// Uptime

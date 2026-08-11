@@ -9,7 +9,7 @@
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
-	<body>
+	<body data-trading-mode="paper" data-kill-switch="false">
 		<div class="app-shell">
 			<!-- ============================================ -->
 			<!-- STAGE PANEL — single most important answer -->
@@ -411,9 +411,15 @@
 				pnlSubEl.textContent = `${todayCloses} closed${otherPart} · ${nOpen} open · ${nTrades24} trades 24h`;
 
 				// Bankroll — same field per mode; label/sub already
-				// flipped by applyDashModeCopy.
+				// flipped by applyDashModeCopy. In real mode we
+				// pull the live Kalshi balance (balance_dollars is
+				// a string in dollars, not cents — convert to cents
+				// for fmtCentsPct). In paper mode the live balance
+				// endpoint returns nothing and we fall through to
+				// the "—" placeholder + mode-aware sub copy.
 				if (balance && balance.ok && balance.balance_dollars != null) {
-					bankrollEl.textContent = `$${balance.balance_dollars}`;
+					const balanceCents = Math.round(parseFloat(balance.balance_dollars) * 100);
+					bankrollEl.textContent = fmtCentsPct(balanceCents);
 					bankrollSubEl.textContent = balance.portfolio_value_dollars != null
 						? `portfolio $${balance.portfolio_value_dollars} on Kalshi`
 						: (mode === "paper" ? "simulated capital" : "on Kalshi");

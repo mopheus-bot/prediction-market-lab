@@ -9,7 +9,7 @@
 		<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0e1a'/%3E%3Crect x='14' y='38' width='8' height='14' fill='%233b82f6' opacity='0.5'/%3E%3Crect x='28' y='30' width='8' height='22' fill='%233b82f6' opacity='0.75'/%3E%3Crect x='42' y='22' width='8' height='30' fill='%233b82f6'/%3E%3Ccircle cx='46' cy='18' r='2.6' fill='%2310b981'/%3E%3C/svg%3E" />
 		<link rel="stylesheet" href="app.css" />
 	</head>
-	<body>
+	<body data-trading-mode="paper" data-kill-switch="false">
 		<div class="app-shell">
 			<div class="app-section-header">
 				<h2>Positions</h2>
@@ -235,28 +235,12 @@
 				if (sec < 86400) return `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
 				return `${Math.floor(sec / 86400)}d ${Math.floor((sec % 86400) / 3600)}h`;
 			}
-			// fmtCentsShort is the inline short formatter used
-			// by the rest of this page. Phase 3 (2026-08-10):
-			// wrap it to also show % of bankroll where the
-			// value matters (uPnL per position, total uPnL,
-			// realized PnL). Bankroll comes from the global
-			// _bankrollCents that the SSE init event seeds.
-			function fmtCentsShort(c) {
-				if (c == null) return "—";
-				const sign = c < 0 ? "−" : c > 0 ? "+" : "";
-				const dollars = (Math.abs(c) / 100).toFixed(2);
-				const base = `${sign}$${dollars}`;
-				if (window.getBankrollCents && window.getBankrollCents()) {
-					const pct = (c / window.getBankrollCents()) * 100;
-					const pctSign = pct < 0 ? "−" : pct > 0 ? "+" : "";
-					const absPct = Math.abs(pct);
-					const pctStr = absPct < 1
-						? absPct.toFixed(3) + "%"
-						: absPct.toFixed(2) + "%";
-					return `${base} (${pctSign}${pctStr})`;
-				}
-				return base;
-			}
+			// fmtCentsPct is the global formatter from app.js
+			// (script-scope, shared across all <script> tags).
+			// It renders $X.XX (±Y.YY% of bankroll). The local
+			// fmtCentsShort it replaces was a 2026-08-10 inline
+			// duplicate; the Phase 5 audit folded them back into
+			// the single source of truth.
 
 			// ─── Sparkline (Phase 4) ───
 			//
@@ -442,13 +426,13 @@
 				// Color
 				const pnlCls = totalPnlCents > 0 ? "ok" : totalPnlCents < 0 ? "bad" : "muted";
 				heroEl.setAttribute("data-color", openPositions.length > 0 ? (pnlCls === "muted" ? "warn" : pnlCls) : "ok");
-				totalPnlEl.textContent = fmtCentsShort(totalPnlCents);
+				totalPnlEl.textContent = fmtCentsPct(totalPnlCents);
 				totalPnlEl.className = `pos-hero-num mono ${pnlCls}`;
 				totalPnlSub.textContent = openPositions.length === 0
 					? "no open positions"
 					: `across ${openPositions.length} ${openPositions.length === 1 ? "position" : "positions"}`;
 
-				totalExposureEl.textContent = "$" + (totalExposureCents / 100).toFixed(2);
+				totalExposureEl.textContent = fmtCentsPct(totalExposureCents);
 				totalExposureSub.textContent = openPositions.length === 0
 					? "—"
 					: `${((totalExposureCents / bankrollCents) * 100 || 0).toFixed(1)}% of bankroll`;
@@ -458,7 +442,7 @@
 					? `across ${verticals.size} ${verticals.size === 1 ? "vertical" : "verticals"}`
 					: "—";
 
-				largestEl.textContent = "$" + (largestCents / 100).toFixed(2);
+				largestEl.textContent = fmtCentsPct(largestCents);
 				largestSub.textContent = bankrollCents > 0
 					? `${largestPct.toFixed(1)}% of bankroll`
 					: "no bankroll";
@@ -467,9 +451,9 @@
 				const summary = window._lastSummary;
 				if (summary && summary.recap) {
 					const realized24h = summary.recap.last_24h_cents || 0;
-					realized24hEl.textContent = fmtCentsShort(realized24h);
+					realized24hEl.textContent = fmtCentsPct(realized24h);
 					const realizedTotal = summary.recap.realized_cents || 0;
-					realized24hSub.textContent = `lifetime: ${fmtCentsShort(realizedTotal)}`;
+					realized24hSub.textContent = `lifetime: ${fmtCentsPct(realizedTotal)}`;
 				}
 			}
 
@@ -522,7 +506,7 @@
 							<div class="exposure-bar-wrap">
 								<div class="exposure-bar exposure-bar-${color}" style="width: ${pct.toFixed(1)}%"></div>
 							</div>
-							<div class="exposure-val mono">$${(d.exposure / 100).toFixed(2)}</div>
+							<div class="exposure-val mono">${fmtCentsPct(d.exposure)}</div>
 							<div class="exposure-pct mono">${bankrollPct.toFixed(1)}% bankroll</div>
 						</div>`;
 					}).join("");
@@ -554,8 +538,8 @@
 						<td class="num mono">${fmtPrice(p.entry_cents)}</td>
 						<td class="num mono">${fmtPrice(p.mark_cents)}</td>
 						<td class="num mono">${p.size || "—"}</td>
-						<td class="num mono">$${(valueCents / 100).toFixed(2)}</td>
-						<td class="num mono ${pnlCls}"><strong>${fmtCentsShort(p.unrealized_pnl_cents)}</strong></td>
+						<td class="num mono">${fmtCentsPct(valueCents)}</td>
+						<td class="num mono ${pnlCls}"><strong>${fmtCentsPct(p.unrealized_pnl_cents)}</strong></td>
 						<td class="num mono ${pnlCls}">${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%</td>
 						<td class="num mono">${fmtAge(ageSec)}</td>
 						<td class="spark-cell" id="spark-cell-${p.ticker || "?"}"><svg class="sparkline" id="spark-${p.ticker || "?"}" viewBox="0 0 100 24" preserveAspectRatio="none" aria-label="price trend"></svg></td>
@@ -582,7 +566,7 @@
 					const text = await r.text();
 					if (r.ok) {
 						const data = JSON.parse(text);
-						toast(`closed ${ticker}: ${fmtCentsShort(data.realized_cents || data.pnl_cents || 0)}`, true);
+						toast(`closed ${ticker}: ${fmtCentsPct(data.realized_cents || data.pnl_cents || 0)}`, true);
 					} else {
 						toast(`close failed: ${text.slice(0, 200)}`, false);
 					}
@@ -617,7 +601,7 @@
 						<td class="num mono">${fmtPrice(c.entry_cents)}</td>
 						<td class="num mono">${fmtPrice(c.exit_cents)}</td>
 						<td class="num mono">${c.size}</td>
-						<td class="num mono ${pnlCls}"><strong>${fmtCentsShort(c.pnl_cents)}</strong></td>
+						<td class="num mono ${pnlCls}"><strong>${fmtCentsPct(c.pnl_cents)}</strong></td>
 						<td class="num mono">${holdStr}</td>
 					</tr>`;
 				}).join("");
@@ -655,9 +639,9 @@
 				// Avg PnL
 				const totalPnl = closedOnly.reduce((a, c) => a + c.pnl_cents, 0);
 				const avgPnl = totalPnl / closedOnly.length;
-				avgPnlEl.textContent = fmtCentsShort(avgPnl);
+				avgPnlEl.textContent = fmtCentsPct(avgPnl);
 				avgPnlEl.className = `kpi-num mono ${avgPnl > 0 ? "ok" : avgPnl < 0 ? "bad" : ""}`;
-				avgPnlSub.textContent = `total: ${fmtCentsShort(totalPnl)}`;
+				avgPnlSub.textContent = `total: ${fmtCentsPct(totalPnl)}`;
 
 				// Avg hold time
 				const holds = closedOnly.filter((c) => c.hold_ms != null).map((c) => c.hold_ms / 1000);
@@ -671,7 +655,7 @@
 				const sortedByPnl = [...closedOnly].sort((a, b) => b.pnl_cents - a.pnl_cents);
 				const best = sortedByPnl[0];
 				const worst = sortedByPnl[sortedByPnl.length - 1];
-				bestWorstEl.textContent = `${fmtCentsShort(best.pnl_cents)} / ${fmtCentsShort(worst.pnl_cents)}`;
+				bestWorstEl.textContent = `${fmtCentsPct(best.pnl_cents)} / ${fmtCentsPct(worst.pnl_cents)}`;
 				bestWorstEl.className = "kpi-num mono";
 				bestWorstSub.textContent = `${best.ticker} / ${worst.ticker}`;
 			}
@@ -724,7 +708,7 @@
 				// Bankroll vs peak
 				const bpEl = document.getElementById("risk-bankroll-vs-peak");
 				if (bpEl && data.bankroll_cents !== undefined && data.peak_bankroll_cents !== undefined) {
-					bpEl.textContent = `$${(data.bankroll_cents / 100).toFixed(2)} / $${(data.peak_bankroll_cents / 100).toFixed(2)}`;
+					bpEl.textContent = `${fmtCentsPct(data.bankroll_cents)} / ${fmtCentsPct(data.peak_bankroll_cents)}`;
 				}
 			}
 
@@ -783,7 +767,7 @@
 								const concFlag = pctOfBankroll > 50 ? "bad" : pctOfBankroll > 25 ? "warn" : "";
 								return `<tr>
 									<td>${v}</td>
-									<td class="num mono">$${(e / 100).toFixed(2)}</td>
+									<td class="num mono">${fmtCentsPct(e)}</td>
 									<td class="num mono">${pctOfTotal.toFixed(1)}%</td>
 									<td class="num mono ${concFlag}">${pctOfBankroll.toFixed(1)}%</td>
 								</tr>`;

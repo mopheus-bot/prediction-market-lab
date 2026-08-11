@@ -1214,6 +1214,15 @@ async function refreshBalance() {
 // current /api/pm/bot/status. Updates the
 // active button + mode pill + caps panel +
 // kill switch state.
+//
+// 2026-08-11: also writes the body attributes that the
+// CSS uses to flip the page (body[data-trading-mode="real"]
+// hides the real-money warning, shows the kill pulse, etc).
+// The SSE init/mode_change handlers do this too, but if
+// SSE is down the polling refresh is the only signal — so
+// the body attributes have to follow the poll, not just
+// the SSE. Defense-in-depth: if SSE drops while in real
+// mode, the operator must still see the red warning strip.
 function renderTradingControls(status) {
 	if (!status?.config) return;
 	const mode = status.config.trading_mode ?? "paper";
@@ -1222,6 +1231,21 @@ function renderTradingControls(status) {
 	const dailyUsed = (status.risk?.daily_notional_cents ?? 0) / 100;
 	const killOn = !!status.config.kill_switch;
 	const disabledTickers = status.config.disabled_tickers ?? [];
+
+	// Body attributes — single source of truth for the
+	// CSS rules. Write them here so the polling refresh
+	// keeps the page in the right state even when SSE is
+	// down. setModeBannerState() also reads the body
+	// attributes, so this stays consistent.
+	if (document.body.getAttribute("data-trading-mode") !== mode) {
+		document.body.setAttribute("data-trading-mode", mode);
+	}
+	if (document.body.getAttribute("data-kill-switch") !== String(killOn)) {
+		document.body.setAttribute("data-kill-switch", String(killOn));
+	}
+	if (document.getElementById("mode-banner")) {
+		setModeBannerState(mode, killOn);
+	}
 	const perVertical = status.config.per_vertical_max_notional_cents ?? {};
 
 	// Active button highlight. (Chunk 10.8b: chunk 10.8
