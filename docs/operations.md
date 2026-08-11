@@ -4,6 +4,60 @@ This is the rules-of-engagement for everything pm-bot does
 in production. Read this before changing cron intervals, the
 LLM call pattern, or the data feed strategy.
 
+## What landed 2026-08-11 (Phase 4 — 17-vertical expansion)
+
+The bot went from 4 hardcoded verticals to all 17 Kalshi
+categories in one day. The relevant commits:
+
+- **chunks 15 + 15.1** — `Vertical` enum 4 → 17; prefix maps +
+  title-keyword fallbacks for 13 new categories; `category-mapper`
+  1:1 Kalshi category → vertical; strategy router profiles for
+  all 17 (default `naive + LLM`); `AUTO_PROMOTE_VERTICALS` = all
+  17; leads-cron + LiveBot auto-promote whitelist updated.
+  Research-cron scope fix: skips KXMVESPORTS* /
+  KXMVECROSSCATEGORY* at the LIST level + caps GETs to top 100
+  by volume + bumps throttle 2 → 5 req/s. 30s wall-clock (was
+  5+ min timeout).
+- **chunk 15.2** — LLM cron parallelized + cap bumped 3 → 15
+  (5 in parallel via pMap × 3 batches). Dropped the no_price
+  filter (LLM now evaluates title + event context alone for
+  markets without live bid/ask). Fresh-discovery switched from
+  `/markets` (200 parlays) to `/events` (200 events spanning
+  5+ verticals).
+- **chunk 15.3** — Auto-retrain pipeline wired: GitHub Action
+  weekly (Saturday 22:00 UTC) + `scripts/retrain.py` orchestrator
+  + Python trainer `VALID_VERTICALS` 4 → 17 + Python
+  `category_mapper` 13 → 43 entries. Sunday train-cron
+  auto-registers; operator promotes via Dev page.
+- **chunk 15.4 (LLM-PIPELINE Bug A)** — `client.getEvent()`
+  added; LLM prompt now includes `eventTitle`, `eventSubTitle`,
+  `rulesPrimary`, `parlayLegs` (capped at 10 legs). Per-domain
+  confidence cap on parlays (0.6 max) was already in place from
+  chunk 15. parse_failed rate 30-50% → ~0%.
+
+**Observed result (within 10 min of the parallelize+drop-no_price
+deploy):**
+- Universe size: 44 → 49+ in 10 minutes
+- 5 new auto-promotes across 4 new verticals: KXELONMARS-99
+  (world, 0.75), KXNEWPOPE-70-PPIZ (elections, 0.55),
+  KXRAMPBREX-40-RAMP (financials, 0.55), KXCOLONIZEMARS-50
+  (science_technology, 0.72), KXFUSION-30 (science_technology, 0.65)
+- LLM call rate: 90/hour → 450/hour (5x)
+- The 9,610-event catalog now cycles through the LLM in ~21 hours
+
+**Open / not done:**
+- **LLM-PIPELINE Bug C** (bot doesn't re-examine already-bought
+  tickers; 6h flip-filter blocks re-evaluation). Not blocking —
+  the bot has 2 open positions and the per-vertical auto-promote
+  is feeding the universe. Worth scheduling after data
+  accumulates.
+- **parse_failed rate on noPrice markets is 15%** (up from 0% on
+  priced markets). The LLM is more confused on title-only
+  verdicts. Tightening the prompt is a 1-line fix; deferred
+  until the universe stabilizes.
+- **STRATEGY-PARLAYS Phase 2** (leg-probability model) is still
+  deferred. The per-domain confidence cap is the interim.
+
 ## The cadence (every auto-running service)
 
 | Service        | Cadence              | What it does                                          | Where the math lives              |
@@ -25,13 +79,15 @@ LLM call pattern, or the data feed strategy.
 ### Cron schedule (must match `wrangler.jsonc` `triggers.crons`)
 
 ```
-*/15 * * * *  → scan         (every 15 min)
+*/15 * * * *  → scan         (every 15 min, 0/15/30/45)
+5,20,35,50 * * * *  → research   (every 15 min, offset 5 min from scan)
 0 */6 * * *   → news         (every 6 hours, 00/06/12/18 UTC)
 30 */6 * * *  → leads        (every 6 hours +30min, 00:30/06:30/12:30/18:30 UTC; 2026-08-09 tightened from daily 02:00 UTC)
+*/2 * * * *   → llm_opinions (every 2 min — LLM verdicts + auto-promote)
 30 5 * * *    → auto_pilot   (daily 05:30 UTC, default off)
 0 6 * * *     → daily        (daily 06:00 UTC)
 0 7 * * *     → heartbeat    (daily 07:00 UTC)
-0 0 * * SUN   → train        (Sunday 00:00 UTC)
+0 0 * * SUN   → train        (Sunday 00:00 UTC; registers new R2 artifacts from weekly GitHub Action)
 0 1 * * SUN   → backtest     (Sunday 01:00 UTC)
 ```
 

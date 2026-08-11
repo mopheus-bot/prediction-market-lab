@@ -1,17 +1,25 @@
 # pm-bot — Strategy Refresh: Parlays, Verticals, and the 8B Model Path
 
-> **Status:** Plan drafted 2026-08-09 after the leads-pipeline restructure
-> surfaced a structural product–market fit issue. The leads pipeline itself
-> is in a good state (per-ticker verify, universe-health auto-drops, real
-> Kalshi market snapshot in the LLM prompt). The deeper question is "what
-> is this bot going to trade, given that Kalshi's open-market list is
-> ~99% multi-game parlays?"
+> **Status (2026-08-11):** Phase 1 SHIPPED (chunks 15 + 15.1 + 15.2 +
+> 15.3 + 15.4). pm-bot now covers all 17 Kalshi verticals (not just
+> the 4 legacy). The taxonomy expansion + research-cron scope fix +
+> LLM-PIPELINE Bug A + auto-retrain pipeline landed. Phase 2 (parlay
+> strategy with leg-probability model) is still deferred — the
+> per-domain confidence cap on parlays is the interim measure.
 >
-> **Decision status (2026-08-09):**
-> - **Phase 1 (widen verticals + deploy) is the next step.** Combine the
->   "widen taxonomy" and "wait for new markets" directions — ship what
->   we have, observe the real Kalshi landscape, and let the cron surface
->   new listings as Kalshi rotates the catalog.
+> **Kalshi market counts on 2026-08-11 (vs 2026-08-09):**
+> The 4-vertical "only 1 tradeable market" problem is solved.
+> The 17-vertical catalog has 9,610 open events; the LLM cron
+> auto-promotes 5+ per hour into the bot's universe, with 5
+> verticals now represented (sports 40 + elections 3 + politics
+> 2 + science_technology 2 + world/weather/financials 1 each).
+>
+> **Decision status (2026-08-11, refreshed):**
+> - **Phase 1 (widen verticals + deploy):** ✅ DONE (chunks 15
+>   + 15.1 + 15.2). User said: "expand coverage to include all
+>   17 verticals, let the bot settle in (full immediate auto
+>   circle). We'll let the bot train while we talk and plan
+>   strategy around the new verticals."
 > - **Phase 2 (parlay strategy) ordering is committed: (c) → (b) → (a).**
 >   Start with the naive baseline (zero data cost), escalate to the
 >   8B model on Cloudflare Workers AI (modest serving cost, free
@@ -30,6 +38,8 @@
 On 2026-08-09 we ran a full sweep of Kalshi's open-market list using the
 demo credentials. The result completely reframes the bot's strategy work:
 
+**2026-08-09 (pre-expansion):**
+
 | Vertical (intended) | Kalshi markets on 2026-08-09 | Strategy fit |
 |---|---|---|
 | `weather` (reversion) | **1** — `KXWARMING-50` | ✓ works, low volume |
@@ -38,6 +48,37 @@ demo credentials. The result completely reframes the bot's strategy work:
 | `sports` (naive) | **4,065** — but they're multi-game parlays, not single-event | ✗ doesn't fit the naive-near-certainty strategy |
 | (uncategorized) `cross_category` | **1,935** — Kalshi's own docs say "not suitable for single-event strategies" | ✗ excluded by design |
 | **total** | **~6,000** | the bot has ~1 tradeable market |
+
+**2026-08-11 (post-17-vertical expansion, 9,610 open events):**
+
+| Vertical (pm-bot) | Open events | Auto-promoted tickers in bot universe |
+|---|---|---|
+| `weather` | 106 | 1 (KXWARMING-50) |
+| `economic` | 375 | 0 (thin data) |
+| `politics` | 503 | 2 (KXNEXTNATOSECGEN-99, KXPERSONPRESFUENTES-45) |
+| `sports` | 4,976 | 40 (mostly KXMVECROSSCATEGORY parlays, no live bid/ask) |
+| `elections` | 2,172 | 3 (KXNEWPOPE-70 markets) |
+| `financials` | 544 | 1 (KXRAMPBREX-40-RAMP) |
+| `entertainment` | 509 | 0 |
+| `science_technology` | 137 | 2 (KXCOLONIZEMARS-50, KXFUSION-30) |
+| `crypto` | 106 | 0 |
+| `companies` | 75 | 0 |
+| `commodities` | 44 | 0 |
+| `mentions` | 38 | 0 |
+| `social` | 9 | 0 |
+| `world` | 7 | 1 (KXELONMARS-99) |
+| `health` | 6 | 0 |
+| `transportation` | 1 | 0 |
+| `uncategorized` | 1 | 0 |
+| **total** | **9,610** | **49+** (growing) |
+
+The "99% parlays" problem is real but contained — the research cron
+skips KXMVESPORTS* and KXMVECROSSCATEGORY* at the LIST level
+(chunk 15.1), and the LLM's per-domain confidence cap
+(KXMVECROSSCATEGORY/* and KXMVESPORTSMULTIGAME/* cap at 0.6)
+prevents parlay hallucination from auto-promoting (chunk 15 +
+15.4). The 13 newly-expanded verticals are where the new
+opportunities live.
 
 Key constraint: Kalshi's `/markets` wire format does **not** expose a
 `category` field on individual markets. The category is encoded in the

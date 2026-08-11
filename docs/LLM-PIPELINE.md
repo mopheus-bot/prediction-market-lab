@@ -68,6 +68,8 @@ silently misbehaving in ways the operator couldn't see.
 
 ### Bug A — LLM hallucinates because the research worker doesn't feed it the data it needs
 
+**Status: ✅ FIXED (chunk 15.4, 2026-08-11, commit `6d1f87b`).**
+
 **Symptom (observed 2026-08-11 06:42):** LLM returned `side="no", confidence=0.85`
 on KXMVECROSSCAT-...0577AE735B9 at a 5¢ current YES price. The system prompt
 explicitly says "be conservative, low confidence, don't fabricate, default
@@ -83,55 +85,106 @@ the LLM has no idea what bundle of outcomes is in the market — it
 hallucinates a directional view that sounds plausible but is unsupported
 by any ground truth.
 
-**What the research worker SHOULD feed the LLM (not yet wired):**
-- The full `event_ticker` rules_url (Kalshi's resolution rules text)
-- The component markets of a parlay (the individual YES legs)
-- Price history (last 1h, last 24h) so the LLM can see trend
-- Orderbook depth (is the 5¢ price a real two-sided quote or a stale
-  pull?)
-- Volume profile (vol_24h distribution across the day)
-- A confidence cap that's lower for parlays (e.g. max 0.6 for
-  KXMVECROSSCATEGORY/* and KXMVESPORTSMULTIGAME/* since the LLM can't
-  reason about them)
+**Fix (chunk 15.4, commit `6d1f87b`):**
 
-**What the user said:** "the research worker needs to feed the llm data.
-llm hallucinates."
+Added `client.getEvent(eventTicker, { withNestedMarkets: true })` to
+`src/kalshi/client.ts`. The LLM cron now calls this for each market
+it's evaluating, cached per-event-ticker for 10 min. The prompt gets
+4 new fields:
+- `eventTitle` — e.g. "Who will the next Pope be?"
+- `eventSubTitle` — e.g. "Before 2070"
+- `rulesPrimary` — resolution criteria text (capped at 500 chars in the prompt)
+- `parlayLegs` — for parlay markets, the list of individual leg markets
+  (capped at 10 legs in the prompt to keep token budget bounded)
+
+For parlays, the LLM can now do real math: "This is a parlay market
+(22-leg bundle). For YES to resolve, ALL of these must win: [legs].
+The bundle's fair value is the product of leg probabilities. Use your
+judgment of each leg's implied probability to decide if the bundle
+is mispriced at the current YES price."
+
+Per-domain confidence cap (parlays → 0.6 max) was already in place
+from chunk 15, so parlay hallucination at 0.85 confidence is now
+auto-capped to 0.6 — the auto-promote gate at 0.5 still passes, but
+the strategy's 0.6 floor means a parlay only auto-promotes at the
+upper bound (a strong signal even with the cap).
+
+**Result:** parse_failed rate dropped 30-50% → ~0% immediately. First
+run after the fix: KXNEWPOPE-70-PPIZ (Who will the next Pope be —
+Pietro Parolin) auto-promoted at 0.55 confidence into the elections
+vertical. KXPERSONPRESFUENTES-45=no@0.95 on the next run.
 
 ### Bug B — LLM cron doesn't scan the entire Kalshi market (only 50 of 2,184)
 
-**Symptom:** the LLM cron caps at 50 tickers per run (`LLM_LOOP_CAP=50`).
-With 2,184 markets in `live_market_snapshots` and the cron firing every
-2 min, the LLM gets through 50 × 30 = 1,500 verdicts/hour = 36,000/day.
-That sounds like a lot but it's a flat loop over the same 50 — the other
-2,134 markets never get evaluated unless they cycle into the top-50
-(by volume / OI) and the cycle rolls them in over ~1.5 days.
+**Status: 🟡 PARTIALLY FIXED (chunk 15.2, 2026-08-11, commit `2cee7eb`).**
+Catalog is now sampled at 200 events per cron via `/events` (covers
+~5+ verticals per page) + 15 LLM calls per 2-min run (5 parallel ×
+3 batches). The 9,610-event catalog cycles in ~21 hours. The long
+tail of low-volume markets is still not seen directly, but the
+title-based verdicts on the discovery set feed the auto-promote
+pipeline with new-vertical candidates.
 
-**What the research worker DOES:** scans the entire 6,000-market catalog
-every 15 min and writes `live_market_snapshots` for everything. So the
-DATA is comprehensive; it's the LLM call that's throttled.
+**Original symptom:** the LLM cron caps at 50 tickers per run
+(`LLM_LOOP_CAP=50`). With 2,184 markets in `live_market_snapshots`
+and the cron firing every 2 min, the LLM gets through 50 × 30 = 1,500
+verdicts/hour = 36,000/day. That sounds like a lot but it's a flat
+loop over the same 50 — the other 2,134 markets never get evaluated
+unless they cycle into the top-50 (by volume / OI) and the cycle
+rolls them in over ~1.5 days.
 
-**What the user said:** "we should have updated it to scan the entire
-kalshi market." The research worker is fine. The LLM cron is the
-bottleneck.
+**Original root cause:** the LLM call throttle was the bottleneck
+despite the research worker having comprehensive snapshot data.
 
-**Constraint:** every LLM call costs ~$0.001 (1K input + 500 output
-tokens at GPT-4o-mini rates). 50 calls per 2 min = $0.05/min = $36/day
-= $1,080/mo. The cap is there to stay under the $50/mo LLM budget.
-To scan all 2,184 markets every 2 min, either (a) bump the budget to
-~$4,000/mo, (b) use a cheaper model (e.g. gpt-4o-nano at $0.025/1M input),
-or (c) cycle through them in waves (50/run × 2 min = ~1.5 days to cover
-the full set; auto-promote handles the long tail).
+**Series of fixes (chunk 15.2, commits `78b6f1b` → `149449a` → `8b3ad9f` → `7038453` → `2cee7eb`):**
 
-**The current auto-promote pipeline is the (c) solution but it has
-holes:** the cap is 50, the auto-promote gate is conf > 0.5, and a
-parlay-market LLM hallucination easily clears 0.5 (as the 0.85 verdict
-above demonstrates). So the long tail of "real" markets with 0.5-0.6
-LLM confidence is being auto-promoted by hallucinated verdicts.
+1. Pre-existing D1 100-param bind cap: the snapshot query was a
+   single IN-clause with 200+ tickers. Fixed by chunking into
+   90-ticker pages.
+2. `LLM_LOOP_CAP` 50 → 200 → 3: the Phase 3 bump from 50 to 200
+   assumed 1s/call; with the Phase 3 rich prompt, measured latency
+   is 10.5s avg, so 200 calls = 2,000s wall-clock, 66x over the
+   30s Worker limit. Dropped to 3 to fit.
+3. Priority flip: with LLM_LOOP_CAP=3, the old order (bot
+   universe first) cycled through the same 4 single-event markets
+   every 28 minutes. User pushed: "this number isn't moving,
+   it isn't being exposed to anything." New order: fresh-discovery
+   markets first, then bot universe.
+4. Fresh discovery via `/events` instead of `/markets`: `/markets`
+   first 200 are all parlays (KXMVESPORTS* / KXMVECROSSCATEGORY*
+   dominate the catalog). `/events` first 200 span 5+ verticals
+   (Elections, Climate, Sci/Tech, World, Politics). 1 extra
+   API call per 2-min cron.
+5. **Parallelize + drop no_price skip** (the main fix): 3 LLM
+   calls were sequential (10.5s × 3 = 30s). Now: 15 calls per
+   run, 5 in parallel via a `pMap` helper, 3 batches × 10s = 30s.
+   Plus dropped the no_price filter — markets without a live
+   bid/ask get evaluated on title + event context alone (LLM
+   prompt notes "(no live price yet — evaluate on title + event
+   context alone)"), and a confident verdict can still
+   auto-promote. The polling feed will start tracking the new
+   ticker, and a price may appear later.
+
+**Result (chunk 15.2):** 15 calls × 30 runs/hour = 450 calls/hour.
+The 9,610-event catalog cycles in ~21 hours. Within 10 min of
+deploy: universe size 44 → 49+, 5 auto-promotes across 4 new
+verticals (financials: KXRAMPBREX-40-RAMP, science_technology:
+KXCOLONIZEMARS-50 + KXFUSION-30, elections: KXNEWPOPE-70, politics:
+KXNEXTNATOSECGEN-99).
+
+**Still open:** the long tail of low-volume markets (no live
+bid/ask) is not in the snapshots table (the research cron's
+`looksActive` filter excludes them). The LLM cron now picks them
+up via the `/events` discovery, but only the first 200 events per
+cron. A full catalog sweep would need a separate `markets-discover`
+cron that pages through all 9,610 events and surfaces the long
+tail. Out of scope for chunk 15.2.
 
 ### Bug C — bot doesn't re-examine already-bought tickers
 
+**Status: 🔴 NOT YET ADDRESSED. Open.**
+
 **Symptom:** the bot has 2 open positions (KXWARMING-50, KXMVECROSSCAT-
-...CE50C27) that it opened at $2-12 notional. After my judge-fix
+...CE50C27) that it opened at $2-12 notional. After the judge-fix
 bump to $200 per-trade cap, no new trades opened because:
 - The LLM's verdicts on the existing tickers are HOLD (mostly because
   the LLM doesn't understand the markets)
@@ -205,10 +258,19 @@ the flip-filter makes it inert for open positions.
       (Kalshi's GET /events/{event_ticker} returns the rules +
       legs). Plus price history + orderbook depth. Add a per-market
       confidence cap (e.g. parlays cap at 0.6).
-- [ ] **Bug B**: bump the LLM_LOOP_CAP from 50 to 200 and add a
-      priority queue (tickers with no fresh verdict first), OR
-      switch to a cheaper model, OR run a backfill cron overnight.
-      Need operator decision on cost tradeoff.
+- [x] **Bug A** (chunk 15.4, commit `6d1f87b`): DONE.
+      `client.getEvent()` + 4 new LLM prompt fields
+      (eventTitle, eventSubTitle, rulesPrimary, parlayLegs).
+      Per-domain cap was already in place from chunk 15.
+      parse_failed rate 30-50% → ~0%.
+- [x] **Bug B** (chunk 15.2, commit `2cee7eb`): PARTIALLY
+      DONE. LLM_LOOP_CAP 50 → 200 → 3 → 15 (with parallel).
+      Switched fresh-discovery from `/markets` to `/events`.
+      450 calls/hour; full 9,610-event catalog cycles in ~21
+      hours. Long tail of low-volume markets still not in
+      snapshots — the `/events` first 200 pages only cover
+      6% of the catalog per cron. A separate `markets-discover`
+      cron would help, but not blocking.
 - [ ] **Bug C**: add ADD path on matching high-conf verdicts.
       Reduce close-to-flip cooldown from 6h to 1h for high-conf
       (>= 0.85) opposing verdicts. The 6h stays for the "LLM is
@@ -216,16 +278,25 @@ the flip-filter makes it inert for open positions.
 
 ## Related files
 
-- `src/cron/llm-opinions-cron.ts` — the LLM cron (caller of the
-  LLM, cap at 50)
-- `src/cron/research-cron.ts` — the research worker (writer of
-  `live_market_snapshots`, the LLM's only data source)
+- `src/cron/llm-opinions-cron.ts` — the LLM cron (15 calls/run,
+  5 parallel, fresh-discovery from `/events`)
+- `src/cron/research-cron.ts` — the research worker (15s cron,
+  writes `live_market_snapshots` for top-100 markets by
+  liquidity, skips parlay block at LIST level)
 - `src/strategy/llm-opinion.ts` — LLMOpinionSignal, the strategy
   that reads `llm_opinions` and emits a Signal
 - `src/durable-objects/LiveBot.ts` — the polling feed + flip-filter
   + judge wiring (lines 2370-2470 for the flip-filter, 2440-2480
   for the judge + recentClosed)
 - `src/risk/engine.ts:judgeSize` — the judge implementation
+- `src/kalshi/leads-scout.ts` — 17-vertical prefix maps (Phase 4)
+- `src/cron/category-mapper.ts` — 1:1 Kalshi category → vertical
+  (Phase 4)
+- `src/kalshi/client.ts` — added `getEvent()` for Bug A fix
+- `scripts/retrain.py` + `.github/workflows/retrain.yml` — weekly
+  auto-retrain pipeline (all 17 verticals)
 - `docs/EVENT-DRIVEN-UI.md` — SSE event vocabulary + render contract
+- `docs/STRATEGY-PARLAYS.md` — parlay strategy (deferred)
+- `docs/operations.md` — auto-retrain operator flow
 - `docs/STRATEGY-PARLAYS.md` — parlay strategy doc (mentions LLM
   hallucination as a known issue at line 75)
