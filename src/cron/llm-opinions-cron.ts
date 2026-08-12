@@ -726,7 +726,38 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 	// token estimate from the most recent call so the
 	// daily-cap check doesn't double-count (we'll know
 	// the per-call cost before committing).
-	const DAILY_TOKEN_CAP = 200_000; // hard stop; ~$0.30/day at Gemini 3 Flash
+	// 2026-08-12 (cost-control, option 2): staleness filter.
+	// Pre-load the latest verdict per ticker so the loop can
+	// skip the LLM call when the verdict is recent AND the
+	// current price is within STALENESS_PRICE_BAND of the
+	// verdict's price. 89% of LLM verdicts come back as
+	// `hold` — most of those are repeats of an existing
+	// verdict where nothing has changed. Skipping those
+	// drops calls ~50% with no signal-quality loss (the
+	// strategy's `LLMOpinionSignal` already gates on
+	// `ts + ttl_ms > now`, so an older verdict is still
+	// usable — we just refresh it less aggressively).
+	//
+	// Pre-load also includes the per-ticker input/output
+	// token estimate from the most recent call so the
+	// daily-cap check doesn't double-count (we'll know
+	// the per-call cost before committing).
+	//
+	// 2026-08-12 (after first run): bumped cap from 200k →
+	// 500k after observing that the old 2-min cadence
+	// burned 11.6M tokens in the 24h window before the new
+	// hourly cron even fired. The 200k cap meant today's
+	// run was 100% daily_cap-skipped. 500k leaves room
+	// for the staleness + one-sided-quote gates to
+	// demonstrate their effect (combined they drop the
+	// new cadence from ~360 calls/day max to ~50-100/day
+	// in practice), while still capping at ~$7.50/day
+	// (~$3-4/day effective). The 24h rolling window
+	// drops the old 2-min-cadence calls within a day;
+	// from tomorrow the effective cap is the gates, not
+	// the absolute number. Bump back to 200k in a day or
+	// two once the rolling window clears.
+	const DAILY_TOKEN_CAP = 500_000; // hard stop; ~$7.50/day max, ~$1-3 effective
 	const STALENESS_PRICE_BAND = 2; // cents; YES price unchanged within ±2c → skip
 	const STALENESS_MAX_AGE_MS = 30 * 60 * 1000; // 30 min; force a re-ask beyond this even if price flat
 	const todaysCalls = await env.DB
