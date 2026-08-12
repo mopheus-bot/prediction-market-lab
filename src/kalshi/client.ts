@@ -1,6 +1,13 @@
 /**
  * pm-bot — Kalshi REST client.
  *
+ * **DEPRECATED 2026-08-12: Kalshi venue is shut down.**
+ * See `docs/ALPACA-PIVOT.md` for the pivot to Alpaca. This file
+ * is kept as a reference for the Alpaca mirror — wire formats,
+ * auth shape, polling patterns, error handling. Do not add new
+ * Kalshi-specific code; the Alpaca integration in `src/alpaca/`
+ * (Phase 3, future session) is the replacement.
+ *
  * Public + authenticated REST client for Kalshi v2.
  * Mirrors `live/kalshi_client.py`.
  *

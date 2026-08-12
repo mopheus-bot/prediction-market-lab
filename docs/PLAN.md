@@ -4,6 +4,13 @@ Serverless port of the Kalshi paper-trading bot. This document captures the
 shift from the local-Mac Python setup to a 24/7 serverless architecture on
 Cloudflare, and the chunk-by-chunk plan to land it.
 
+> **2026-08-12:** Kalshi paper-trading shut down. See
+> `docs/ALPACA-PIVOT.md` for the pivot to Alpaca. The CF Worker
+> architecture transfers 1:1 — same DO, same D1, same R2, same
+> router, same LLM gating. Only `src/kalshi/` is being replaced
+> by `src/alpaca/`. Do not re-litigate the design below; the
+> data + the architecture both worked, the venue didn't.
+
 ## Source of truth
 
 The original Python implementation lives in
