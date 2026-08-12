@@ -1463,7 +1463,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 			// by parse failures, the LLM is the problem.
 			skipped_breakdown: countByPrefix(skipped),
 			daily_tokens_used_pre: dailyTokensUsed - totalInputTokens - totalOutputTokens,
-			daily_token_cap: 200_000,
+			daily_token_cap: 500_000,
 		},
 	};
 }
