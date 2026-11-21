@@ -1,0 +1,1025 @@
+{
+  "strategy": "ml",
+  "vertical_filter": "weather",
+  "seed": 42,
+  "n_markets_settled": 500,
+  "n_trades": 100,
+  "n_signals_fired": 100,
+  "n_signals_skipped": 0,
+  "sharpe": -2.2510066373044344,
+  "max_drawdown_pct": 0.000987,
+  "hit_rate": 0.22,
+  "total_pnl_cents": -839,
+  "final_bankroll_cents": 999161,
+  "per_vertical": {
+    "weather": {
+      "n_trades": 100,
+      "sharpe": -2.2510066373044344,
+      "max_drawdown_pct": 0.000987,
+      "hit_rate": 0.22,
+      "total_pnl_cents": -839
+    }
+  },
+  "trades": [
+    {
+      "ticker": "KXWTH-0001",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 53,
+      "settlement_outcome": "yes",
+      "pnl_cents": -53,
+      "bankroll_after": 999947,
+      "drawdown_pct": 5.3e-05
+    },
+    {
+      "ticker": "KXWTH-0002",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 56,
+      "settlement_outcome": "yes",
+      "pnl_cents": -56,
+      "bankroll_after": 999891,
+      "drawdown_pct": 0.000109
+    },
+    {
+      "ticker": "KXWTH-0003",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 54,
+      "settlement_outcome": "no",
+      "pnl_cents": 46,
+      "bankroll_after": 999937,
+      "drawdown_pct": 6.3e-05
+    },
+    {
+      "ticker": "KXWTH-0004",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 12,
+      "settlement_outcome": "no",
+      "pnl_cents": -12,
+      "bankroll_after": 999925,
+      "drawdown_pct": 7.5e-05
+    },
+    {
+      "ticker": "KXWTH-0005",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 31,
+      "settlement_outcome": "no",
+      "pnl_cents": -31,
+      "bankroll_after": 999894,
+      "drawdown_pct": 0.000106
+    },
+    {
+      "ticker": "KXWTH-0006",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 12,
+      "settlement_outcome": "no",
+      "pnl_cents": -12,
+      "bankroll_after": 999882,
+      "drawdown_pct": 0.000118
+    },
+    {
+      "ticker": "KXWTH-0007",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 47,
+      "settlement_outcome": "yes",
+      "pnl_cents": -47,
+      "bankroll_after": 999835,
+      "drawdown_pct": 0.000165
+    },
+    {
+      "ticker": "KXWTH-0008",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 34,
+      "settlement_outcome": "no",
+      "pnl_cents": -34,
+      "bankroll_after": 999801,
+      "drawdown_pct": 0.000199
+    },
+    {
+      "ticker": "KXWTH-0009",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 28,
+      "settlement_outcome": "yes",
+      "pnl_cents": 72,
+      "bankroll_after": 999873,
+      "drawdown_pct": 0.000127
+    },
+    {
+      "ticker": "KXWTH-0010",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 58,
+      "settlement_outcome": "yes",
+      "pnl_cents": -58,
+      "bankroll_after": 999815,
+      "drawdown_pct": 0.000185
+    },
+    {
+      "ticker": "KXWTH-0011",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 18,
+      "settlement_outcome": "yes",
+      "pnl_cents": -18,
+      "bankroll_after": 999797,
+      "drawdown_pct": 0.000203
+    },
+    {
+      "ticker": "KXWTH-0012",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 73,
+      "settlement_outcome": "yes",
+      "pnl_cents": 27,
+      "bankroll_after": 999824,
+      "drawdown_pct": 0.000176
+    },
+    {
+      "ticker": "KXWTH-0013",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 72,
+      "settlement_outcome": "yes",
+      "pnl_cents": -72,
+      "bankroll_after": 999752,
+      "drawdown_pct": 0.000248
+    },
+    {
+      "ticker": "KXWTH-0014",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 11,
+      "settlement_outcome": "yes",
+      "pnl_cents": -11,
+      "bankroll_after": 999741,
+      "drawdown_pct": 0.000259
+    },
+    {
+      "ticker": "KXWTH-0015",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 13,
+      "settlement_outcome": "yes",
+      "pnl_cents": -13,
+      "bankroll_after": 999728,
+      "drawdown_pct": 0.000272
+    },
+    {
+      "ticker": "KXWTH-0016",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 2,
+      "settlement_outcome": "yes",
+      "pnl_cents": -2,
+      "bankroll_after": 999726,
+      "drawdown_pct": 0.000274
+    },
+    {
+      "ticker": "KXWTH-0017",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 13,
+      "settlement_outcome": "yes",
+      "pnl_cents": -13,
+      "bankroll_after": 999713,
+      "drawdown_pct": 0.000287
+    },
+    {
+      "ticker": "KXWTH-0018",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 24,
+      "settlement_outcome": "yes",
+      "pnl_cents": -24,
+      "bankroll_after": 999689,
+      "drawdown_pct": 0.000311
+    },
+    {
+      "ticker": "KXWTH-0019",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 7,
+      "settlement_outcome": "no",
+      "pnl_cents": -7,
+      "bankroll_after": 999682,
+      "drawdown_pct": 0.000318
+    },
+    {
+      "ticker": "KXWTH-0020",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 77,
+      "settlement_outcome": "yes",
+      "pnl_cents": 23,
+      "bankroll_after": 999705,
+      "drawdown_pct": 0.000295
+    },
+    {
+      "ticker": "KXWTH-0021",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 35,
+      "settlement_outcome": "yes",
+      "pnl_cents": -35,
+      "bankroll_after": 999670,
+      "drawdown_pct": 0.00033
+    },
+    {
+      "ticker": "KXWTH-0022",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 26,
+      "settlement_outcome": "yes",
+      "pnl_cents": -26,
+      "bankroll_after": 999644,
+      "drawdown_pct": 0.000356
+    },
+    {
+      "ticker": "KXWTH-0023",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": -39,
+      "bankroll_after": 999605,
+      "drawdown_pct": 0.000395
+    },
+    {
+      "ticker": "KXWTH-0024",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 67,
+      "settlement_outcome": "yes",
+      "pnl_cents": 33,
+      "bankroll_after": 999638,
+      "drawdown_pct": 0.000362
+    },
+    {
+      "ticker": "KXWTH-0025",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": -39,
+      "bankroll_after": 999599,
+      "drawdown_pct": 0.000401
+    },
+    {
+      "ticker": "KXWTH-0026",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 20,
+      "settlement_outcome": "yes",
+      "pnl_cents": -20,
+      "bankroll_after": 999579,
+      "drawdown_pct": 0.000421
+    },
+    {
+      "ticker": "KXWTH-0027",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 27,
+      "settlement_outcome": "yes",
+      "pnl_cents": 73,
+      "bankroll_after": 999652,
+      "drawdown_pct": 0.000348
+    },
+    {
+      "ticker": "KXWTH-0028",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 66,
+      "settlement_outcome": "no",
+      "pnl_cents": 34,
+      "bankroll_after": 999686,
+      "drawdown_pct": 0.000314
+    },
+    {
+      "ticker": "KXWTH-0029",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 30,
+      "settlement_outcome": "yes",
+      "pnl_cents": 70,
+      "bankroll_after": 999756,
+      "drawdown_pct": 0.000244
+    },
+    {
+      "ticker": "KXWTH-0030",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 4,
+      "settlement_outcome": "yes",
+      "pnl_cents": -4,
+      "bankroll_after": 999752,
+      "drawdown_pct": 0.000248
+    },
+    {
+      "ticker": "KXWTH-0031",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 41,
+      "settlement_outcome": "yes",
+      "pnl_cents": -41,
+      "bankroll_after": 999711,
+      "drawdown_pct": 0.000289
+    },
+    {
+      "ticker": "KXWTH-0032",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 65,
+      "settlement_outcome": "yes",
+      "pnl_cents": -65,
+      "bankroll_after": 999646,
+      "drawdown_pct": 0.000354
+    },
+    {
+      "ticker": "KXWTH-0033",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 71,
+      "settlement_outcome": "no",
+      "pnl_cents": -71,
+      "bankroll_after": 999575,
+      "drawdown_pct": 0.000425
+    },
+    {
+      "ticker": "KXWTH-0034",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 11,
+      "settlement_outcome": "no",
+      "pnl_cents": -11,
+      "bankroll_after": 999564,
+      "drawdown_pct": 0.000436
+    },
+    {
+      "ticker": "KXWTH-0035",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 20,
+      "settlement_outcome": "no",
+      "pnl_cents": -20,
+      "bankroll_after": 999544,
+      "drawdown_pct": 0.000456
+    },
+    {
+      "ticker": "KXWTH-0036",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 25,
+      "settlement_outcome": "no",
+      "pnl_cents": -25,
+      "bankroll_after": 999519,
+      "drawdown_pct": 0.000481
+    },
+    {
+      "ticker": "KXWTH-0037",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 38,
+      "settlement_outcome": "yes",
+      "pnl_cents": -38,
+      "bankroll_after": 999481,
+      "drawdown_pct": 0.000519
+    },
+    {
+      "ticker": "KXWTH-0038",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 30,
+      "settlement_outcome": "no",
+      "pnl_cents": -30,
+      "bankroll_after": 999451,
+      "drawdown_pct": 0.000549
+    },
+    {
+      "ticker": "KXWTH-0039",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 3,
+      "settlement_outcome": "yes",
+      "pnl_cents": -3,
+      "bankroll_after": 999448,
+      "drawdown_pct": 0.000552
+    },
+    {
+      "ticker": "KXWTH-0040",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 14,
+      "settlement_outcome": "no",
+      "pnl_cents": -14,
+      "bankroll_after": 999434,
+      "drawdown_pct": 0.000566
+    },
+    {
+      "ticker": "KXWTH-0041",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 51,
+      "settlement_outcome": "yes",
+      "pnl_cents": -51,
+      "bankroll_after": 999383,
+      "drawdown_pct": 0.000617
+    },
+    {
+      "ticker": "KXWTH-0042",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 2,
+      "settlement_outcome": "yes",
+      "pnl_cents": -2,
+      "bankroll_after": 999381,
+      "drawdown_pct": 0.000619
+    },
+    {
+      "ticker": "KXWTH-0043",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 2,
+      "settlement_outcome": "yes",
+      "pnl_cents": -2,
+      "bankroll_after": 999379,
+      "drawdown_pct": 0.000621
+    },
+    {
+      "ticker": "KXWTH-0044",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 5,
+      "settlement_outcome": "no",
+      "pnl_cents": -5,
+      "bankroll_after": 999374,
+      "drawdown_pct": 0.000626
+    },
+    {
+      "ticker": "KXWTH-0045",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 17,
+      "settlement_outcome": "yes",
+      "pnl_cents": -17,
+      "bankroll_after": 999357,
+      "drawdown_pct": 0.000643
+    },
+    {
+      "ticker": "KXWTH-0046",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 26,
+      "settlement_outcome": "yes",
+      "pnl_cents": -26,
+      "bankroll_after": 999331,
+      "drawdown_pct": 0.000669
+    },
+    {
+      "ticker": "KXWTH-0047",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 16,
+      "settlement_outcome": "no",
+      "pnl_cents": -16,
+      "bankroll_after": 999315,
+      "drawdown_pct": 0.000685
+    },
+    {
+      "ticker": "KXWTH-0048",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 46,
+      "settlement_outcome": "no",
+      "pnl_cents": 54,
+      "bankroll_after": 999369,
+      "drawdown_pct": 0.000631
+    },
+    {
+      "ticker": "KXWTH-0049",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 57,
+      "settlement_outcome": "yes",
+      "pnl_cents": -57,
+      "bankroll_after": 999312,
+      "drawdown_pct": 0.000688
+    },
+    {
+      "ticker": "KXWTH-0050",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 19,
+      "settlement_outcome": "no",
+      "pnl_cents": 81,
+      "bankroll_after": 999393,
+      "drawdown_pct": 0.000607
+    },
+    {
+      "ticker": "KXWTH-0051",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 2,
+      "settlement_outcome": "yes",
+      "pnl_cents": -2,
+      "bankroll_after": 999391,
+      "drawdown_pct": 0.000609
+    },
+    {
+      "ticker": "KXWTH-0052",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 37,
+      "settlement_outcome": "yes",
+      "pnl_cents": -37,
+      "bankroll_after": 999354,
+      "drawdown_pct": 0.000646
+    },
+    {
+      "ticker": "KXWTH-0053",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 47,
+      "settlement_outcome": "yes",
+      "pnl_cents": -47,
+      "bankroll_after": 999307,
+      "drawdown_pct": 0.000693
+    },
+    {
+      "ticker": "KXWTH-0054",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 72,
+      "settlement_outcome": "no",
+      "pnl_cents": -72,
+      "bankroll_after": 999235,
+      "drawdown_pct": 0.000765
+    },
+    {
+      "ticker": "KXWTH-0055",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 7,
+      "settlement_outcome": "yes",
+      "pnl_cents": -7,
+      "bankroll_after": 999228,
+      "drawdown_pct": 0.000772
+    },
+    {
+      "ticker": "KXWTH-0056",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 16,
+      "settlement_outcome": "no",
+      "pnl_cents": -16,
+      "bankroll_after": 999212,
+      "drawdown_pct": 0.000788
+    },
+    {
+      "ticker": "KXWTH-0057",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 60,
+      "settlement_outcome": "yes",
+      "pnl_cents": -60,
+      "bankroll_after": 999152,
+      "drawdown_pct": 0.000848
+    },
+    {
+      "ticker": "KXWTH-0058",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 33,
+      "settlement_outcome": "yes",
+      "pnl_cents": 67,
+      "bankroll_after": 999219,
+      "drawdown_pct": 0.000781
+    },
+    {
+      "ticker": "KXWTH-0059",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 11,
+      "settlement_outcome": "no",
+      "pnl_cents": -11,
+      "bankroll_after": 999208,
+      "drawdown_pct": 0.000792
+    },
+    {
+      "ticker": "KXWTH-0060",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 5,
+      "settlement_outcome": "yes",
+      "pnl_cents": -5,
+      "bankroll_after": 999203,
+      "drawdown_pct": 0.000797
+    },
+    {
+      "ticker": "KXWTH-0061",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 23,
+      "settlement_outcome": "no",
+      "pnl_cents": -23,
+      "bankroll_after": 999180,
+      "drawdown_pct": 0.00082
+    },
+    {
+      "ticker": "KXWTH-0062",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 64,
+      "settlement_outcome": "no",
+      "pnl_cents": 36,
+      "bankroll_after": 999216,
+      "drawdown_pct": 0.000784
+    },
+    {
+      "ticker": "KXWTH-0063",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 18,
+      "settlement_outcome": "no",
+      "pnl_cents": -18,
+      "bankroll_after": 999198,
+      "drawdown_pct": 0.000802
+    },
+    {
+      "ticker": "KXWTH-0064",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 36,
+      "settlement_outcome": "no",
+      "pnl_cents": 64,
+      "bankroll_after": 999262,
+      "drawdown_pct": 0.000738
+    },
+    {
+      "ticker": "KXWTH-0065",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 60,
+      "settlement_outcome": "yes",
+      "pnl_cents": -60,
+      "bankroll_after": 999202,
+      "drawdown_pct": 0.000798
+    },
+    {
+      "ticker": "KXWTH-0066",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 23,
+      "settlement_outcome": "yes",
+      "pnl_cents": -23,
+      "bankroll_after": 999179,
+      "drawdown_pct": 0.000821
+    },
+    {
+      "ticker": "KXWTH-0067",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 21,
+      "settlement_outcome": "no",
+      "pnl_cents": -21,
+      "bankroll_after": 999158,
+      "drawdown_pct": 0.000842
+    },
+    {
+      "ticker": "KXWTH-0068",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 10,
+      "settlement_outcome": "yes",
+      "pnl_cents": -10,
+      "bankroll_after": 999148,
+      "drawdown_pct": 0.000852
+    },
+    {
+      "ticker": "KXWTH-0069",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 25,
+      "settlement_outcome": "no",
+      "pnl_cents": -25,
+      "bankroll_after": 999123,
+      "drawdown_pct": 0.000877
+    },
+    {
+      "ticker": "KXWTH-0070",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 24,
+      "settlement_outcome": "no",
+      "pnl_cents": -24,
+      "bankroll_after": 999099,
+      "drawdown_pct": 0.000901
+    },
+    {
+      "ticker": "KXWTH-0071",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 6,
+      "settlement_outcome": "yes",
+      "pnl_cents": -6,
+      "bankroll_after": 999093,
+      "drawdown_pct": 0.000907
+    },
+    {
+      "ticker": "KXWTH-0072",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 69,
+      "settlement_outcome": "yes",
+      "pnl_cents": -69,
+      "bankroll_after": 999024,
+      "drawdown_pct": 0.000976
+    },
+    {
+      "ticker": "KXWTH-0073",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 11,
+      "settlement_outcome": "yes",
+      "pnl_cents": -11,
+      "bankroll_after": 999013,
+      "drawdown_pct": 0.000987
+    },
+    {
+      "ticker": "KXWTH-0074",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 47,
+      "settlement_outcome": "no",
+      "pnl_cents": 53,
+      "bankroll_after": 999066,
+      "drawdown_pct": 0.000934
+    },
+    {
+      "ticker": "KXWTH-0075",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 62,
+      "settlement_outcome": "no",
+      "pnl_cents": 38,
+      "bankroll_after": 999104,
+      "drawdown_pct": 0.000896
+    },
+    {
+      "ticker": "KXWTH-0076",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 9,
+      "settlement_outcome": "no",
+      "pnl_cents": -9,
+      "bankroll_after": 999095,
+      "drawdown_pct": 0.000905
+    },
+    {
+      "ticker": "KXWTH-0077",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 22,
+      "settlement_outcome": "no",
+      "pnl_cents": -22,
+      "bankroll_after": 999073,
+      "drawdown_pct": 0.000927
+    },
+    {
+      "ticker": "KXWTH-0078",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 32,
+      "settlement_outcome": "yes",
+      "pnl_cents": 68,
+      "bankroll_after": 999141,
+      "drawdown_pct": 0.000859
+    },
+    {
+      "ticker": "KXWTH-0079",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 5,
+      "settlement_outcome": "no",
+      "pnl_cents": -5,
+      "bankroll_after": 999136,
+      "drawdown_pct": 0.000864
+    },
+    {
+      "ticker": "KXWTH-0080",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 20,
+      "settlement_outcome": "yes",
+      "pnl_cents": -20,
+      "bankroll_after": 999116,
+      "drawdown_pct": 0.000884
+    },
+    {
+      "ticker": "KXWTH-0081",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 45,
+      "settlement_outcome": "no",
+      "pnl_cents": 55,
+      "bankroll_after": 999171,
+      "drawdown_pct": 0.000829
+    },
+    {
+      "ticker": "KXWTH-0082",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 9,
+      "settlement_outcome": "yes",
+      "pnl_cents": -9,
+      "bankroll_after": 999162,
+      "drawdown_pct": 0.000838
+    },
+    {
+      "ticker": "KXWTH-0083",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 26,
+      "settlement_outcome": "no",
+      "pnl_cents": -26,
+      "bankroll_after": 999136,
+      "drawdown_pct": 0.000864
+    },
+    {
+      "ticker": "KXWTH-0084",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 66,
+      "settlement_outcome": "no",
+      "pnl_cents": 34,
+      "bankroll_after": 999170,
+      "drawdown_pct": 0.00083
+    },
+    {
+      "ticker": "KXWTH-0085",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 7,
+      "settlement_outcome": "no",
+      "pnl_cents": -7,
+      "bankroll_after": 999163,
+      "drawdown_pct": 0.000837
+    },
+    {
+      "ticker": "KXWTH-0086",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 3,
+      "settlement_outcome": "yes",
+      "pnl_cents": -3,
+      "bankroll_after": 999160,
+      "drawdown_pct": 0.00084
+    },
+    {
+      "ticker": "KXWTH-0087",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 33,
+      "settlement_outcome": "yes",
+      "pnl_cents": 67,
+      "bankroll_after": 999227,
+      "drawdown_pct": 0.000773
+    },
+    {
+      "ticker": "KXWTH-0088",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 10,
+      "settlement_outcome": "yes",
+      "pnl_cents": -10,
+      "bankroll_after": 999217,
+      "drawdown_pct": 0.000783
+    },
+    {
+      "ticker": "KXWTH-0089",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 31,
+      "settlement_outcome": "no",
+      "pnl_cents": -31,
+      "bankroll_after": 999186,
+      "drawdown_pct": 0.000814
+    },
+    {
+      "ticker": "KXWTH-0090",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 26,
+      "settlement_outcome": "yes",
+      "pnl_cents": -26,
+      "bankroll_after": 999160,
+      "drawdown_pct": 0.00084
+    },
+    {
+      "ticker": "KXWTH-0091",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 51,
+      "settlement_outcome": "yes",
+      "pnl_cents": -51,
+      "bankroll_after": 999109,
+      "drawdown_pct": 0.000891
+    },
+    {
+      "ticker": "KXWTH-0092",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 6,
+      "settlement_outcome": "no",
+      "pnl_cents": -6,
+      "bankroll_after": 999103,
+      "drawdown_pct": 0.000897
+    },
+    {
+      "ticker": "KXWTH-0093",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 70,
+      "settlement_outcome": "yes",
+      "pnl_cents": 30,
+      "bankroll_after": 999133,
+      "drawdown_pct": 0.000867
+    },
+    {
+      "ticker": "KXWTH-0094",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 46,
+      "settlement_outcome": "no",
+      "pnl_cents": 54,
+      "bankroll_after": 999187,
+      "drawdown_pct": 0.000813
+    },
+    {
+      "ticker": "KXWTH-0095",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 28,
+      "settlement_outcome": "no",
+      "pnl_cents": -28,
+      "bankroll_after": 999159,
+      "drawdown_pct": 0.000841
+    },
+    {
+      "ticker": "KXWTH-0096",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 38,
+      "settlement_outcome": "no",
+      "pnl_cents": 62,
+      "bankroll_after": 999221,
+      "drawdown_pct": 0.000779
+    },
+    {
+      "ticker": "KXWTH-0097",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 25,
+      "settlement_outcome": "no",
+      "pnl_cents": -25,
+      "bankroll_after": 999196,
+      "drawdown_pct": 0.000804
+    },
+    {
+      "ticker": "KXWTH-0098",
+      "vertical": "weather",
+      "side": "no",
+      "entry_price": 25,
+      "settlement_outcome": "yes",
+      "pnl_cents": -25,
+      "bankroll_after": 999171,
+      "drawdown_pct": 0.000829
+    },
+    {
+      "ticker": "KXWTH-0099",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 8,
+      "settlement_outcome": "no",
+      "pnl_cents": -8,
+      "bankroll_after": 999163,
+      "drawdown_pct": 0.000837
+    },
+    {
+      "ticker": "KXWTH-0100",
+      "vertical": "weather",
+      "side": "yes",
+      "entry_price": 2,
+      "settlement_outcome": "no",
+      "pnl_cents": -2,
+      "bankroll_after": 999161,
+      "drawdown_pct": 0.000839
+    }
+  ]
+}

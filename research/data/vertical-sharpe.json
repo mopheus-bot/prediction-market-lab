@@ -1,0 +1,45 @@
+{
+  "experiment": "commit-6 per-vertical ML vs naive",
+  "date": "2026-08-04",
+  "description": "Per-vertical Sharpe comparison: ML (commit-4+6 framework) vs naive (commit-3 fade signal). Each vertical gets a fresh ML model trained only on its own markets. Backtest on 500 markets with the same params as commit-3 (lookback=1000, force_ttl=2000, tick_step=20).",
+  "params": {
+    "backtest": {
+      "n_markets": 500,
+      "lookback": 1000,
+      "force_ttl_seconds": 2000,
+      "tick_step": 20,
+      "seed": 42
+    },
+    "training": {
+      "seeds": [1, 2, 3, 4, 5],
+      "n_markets_per_seed": 200,
+      "first_decision_only": true,
+      "model": "RandomForestClassifier(n_estimators=100, max_depth=4, min_samples_leaf=20)"
+    }
+  },
+  "results": {
+    "naive": {
+      "all": {"n_trades": 816, "sharpe": 0.335, "hit_rate": 0.4841, "total_pnl_cents": 432},
+      "per_vertical": {
+        "politics": {"n_trades": 226, "sharpe": -0.773, "hit_rate": 0.4513, "total_pnl_cents": -472},
+        "sports":   {"n_trades": 362, "sharpe": -0.219, "hit_rate": 0.4724, "total_pnl_cents": -200},
+        "weather":  {"n_trades": 147, "sharpe":  1.511, "hit_rate": 0.5510, "total_pnl_cents":  759},
+        "economic": {"n_trades":  81, "sharpe":  0.784, "hit_rate": 0.5062, "total_pnl_cents":  345}
+      }
+    },
+    "ml": {
+      "per_vertical": {
+        "politics": {"n_trades": 150, "sharpe": -2.162, "hit_rate": 0.2533, "total_pnl_cents": -996, "test_accuracy": 0.750},
+        "sports":   {"n_trades": 200, "sharpe": -0.870, "hit_rate": 0.4050, "total_pnl_cents": -599, "test_accuracy": 0.562},
+        "weather":  {"n_trades": 100, "sharpe": -2.251, "hit_rate": 0.2200, "total_pnl_cents": -839, "test_accuracy": 0.525},
+        "economic": {"n_trades":  50, "sharpe":  0.052, "hit_rate": 0.4000, "total_pnl_cents":  18,  "test_accuracy": 0.400}
+      }
+    }
+  },
+  "go_no_go_gate": {
+    "criterion": "At least one vertical has Sharpe > naive baseline",
+    "passed": false,
+    "best_vertical": "weather (naive=+1.51, ml=-2.25)",
+    "rationale": "ML underperforms naive on every vertical. See ADR 2026-08-04 for the post-mortem."
+  }
+}

@@ -1,0 +1,525 @@
+{
+  "strategy": "ml",
+  "vertical_filter": "economic",
+  "seed": 42,
+  "n_markets_settled": 500,
+  "n_trades": 50,
+  "n_signals_fired": 50,
+  "n_signals_skipped": 0,
+  "sharpe": 0.052177744593423524,
+  "max_drawdown_pct": 0.00045783380632830284,
+  "hit_rate": 0.4,
+  "total_pnl_cents": 18,
+  "final_bankroll_cents": 1000018,
+  "per_vertical": {
+    "economic": {
+      "n_trades": 50,
+      "sharpe": 0.052177744593423524,
+      "max_drawdown_pct": 0.00045783380632830284,
+      "hit_rate": 0.4,
+      "total_pnl_cents": 18
+    }
+  },
+  "trades": [
+    {
+      "ticker": "KXECN-0001",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 23,
+      "settlement_outcome": "no",
+      "pnl_cents": 77,
+      "bankroll_after": 1000077,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXECN-0002",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 49,
+      "settlement_outcome": "no",
+      "pnl_cents": 51,
+      "bankroll_after": 1000128,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXECN-0003",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 34,
+      "settlement_outcome": "yes",
+      "pnl_cents": 66,
+      "bankroll_after": 1000194,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXECN-0004",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 48,
+      "settlement_outcome": "yes",
+      "pnl_cents": -48,
+      "bankroll_after": 1000146,
+      "drawdown_pct": 4.79906898061776e-05
+    },
+    {
+      "ticker": "KXECN-0005",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "no",
+      "pnl_cents": -44,
+      "bankroll_after": 1000102,
+      "drawdown_pct": 9.19821554618404e-05
+    },
+    {
+      "ticker": "KXECN-0006",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 27,
+      "settlement_outcome": "yes",
+      "pnl_cents": -27,
+      "bankroll_after": 1000075,
+      "drawdown_pct": 0.00011897691847781531
+    },
+    {
+      "ticker": "KXECN-0007",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 33,
+      "settlement_outcome": "no",
+      "pnl_cents": 67,
+      "bankroll_after": 1000142,
+      "drawdown_pct": 5.1989913956692405e-05
+    },
+    {
+      "ticker": "KXECN-0008",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 29,
+      "settlement_outcome": "no",
+      "pnl_cents": -29,
+      "bankroll_after": 1000113,
+      "drawdown_pct": 8.09842890479247e-05
+    },
+    {
+      "ticker": "KXECN-0009",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 38,
+      "settlement_outcome": "no",
+      "pnl_cents": 62,
+      "bankroll_after": 1000175,
+      "drawdown_pct": 1.89963147149453e-05
+    },
+    {
+      "ticker": "KXECN-0010",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "yes",
+      "pnl_cents": 56,
+      "bankroll_after": 1000231,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXECN-0011",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 34,
+      "settlement_outcome": "yes",
+      "pnl_cents": -34,
+      "bankroll_after": 1000197,
+      "drawdown_pct": 3.3992147813855e-05
+    },
+    {
+      "ticker": "KXECN-0012",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 33,
+      "settlement_outcome": "yes",
+      "pnl_cents": 67,
+      "bankroll_after": 1000264,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXECN-0013",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 30,
+      "settlement_outcome": "no",
+      "pnl_cents": -30,
+      "bankroll_after": 1000234,
+      "drawdown_pct": 2.9992082090328154e-05
+    },
+    {
+      "ticker": "KXECN-0014",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 42,
+      "settlement_outcome": "no",
+      "pnl_cents": -42,
+      "bankroll_after": 1000192,
+      "drawdown_pct": 7.198099701678757e-05
+    },
+    {
+      "ticker": "KXECN-0015",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 61,
+      "settlement_outcome": "yes",
+      "pnl_cents": 39,
+      "bankroll_after": 1000231,
+      "drawdown_pct": 3.299129029936097e-05
+    },
+    {
+      "ticker": "KXECN-0016",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 33,
+      "settlement_outcome": "no",
+      "pnl_cents": 67,
+      "bankroll_after": 1000298,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXECN-0017",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 30,
+      "settlement_outcome": "no",
+      "pnl_cents": -30,
+      "bankroll_after": 1000268,
+      "drawdown_pct": 2.999106266332633e-05
+    },
+    {
+      "ticker": "KXECN-0018",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 34,
+      "settlement_outcome": "yes",
+      "pnl_cents": -34,
+      "bankroll_after": 1000234,
+      "drawdown_pct": 6.398093368176284e-05
+    },
+    {
+      "ticker": "KXECN-0019",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": 61,
+      "bankroll_after": 1000295,
+      "drawdown_pct": 2.9991062663326327e-06
+    },
+    {
+      "ticker": "KXECN-0020",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 32,
+      "settlement_outcome": "no",
+      "pnl_cents": 68,
+      "bankroll_after": 1000363,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXECN-0021",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 38,
+      "settlement_outcome": "yes",
+      "pnl_cents": -38,
+      "bankroll_after": 1000325,
+      "drawdown_pct": 3.7986211005405035e-05
+    },
+    {
+      "ticker": "KXECN-0022",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 32,
+      "settlement_outcome": "no",
+      "pnl_cents": -32,
+      "bankroll_after": 1000293,
+      "drawdown_pct": 6.997459922048297e-05
+    },
+    {
+      "ticker": "KXECN-0023",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 48,
+      "settlement_outcome": "no",
+      "pnl_cents": -48,
+      "bankroll_after": 1000245,
+      "drawdown_pct": 0.00011795718154309986
+    },
+    {
+      "ticker": "KXECN-0024",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 60,
+      "settlement_outcome": "yes",
+      "pnl_cents": 40,
+      "bankroll_after": 1000285,
+      "drawdown_pct": 7.797169627425245e-05
+    },
+    {
+      "ticker": "KXECN-0025",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 32,
+      "settlement_outcome": "yes",
+      "pnl_cents": 68,
+      "bankroll_after": 1000353,
+      "drawdown_pct": 9.996371317211852e-06
+    },
+    {
+      "ticker": "KXECN-0026",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 37,
+      "settlement_outcome": "yes",
+      "pnl_cents": -37,
+      "bankroll_after": 1000316,
+      "drawdown_pct": 4.6982945190895704e-05
+    },
+    {
+      "ticker": "KXECN-0027",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 20,
+      "settlement_outcome": "yes",
+      "pnl_cents": -20,
+      "bankroll_after": 1000296,
+      "drawdown_pct": 6.697568782531941e-05
+    },
+    {
+      "ticker": "KXECN-0028",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 49,
+      "settlement_outcome": "no",
+      "pnl_cents": -49,
+      "bankroll_after": 1000247,
+      "drawdown_pct": 0.00011595790727965748
+    },
+    {
+      "ticker": "KXECN-0029",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 42,
+      "settlement_outcome": "no",
+      "pnl_cents": -42,
+      "bankroll_after": 1000205,
+      "drawdown_pct": 0.00015794266681194727
+    },
+    {
+      "ticker": "KXECN-0030",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "no",
+      "pnl_cents": -44,
+      "bankroll_after": 1000161,
+      "drawdown_pct": 0.0002019267006076794
+    },
+    {
+      "ticker": "KXECN-0031",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 42,
+      "settlement_outcome": "yes",
+      "pnl_cents": 58,
+      "bankroll_after": 1000219,
+      "drawdown_pct": 0.00014394774696785067
+    },
+    {
+      "ticker": "KXECN-0032",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 49,
+      "settlement_outcome": "yes",
+      "pnl_cents": -49,
+      "bankroll_after": 1000170,
+      "drawdown_pct": 0.00019292996642218874
+    },
+    {
+      "ticker": "KXECN-0033",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 57,
+      "settlement_outcome": "no",
+      "pnl_cents": -57,
+      "bankroll_after": 1000113,
+      "drawdown_pct": 0.0002499092829302963
+    },
+    {
+      "ticker": "KXECN-0034",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 59,
+      "settlement_outcome": "yes",
+      "pnl_cents": 41,
+      "bankroll_after": 1000154,
+      "drawdown_pct": 0.0002089241605297277
+    },
+    {
+      "ticker": "KXECN-0035",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 50,
+      "settlement_outcome": "no",
+      "pnl_cents": -50,
+      "bankroll_after": 1000104,
+      "drawdown_pct": 0.00025890601711578697
+    },
+    {
+      "ticker": "KXECN-0036",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 36,
+      "settlement_outcome": "no",
+      "pnl_cents": -36,
+      "bankroll_after": 1000068,
+      "drawdown_pct": 0.0002948929538577496
+    },
+    {
+      "ticker": "KXECN-0037",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 52,
+      "settlement_outcome": "no",
+      "pnl_cents": -52,
+      "bankroll_after": 1000016,
+      "drawdown_pct": 0.00034687408470725125
+    },
+    {
+      "ticker": "KXECN-0038",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 33,
+      "settlement_outcome": "yes",
+      "pnl_cents": -33,
+      "bankroll_after": 999983,
+      "drawdown_pct": 0.00037986211005405036
+    },
+    {
+      "ticker": "KXECN-0039",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "no",
+      "pnl_cents": -44,
+      "bankroll_after": 999939,
+      "drawdown_pct": 0.00042384614384978253
+    },
+    {
+      "ticker": "KXECN-0040",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 34,
+      "settlement_outcome": "yes",
+      "pnl_cents": -34,
+      "bankroll_after": 999905,
+      "drawdown_pct": 0.00045783380632830284
+    },
+    {
+      "ticker": "KXECN-0041",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 32,
+      "settlement_outcome": "no",
+      "pnl_cents": 68,
+      "bankroll_after": 999973,
+      "drawdown_pct": 0.0003898584813712622
+    },
+    {
+      "ticker": "KXECN-0042",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 53,
+      "settlement_outcome": "yes",
+      "pnl_cents": 47,
+      "bankroll_after": 1000020,
+      "drawdown_pct": 0.0003428755361803665
+    },
+    {
+      "ticker": "KXECN-0043",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 35,
+      "settlement_outcome": "no",
+      "pnl_cents": -35,
+      "bankroll_after": 999985,
+      "drawdown_pct": 0.000377862835790608
+    },
+    {
+      "ticker": "KXECN-0044",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": 61,
+      "bankroll_after": 1000046,
+      "drawdown_pct": 0.00031688497075561573
+    },
+    {
+      "ticker": "KXECN-0045",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 59,
+      "settlement_outcome": "yes",
+      "pnl_cents": 41,
+      "bankroll_after": 1000087,
+      "drawdown_pct": 0.0002758998483550471
+    },
+    {
+      "ticker": "KXECN-0046",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 28,
+      "settlement_outcome": "yes",
+      "pnl_cents": 72,
+      "bankroll_after": 1000159,
+      "drawdown_pct": 0.00020392597487112177
+    },
+    {
+      "ticker": "KXECN-0047",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": -39,
+      "bankroll_after": 1000120,
+      "drawdown_pct": 0.000242911823008248
+    },
+    {
+      "ticker": "KXECN-0048",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 27,
+      "settlement_outcome": "yes",
+      "pnl_cents": -27,
+      "bankroll_after": 1000093,
+      "drawdown_pct": 0.00026990202556472
+    },
+    {
+      "ticker": "KXECN-0049",
+      "vertical": "economic",
+      "side": "yes",
+      "entry_price": 47,
+      "settlement_outcome": "no",
+      "pnl_cents": -47,
+      "bankroll_after": 1000046,
+      "drawdown_pct": 0.00031688497075561573
+    },
+    {
+      "ticker": "KXECN-0050",
+      "vertical": "economic",
+      "side": "no",
+      "entry_price": 28,
+      "settlement_outcome": "yes",
+      "pnl_cents": -28,
+      "bankroll_after": 1000018,
+      "drawdown_pct": 0.0003448748104438089
+    }
+  ]
+}

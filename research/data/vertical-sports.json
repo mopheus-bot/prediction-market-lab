@@ -1,0 +1,2025 @@
+{
+  "strategy": "ml",
+  "vertical_filter": "sports",
+  "seed": 42,
+  "n_markets_settled": 500,
+  "n_trades": 200,
+  "n_signals_fired": 200,
+  "n_signals_skipped": 0,
+  "sharpe": -0.87008550839696,
+  "max_drawdown_pct": 0.0007908916478442453,
+  "hit_rate": 0.405,
+  "total_pnl_cents": -599,
+  "final_bankroll_cents": 999401,
+  "per_vertical": {
+    "sports": {
+      "n_trades": 200,
+      "sharpe": -0.87008550839696,
+      "max_drawdown_pct": 0.0007908916478442453,
+      "hit_rate": 0.405,
+      "total_pnl_cents": -599
+    }
+  },
+  "trades": [
+    {
+      "ticker": "KXSPT-0001",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 41,
+      "settlement_outcome": "no",
+      "pnl_cents": -41,
+      "bankroll_after": 999959,
+      "drawdown_pct": 4.1e-05
+    },
+    {
+      "ticker": "KXSPT-0002",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 51,
+      "settlement_outcome": "no",
+      "pnl_cents": -51,
+      "bankroll_after": 999908,
+      "drawdown_pct": 9.2e-05
+    },
+    {
+      "ticker": "KXSPT-0003",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 64,
+      "settlement_outcome": "yes",
+      "pnl_cents": -64,
+      "bankroll_after": 999844,
+      "drawdown_pct": 0.000156
+    },
+    {
+      "ticker": "KXSPT-0004",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 55,
+      "settlement_outcome": "no",
+      "pnl_cents": -55,
+      "bankroll_after": 999789,
+      "drawdown_pct": 0.000211
+    },
+    {
+      "ticker": "KXSPT-0005",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 66,
+      "settlement_outcome": "no",
+      "pnl_cents": 34,
+      "bankroll_after": 999823,
+      "drawdown_pct": 0.000177
+    },
+    {
+      "ticker": "KXSPT-0006",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 54,
+      "settlement_outcome": "no",
+      "pnl_cents": -54,
+      "bankroll_after": 999769,
+      "drawdown_pct": 0.000231
+    },
+    {
+      "ticker": "KXSPT-0007",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 34,
+      "settlement_outcome": "yes",
+      "pnl_cents": 66,
+      "bankroll_after": 999835,
+      "drawdown_pct": 0.000165
+    },
+    {
+      "ticker": "KXSPT-0008",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 62,
+      "settlement_outcome": "yes",
+      "pnl_cents": -62,
+      "bankroll_after": 999773,
+      "drawdown_pct": 0.000227
+    },
+    {
+      "ticker": "KXSPT-0009",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "no",
+      "pnl_cents": -44,
+      "bankroll_after": 999729,
+      "drawdown_pct": 0.000271
+    },
+    {
+      "ticker": "KXSPT-0010",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 45,
+      "settlement_outcome": "yes",
+      "pnl_cents": 55,
+      "bankroll_after": 999784,
+      "drawdown_pct": 0.000216
+    },
+    {
+      "ticker": "KXSPT-0011",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 47,
+      "settlement_outcome": "yes",
+      "pnl_cents": 53,
+      "bankroll_after": 999837,
+      "drawdown_pct": 0.000163
+    },
+    {
+      "ticker": "KXSPT-0012",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 42,
+      "settlement_outcome": "no",
+      "pnl_cents": -42,
+      "bankroll_after": 999795,
+      "drawdown_pct": 0.000205
+    },
+    {
+      "ticker": "KXSPT-0013",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 32,
+      "settlement_outcome": "no",
+      "pnl_cents": -32,
+      "bankroll_after": 999763,
+      "drawdown_pct": 0.000237
+    },
+    {
+      "ticker": "KXSPT-0014",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 35,
+      "settlement_outcome": "no",
+      "pnl_cents": -35,
+      "bankroll_after": 999728,
+      "drawdown_pct": 0.000272
+    },
+    {
+      "ticker": "KXSPT-0015",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 46,
+      "settlement_outcome": "yes",
+      "pnl_cents": 54,
+      "bankroll_after": 999782,
+      "drawdown_pct": 0.000218
+    },
+    {
+      "ticker": "KXSPT-0016",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 38,
+      "settlement_outcome": "no",
+      "pnl_cents": -38,
+      "bankroll_after": 999744,
+      "drawdown_pct": 0.000256
+    },
+    {
+      "ticker": "KXSPT-0017",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 62,
+      "settlement_outcome": "yes",
+      "pnl_cents": -62,
+      "bankroll_after": 999682,
+      "drawdown_pct": 0.000318
+    },
+    {
+      "ticker": "KXSPT-0018",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 30,
+      "settlement_outcome": "no",
+      "pnl_cents": -30,
+      "bankroll_after": 999652,
+      "drawdown_pct": 0.000348
+    },
+    {
+      "ticker": "KXSPT-0019",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 53,
+      "settlement_outcome": "no",
+      "pnl_cents": -53,
+      "bankroll_after": 999599,
+      "drawdown_pct": 0.000401
+    },
+    {
+      "ticker": "KXSPT-0020",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 44,
+      "settlement_outcome": "yes",
+      "pnl_cents": -44,
+      "bankroll_after": 999555,
+      "drawdown_pct": 0.000445
+    },
+    {
+      "ticker": "KXSPT-0021",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 52,
+      "settlement_outcome": "no",
+      "pnl_cents": -52,
+      "bankroll_after": 999503,
+      "drawdown_pct": 0.000497
+    },
+    {
+      "ticker": "KXSPT-0022",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 41,
+      "settlement_outcome": "no",
+      "pnl_cents": -41,
+      "bankroll_after": 999462,
+      "drawdown_pct": 0.000538
+    },
+    {
+      "ticker": "KXSPT-0023",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": 61,
+      "bankroll_after": 999523,
+      "drawdown_pct": 0.000477
+    },
+    {
+      "ticker": "KXSPT-0024",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 49,
+      "settlement_outcome": "no",
+      "pnl_cents": 51,
+      "bankroll_after": 999574,
+      "drawdown_pct": 0.000426
+    },
+    {
+      "ticker": "KXSPT-0025",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 41,
+      "settlement_outcome": "yes",
+      "pnl_cents": 59,
+      "bankroll_after": 999633,
+      "drawdown_pct": 0.000367
+    },
+    {
+      "ticker": "KXSPT-0026",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "no",
+      "pnl_cents": -39,
+      "bankroll_after": 999594,
+      "drawdown_pct": 0.000406
+    },
+    {
+      "ticker": "KXSPT-0027",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 33,
+      "settlement_outcome": "no",
+      "pnl_cents": -33,
+      "bankroll_after": 999561,
+      "drawdown_pct": 0.000439
+    },
+    {
+      "ticker": "KXSPT-0028",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 66,
+      "settlement_outcome": "no",
+      "pnl_cents": 34,
+      "bankroll_after": 999595,
+      "drawdown_pct": 0.000405
+    },
+    {
+      "ticker": "KXSPT-0029",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 26,
+      "settlement_outcome": "no",
+      "pnl_cents": -26,
+      "bankroll_after": 999569,
+      "drawdown_pct": 0.000431
+    },
+    {
+      "ticker": "KXSPT-0030",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": 61,
+      "bankroll_after": 999630,
+      "drawdown_pct": 0.00037
+    },
+    {
+      "ticker": "KXSPT-0031",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 58,
+      "settlement_outcome": "yes",
+      "pnl_cents": 42,
+      "bankroll_after": 999672,
+      "drawdown_pct": 0.000328
+    },
+    {
+      "ticker": "KXSPT-0032",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 48,
+      "settlement_outcome": "yes",
+      "pnl_cents": 52,
+      "bankroll_after": 999724,
+      "drawdown_pct": 0.000276
+    },
+    {
+      "ticker": "KXSPT-0033",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 43,
+      "settlement_outcome": "no",
+      "pnl_cents": -43,
+      "bankroll_after": 999681,
+      "drawdown_pct": 0.000319
+    },
+    {
+      "ticker": "KXSPT-0034",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 50,
+      "settlement_outcome": "yes",
+      "pnl_cents": 50,
+      "bankroll_after": 999731,
+      "drawdown_pct": 0.000269
+    },
+    {
+      "ticker": "KXSPT-0035",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 41,
+      "settlement_outcome": "yes",
+      "pnl_cents": 59,
+      "bankroll_after": 999790,
+      "drawdown_pct": 0.00021
+    },
+    {
+      "ticker": "KXSPT-0036",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 54,
+      "settlement_outcome": "yes",
+      "pnl_cents": -54,
+      "bankroll_after": 999736,
+      "drawdown_pct": 0.000264
+    },
+    {
+      "ticker": "KXSPT-0037",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 49,
+      "settlement_outcome": "yes",
+      "pnl_cents": 51,
+      "bankroll_after": 999787,
+      "drawdown_pct": 0.000213
+    },
+    {
+      "ticker": "KXSPT-0038",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 54,
+      "settlement_outcome": "yes",
+      "pnl_cents": 46,
+      "bankroll_after": 999833,
+      "drawdown_pct": 0.000167
+    },
+    {
+      "ticker": "KXSPT-0039",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 50,
+      "settlement_outcome": "no",
+      "pnl_cents": 50,
+      "bankroll_after": 999883,
+      "drawdown_pct": 0.000117
+    },
+    {
+      "ticker": "KXSPT-0040",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 47,
+      "settlement_outcome": "no",
+      "pnl_cents": 53,
+      "bankroll_after": 999936,
+      "drawdown_pct": 6.4e-05
+    },
+    {
+      "ticker": "KXSPT-0041",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 55,
+      "settlement_outcome": "no",
+      "pnl_cents": 45,
+      "bankroll_after": 999981,
+      "drawdown_pct": 1.9e-05
+    },
+    {
+      "ticker": "KXSPT-0042",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 66,
+      "settlement_outcome": "no",
+      "pnl_cents": 34,
+      "bankroll_after": 1000015,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXSPT-0043",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 43,
+      "settlement_outcome": "no",
+      "pnl_cents": -43,
+      "bankroll_after": 999972,
+      "drawdown_pct": 4.2999355009674855e-05
+    },
+    {
+      "ticker": "KXSPT-0044",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 43,
+      "settlement_outcome": "no",
+      "pnl_cents": -43,
+      "bankroll_after": 999929,
+      "drawdown_pct": 8.599871001934971e-05
+    },
+    {
+      "ticker": "KXSPT-0045",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 49,
+      "settlement_outcome": "no",
+      "pnl_cents": -49,
+      "bankroll_after": 999880,
+      "drawdown_pct": 0.00013499797503037454
+    },
+    {
+      "ticker": "KXSPT-0046",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 54,
+      "settlement_outcome": "no",
+      "pnl_cents": 46,
+      "bankroll_after": 999926,
+      "drawdown_pct": 8.89986650200247e-05
+    },
+    {
+      "ticker": "KXSPT-0047",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 40,
+      "settlement_outcome": "no",
+      "pnl_cents": -40,
+      "bankroll_after": 999886,
+      "drawdown_pct": 0.00012899806502902455
+    },
+    {
+      "ticker": "KXSPT-0048",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 46,
+      "settlement_outcome": "no",
+      "pnl_cents": -46,
+      "bankroll_after": 999840,
+      "drawdown_pct": 0.0001749973750393744
+    },
+    {
+      "ticker": "KXSPT-0049",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 43,
+      "settlement_outcome": "no",
+      "pnl_cents": -43,
+      "bankroll_after": 999797,
+      "drawdown_pct": 0.00021799673004904927
+    },
+    {
+      "ticker": "KXSPT-0050",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 38,
+      "settlement_outcome": "yes",
+      "pnl_cents": 62,
+      "bankroll_after": 999859,
+      "drawdown_pct": 0.00015599766003509947
+    },
+    {
+      "ticker": "KXSPT-0051",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "no",
+      "pnl_cents": -39,
+      "bankroll_after": 999820,
+      "drawdown_pct": 0.00019499707504387433
+    },
+    {
+      "ticker": "KXSPT-0052",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 41,
+      "settlement_outcome": "yes",
+      "pnl_cents": 59,
+      "bankroll_after": 999879,
+      "drawdown_pct": 0.00013599796003059954
+    },
+    {
+      "ticker": "KXSPT-0053",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 43,
+      "settlement_outcome": "no",
+      "pnl_cents": -43,
+      "bankroll_after": 999836,
+      "drawdown_pct": 0.0001789973150402744
+    },
+    {
+      "ticker": "KXSPT-0054",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 48,
+      "settlement_outcome": "no",
+      "pnl_cents": -48,
+      "bankroll_after": 999788,
+      "drawdown_pct": 0.00022699659505107423
+    },
+    {
+      "ticker": "KXSPT-0055",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 57,
+      "settlement_outcome": "no",
+      "pnl_cents": 43,
+      "bankroll_after": 999831,
+      "drawdown_pct": 0.0001839972400413994
+    },
+    {
+      "ticker": "KXSPT-0056",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 47,
+      "settlement_outcome": "yes",
+      "pnl_cents": 53,
+      "bankroll_after": 999884,
+      "drawdown_pct": 0.00013099803502947456
+    },
+    {
+      "ticker": "KXSPT-0057",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 46,
+      "settlement_outcome": "yes",
+      "pnl_cents": -46,
+      "bankroll_after": 999838,
+      "drawdown_pct": 0.0001769973450398244
+    },
+    {
+      "ticker": "KXSPT-0058",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 46,
+      "settlement_outcome": "no",
+      "pnl_cents": 54,
+      "bankroll_after": 999892,
+      "drawdown_pct": 0.0001229981550276746
+    },
+    {
+      "ticker": "KXSPT-0059",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 42,
+      "settlement_outcome": "yes",
+      "pnl_cents": 58,
+      "bankroll_after": 999950,
+      "drawdown_pct": 6.499902501462478e-05
+    },
+    {
+      "ticker": "KXSPT-0060",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": 61,
+      "bankroll_after": 1000011,
+      "drawdown_pct": 3.999940000899987e-06
+    },
+    {
+      "ticker": "KXSPT-0061",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": 61,
+      "bankroll_after": 1000072,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXSPT-0062",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 35,
+      "settlement_outcome": "yes",
+      "pnl_cents": 65,
+      "bankroll_after": 1000137,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXSPT-0063",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 32,
+      "settlement_outcome": "yes",
+      "pnl_cents": -32,
+      "bankroll_after": 1000105,
+      "drawdown_pct": 3.1995616600525725e-05
+    },
+    {
+      "ticker": "KXSPT-0064",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 57,
+      "settlement_outcome": "no",
+      "pnl_cents": -57,
+      "bankroll_after": 1000048,
+      "drawdown_pct": 8.898780867021218e-05
+    },
+    {
+      "ticker": "KXSPT-0065",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 42,
+      "settlement_outcome": "no",
+      "pnl_cents": -42,
+      "bankroll_after": 1000006,
+      "drawdown_pct": 0.0001309820554584022
+    },
+    {
+      "ticker": "KXSPT-0066",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 54,
+      "settlement_outcome": "no",
+      "pnl_cents": -54,
+      "bankroll_after": 999952,
+      "drawdown_pct": 0.00018497465847178938
+    },
+    {
+      "ticker": "KXSPT-0067",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 65,
+      "settlement_outcome": "no",
+      "pnl_cents": 35,
+      "bankroll_after": 999987,
+      "drawdown_pct": 0.00014997945281496435
+    },
+    {
+      "ticker": "KXSPT-0068",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 31,
+      "settlement_outcome": "no",
+      "pnl_cents": -31,
+      "bankroll_after": 999956,
+      "drawdown_pct": 0.00018097520639672365
+    },
+    {
+      "ticker": "KXSPT-0069",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 49,
+      "settlement_outcome": "no",
+      "pnl_cents": -49,
+      "bankroll_after": 999907,
+      "drawdown_pct": 0.00022996849431627868
+    },
+    {
+      "ticker": "KXSPT-0070",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 42,
+      "settlement_outcome": "yes",
+      "pnl_cents": -42,
+      "bankroll_after": 999865,
+      "drawdown_pct": 0.0002719627411044687
+    },
+    {
+      "ticker": "KXSPT-0071",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 50,
+      "settlement_outcome": "yes",
+      "pnl_cents": 50,
+      "bankroll_after": 999915,
+      "drawdown_pct": 0.00022196959016614724
+    },
+    {
+      "ticker": "KXSPT-0072",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 44,
+      "settlement_outcome": "yes",
+      "pnl_cents": -44,
+      "bankroll_after": 999871,
+      "drawdown_pct": 0.0002659635629918701
+    },
+    {
+      "ticker": "KXSPT-0073",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 30,
+      "settlement_outcome": "yes",
+      "pnl_cents": -30,
+      "bankroll_after": 999841,
+      "drawdown_pct": 0.000295959453554863
+    },
+    {
+      "ticker": "KXSPT-0074",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 52,
+      "settlement_outcome": "no",
+      "pnl_cents": -52,
+      "bankroll_after": 999789,
+      "drawdown_pct": 0.0003479523305307173
+    },
+    {
+      "ticker": "KXSPT-0075",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 56,
+      "settlement_outcome": "yes",
+      "pnl_cents": 44,
+      "bankroll_after": 999833,
+      "drawdown_pct": 0.00030395835770499443
+    },
+    {
+      "ticker": "KXSPT-0076",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 51,
+      "settlement_outcome": "no",
+      "pnl_cents": -51,
+      "bankroll_after": 999782,
+      "drawdown_pct": 0.0003549513716620823
+    },
+    {
+      "ticker": "KXSPT-0077",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 40,
+      "settlement_outcome": "yes",
+      "pnl_cents": 60,
+      "bankroll_after": 999842,
+      "drawdown_pct": 0.00029495959053609655
+    },
+    {
+      "ticker": "KXSPT-0078",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 32,
+      "settlement_outcome": "no",
+      "pnl_cents": -32,
+      "bankroll_after": 999810,
+      "drawdown_pct": 0.0003269552071366223
+    },
+    {
+      "ticker": "KXSPT-0079",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 37,
+      "settlement_outcome": "yes",
+      "pnl_cents": 63,
+      "bankroll_after": 999873,
+      "drawdown_pct": 0.00026396383695433725
+    },
+    {
+      "ticker": "KXSPT-0080",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 43,
+      "settlement_outcome": "yes",
+      "pnl_cents": 57,
+      "bankroll_after": 999930,
+      "drawdown_pct": 0.0002069716448846508
+    },
+    {
+      "ticker": "KXSPT-0081",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 24,
+      "settlement_outcome": "yes",
+      "pnl_cents": 76,
+      "bankroll_after": 1000006,
+      "drawdown_pct": 0.0001309820554584022
+    },
+    {
+      "ticker": "KXSPT-0082",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 56,
+      "settlement_outcome": "no",
+      "pnl_cents": -56,
+      "bankroll_after": 999950,
+      "drawdown_pct": 0.0001869743845093222
+    },
+    {
+      "ticker": "KXSPT-0083",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": 61,
+      "bankroll_after": 1000011,
+      "drawdown_pct": 0.00012598274036457007
+    },
+    {
+      "ticker": "KXSPT-0084",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 40,
+      "settlement_outcome": "no",
+      "pnl_cents": -40,
+      "bankroll_after": 999971,
+      "drawdown_pct": 0.00016597726111522722
+    },
+    {
+      "ticker": "KXSPT-0085",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 42,
+      "settlement_outcome": "no",
+      "pnl_cents": -42,
+      "bankroll_after": 999929,
+      "drawdown_pct": 0.00020797150790341723
+    },
+    {
+      "ticker": "KXSPT-0086",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 41,
+      "settlement_outcome": "no",
+      "pnl_cents": -41,
+      "bankroll_after": 999888,
+      "drawdown_pct": 0.00024896589167284084
+    },
+    {
+      "ticker": "KXSPT-0087",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 54,
+      "settlement_outcome": "no",
+      "pnl_cents": 46,
+      "bankroll_after": 999934,
+      "drawdown_pct": 0.00020297219280958508
+    },
+    {
+      "ticker": "KXSPT-0088",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 39,
+      "settlement_outcome": "no",
+      "pnl_cents": 61,
+      "bankroll_after": 999995,
+      "drawdown_pct": 0.0001419805486648329
+    },
+    {
+      "ticker": "KXSPT-0089",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 48,
+      "settlement_outcome": "yes",
+      "pnl_cents": 52,
+      "bankroll_after": 1000047,
+      "drawdown_pct": 8.998767168897861e-05
+    },
+    {
+      "ticker": "KXSPT-0090",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 54,
+      "settlement_outcome": "yes",
+      "pnl_cents": -54,
+      "bankroll_after": 999993,
+      "drawdown_pct": 0.00014398027470236577
+    },
+    {
+      "ticker": "KXSPT-0091",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 45,
+      "settlement_outcome": "no",
+      "pnl_cents": 55,
+      "bankroll_after": 1000048,
+      "drawdown_pct": 8.898780867021218e-05
+    },
+    {
+      "ticker": "KXSPT-0092",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 38,
+      "settlement_outcome": "no",
+      "pnl_cents": -38,
+      "bankroll_after": 1000010,
+      "drawdown_pct": 0.00012698260338333647
+    },
+    {
+      "ticker": "KXSPT-0093",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 57,
+      "settlement_outcome": "yes",
+      "pnl_cents": 43,
+      "bankroll_after": 1000053,
+      "drawdown_pct": 8.398849357638004e-05
+    },
+    {
+      "ticker": "KXSPT-0094",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 40,
+      "settlement_outcome": "yes",
+      "pnl_cents": -40,
+      "bankroll_after": 1000013,
+      "drawdown_pct": 0.0001239830143270372
+    },
+    {
+      "ticker": "KXSPT-0095",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 43,
+      "settlement_outcome": "no",
+      "pnl_cents": -43,
+      "bankroll_after": 999970,
+      "drawdown_pct": 0.00016697712413399365
+    },
+    {
+      "ticker": "KXSPT-0096",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 30,
+      "settlement_outcome": "no",
+      "pnl_cents": -30,
+      "bankroll_after": 999940,
+      "drawdown_pct": 0.00019697301469698652
+    },
+    {
+      "ticker": "KXSPT-0097",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 50,
+      "settlement_outcome": "no",
+      "pnl_cents": 50,
+      "bankroll_after": 999990,
+      "drawdown_pct": 0.00014697986375866506
+    },
+    {
+      "ticker": "KXSPT-0098",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 34,
+      "settlement_outcome": "yes",
+      "pnl_cents": -34,
+      "bankroll_after": 999956,
+      "drawdown_pct": 0.00018097520639672365
+    },
+    {
+      "ticker": "KXSPT-0099",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 30,
+      "settlement_outcome": "yes",
+      "pnl_cents": 70,
+      "bankroll_after": 1000026,
+      "drawdown_pct": 0.00011098479508307362
+    },
+    {
+      "ticker": "KXSPT-0100",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 42,
+      "settlement_outcome": "yes",
+      "pnl_cents": -42,
+      "bankroll_after": 999984,
+      "drawdown_pct": 0.00015297904187126365
+    },
+    {
+      "ticker": "KXSPT-0101",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "no",
+      "pnl_cents": -44,
+      "bankroll_after": 999940,
+      "drawdown_pct": 0.00019697301469698652
+    },
+    {
+      "ticker": "KXSPT-0102",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 33,
+      "settlement_outcome": "no",
+      "pnl_cents": -33,
+      "bankroll_after": 999907,
+      "drawdown_pct": 0.00022996849431627868
+    },
+    {
+      "ticker": "KXSPT-0103",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 40,
+      "settlement_outcome": "no",
+      "pnl_cents": -40,
+      "bankroll_after": 999867,
+      "drawdown_pct": 0.00026996301506693583
+    },
+    {
+      "ticker": "KXSPT-0104",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 47,
+      "settlement_outcome": "no",
+      "pnl_cents": 53,
+      "bankroll_after": 999920,
+      "drawdown_pct": 0.00021697027507231508
+    },
+    {
+      "ticker": "KXSPT-0105",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 41,
+      "settlement_outcome": "yes",
+      "pnl_cents": -41,
+      "bankroll_after": 999879,
+      "drawdown_pct": 0.00025796465884173866
+    },
+    {
+      "ticker": "KXSPT-0106",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 49,
+      "settlement_outcome": "no",
+      "pnl_cents": -49,
+      "bankroll_after": 999830,
+      "drawdown_pct": 0.0003069579467612937
+    },
+    {
+      "ticker": "KXSPT-0107",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 18,
+      "settlement_outcome": "no",
+      "pnl_cents": -18,
+      "bankroll_after": 999812,
+      "drawdown_pct": 0.0003249554810990894
+    },
+    {
+      "ticker": "KXSPT-0108",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 56,
+      "settlement_outcome": "no",
+      "pnl_cents": -56,
+      "bankroll_after": 999756,
+      "drawdown_pct": 0.00038094781015000944
+    },
+    {
+      "ticker": "KXSPT-0109",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 40,
+      "settlement_outcome": "no",
+      "pnl_cents": 60,
+      "bankroll_after": 999816,
+      "drawdown_pct": 0.0003209560290240237
+    },
+    {
+      "ticker": "KXSPT-0110",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 21,
+      "settlement_outcome": "no",
+      "pnl_cents": -21,
+      "bankroll_after": 999795,
+      "drawdown_pct": 0.0003419531524181187
+    },
+    {
+      "ticker": "KXSPT-0111",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 40,
+      "settlement_outcome": "yes",
+      "pnl_cents": 60,
+      "bankroll_after": 999855,
+      "drawdown_pct": 0.000281961371292133
+    },
+    {
+      "ticker": "KXSPT-0112",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 29,
+      "settlement_outcome": "yes",
+      "pnl_cents": 71,
+      "bankroll_after": 999926,
+      "drawdown_pct": 0.00021097109695971652
+    },
+    {
+      "ticker": "KXSPT-0113",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 31,
+      "settlement_outcome": "no",
+      "pnl_cents": -31,
+      "bankroll_after": 999895,
+      "drawdown_pct": 0.00024196685054147583
+    },
+    {
+      "ticker": "KXSPT-0114",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "no",
+      "pnl_cents": -44,
+      "bankroll_after": 999851,
+      "drawdown_pct": 0.0002859608233671987
+    },
+    {
+      "ticker": "KXSPT-0115",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 57,
+      "settlement_outcome": "yes",
+      "pnl_cents": -57,
+      "bankroll_after": 999794,
+      "drawdown_pct": 0.0003429530154368851
+    },
+    {
+      "ticker": "KXSPT-0116",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 33,
+      "settlement_outcome": "no",
+      "pnl_cents": 67,
+      "bankroll_after": 999861,
+      "drawdown_pct": 0.0002759621931795344
+    },
+    {
+      "ticker": "KXSPT-0117",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 54,
+      "settlement_outcome": "no",
+      "pnl_cents": -54,
+      "bankroll_after": 999807,
+      "drawdown_pct": 0.0003299547961929216
+    },
+    {
+      "ticker": "KXSPT-0118",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 37,
+      "settlement_outcome": "yes",
+      "pnl_cents": -37,
+      "bankroll_after": 999770,
+      "drawdown_pct": 0.00036694972788727946
+    },
+    {
+      "ticker": "KXSPT-0119",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 54,
+      "settlement_outcome": "yes",
+      "pnl_cents": -54,
+      "bankroll_after": 999716,
+      "drawdown_pct": 0.0004209423309006666
+    },
+    {
+      "ticker": "KXSPT-0120",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 29,
+      "settlement_outcome": "no",
+      "pnl_cents": -29,
+      "bankroll_after": 999687,
+      "drawdown_pct": 0.00044993835844489306
+    },
+    {
+      "ticker": "KXSPT-0121",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 35,
+      "settlement_outcome": "no",
+      "pnl_cents": 65,
+      "bankroll_after": 999752,
+      "drawdown_pct": 0.00038494726222507516
+    },
+    {
+      "ticker": "KXSPT-0122",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 35,
+      "settlement_outcome": "no",
+      "pnl_cents": -35,
+      "bankroll_after": 999717,
+      "drawdown_pct": 0.0004199424678819002
+    },
+    {
+      "ticker": "KXSPT-0123",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 55,
+      "settlement_outcome": "yes",
+      "pnl_cents": -55,
+      "bankroll_after": 999662,
+      "drawdown_pct": 0.0004749349339140538
+    },
+    {
+      "ticker": "KXSPT-0124",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 35,
+      "settlement_outcome": "no",
+      "pnl_cents": -35,
+      "bankroll_after": 999627,
+      "drawdown_pct": 0.0005099301395708787
+    },
+    {
+      "ticker": "KXSPT-0125",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 48,
+      "settlement_outcome": "no",
+      "pnl_cents": 52,
+      "bankroll_after": 999679,
+      "drawdown_pct": 0.0004579372625950245
+    },
+    {
+      "ticker": "KXSPT-0126",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 49,
+      "settlement_outcome": "no",
+      "pnl_cents": 51,
+      "bankroll_after": 999730,
+      "drawdown_pct": 0.0004069442486379366
+    },
+    {
+      "ticker": "KXSPT-0127",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 44,
+      "settlement_outcome": "yes",
+      "pnl_cents": -44,
+      "bankroll_after": 999686,
+      "drawdown_pct": 0.0004509382214636595
+    },
+    {
+      "ticker": "KXSPT-0128",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 47,
+      "settlement_outcome": "no",
+      "pnl_cents": -47,
+      "bankroll_after": 999639,
+      "drawdown_pct": 0.0004979317833456817
+    },
+    {
+      "ticker": "KXSPT-0129",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 49,
+      "settlement_outcome": "no",
+      "pnl_cents": -49,
+      "bankroll_after": 999590,
+      "drawdown_pct": 0.0005469250712652366
+    },
+    {
+      "ticker": "KXSPT-0130",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "no",
+      "pnl_cents": -39,
+      "bankroll_after": 999551,
+      "drawdown_pct": 0.0005859197289971274
+    },
+    {
+      "ticker": "KXSPT-0131",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 42,
+      "settlement_outcome": "no",
+      "pnl_cents": 58,
+      "bankroll_after": 999609,
+      "drawdown_pct": 0.0005279276739086745
+    },
+    {
+      "ticker": "KXSPT-0132",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 27,
+      "settlement_outcome": "no",
+      "pnl_cents": -27,
+      "bankroll_after": 999582,
+      "drawdown_pct": 0.0005549239754153681
+    },
+    {
+      "ticker": "KXSPT-0133",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": 61,
+      "bankroll_after": 999643,
+      "drawdown_pct": 0.000493932331270616
+    },
+    {
+      "ticker": "KXSPT-0134",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 51,
+      "settlement_outcome": "no",
+      "pnl_cents": -51,
+      "bankroll_after": 999592,
+      "drawdown_pct": 0.0005449253452277038
+    },
+    {
+      "ticker": "KXSPT-0135",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 54,
+      "settlement_outcome": "no",
+      "pnl_cents": 46,
+      "bankroll_after": 999638,
+      "drawdown_pct": 0.0004989316463644481
+    },
+    {
+      "ticker": "KXSPT-0136",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 41,
+      "settlement_outcome": "no",
+      "pnl_cents": 59,
+      "bankroll_after": 999697,
+      "drawdown_pct": 0.00043993972825722875
+    },
+    {
+      "ticker": "KXSPT-0137",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 37,
+      "settlement_outcome": "yes",
+      "pnl_cents": 63,
+      "bankroll_after": 999760,
+      "drawdown_pct": 0.0003769483580749437
+    },
+    {
+      "ticker": "KXSPT-0138",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 45,
+      "settlement_outcome": "yes",
+      "pnl_cents": 55,
+      "bankroll_after": 999815,
+      "drawdown_pct": 0.00032195589204279013
+    },
+    {
+      "ticker": "KXSPT-0139",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 47,
+      "settlement_outcome": "no",
+      "pnl_cents": -47,
+      "bankroll_after": 999768,
+      "drawdown_pct": 0.0003689494539248123
+    },
+    {
+      "ticker": "KXSPT-0140",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 22,
+      "settlement_outcome": "no",
+      "pnl_cents": -22,
+      "bankroll_after": 999746,
+      "drawdown_pct": 0.00039094644033767375
+    },
+    {
+      "ticker": "KXSPT-0141",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 33,
+      "settlement_outcome": "no",
+      "pnl_cents": -33,
+      "bankroll_after": 999713,
+      "drawdown_pct": 0.0004239419199569659
+    },
+    {
+      "ticker": "KXSPT-0142",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 41,
+      "settlement_outcome": "no",
+      "pnl_cents": 59,
+      "bankroll_after": 999772,
+      "drawdown_pct": 0.0003649500018497466
+    },
+    {
+      "ticker": "KXSPT-0143",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 43,
+      "settlement_outcome": "yes",
+      "pnl_cents": -43,
+      "bankroll_after": 999729,
+      "drawdown_pct": 0.000407944111656703
+    },
+    {
+      "ticker": "KXSPT-0144",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 56,
+      "settlement_outcome": "yes",
+      "pnl_cents": 44,
+      "bankroll_after": 999773,
+      "drawdown_pct": 0.00036395013883098017
+    },
+    {
+      "ticker": "KXSPT-0145",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 29,
+      "settlement_outcome": "yes",
+      "pnl_cents": 71,
+      "bankroll_after": 999844,
+      "drawdown_pct": 0.0002929598644985637
+    },
+    {
+      "ticker": "KXSPT-0146",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 68,
+      "settlement_outcome": "no",
+      "pnl_cents": 32,
+      "bankroll_after": 999876,
+      "drawdown_pct": 0.00026096424789803796
+    },
+    {
+      "ticker": "KXSPT-0147",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 48,
+      "settlement_outcome": "yes",
+      "pnl_cents": -48,
+      "bankroll_after": 999828,
+      "drawdown_pct": 0.0003089576727988266
+    },
+    {
+      "ticker": "KXSPT-0148",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 50,
+      "settlement_outcome": "yes",
+      "pnl_cents": -50,
+      "bankroll_after": 999778,
+      "drawdown_pct": 0.000358950823737148
+    },
+    {
+      "ticker": "KXSPT-0149",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "no",
+      "pnl_cents": -44,
+      "bankroll_after": 999734,
+      "drawdown_pct": 0.00040294479656287086
+    },
+    {
+      "ticker": "KXSPT-0150",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 51,
+      "settlement_outcome": "no",
+      "pnl_cents": -51,
+      "bankroll_after": 999683,
+      "drawdown_pct": 0.0004539378105199588
+    },
+    {
+      "ticker": "KXSPT-0151",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 40,
+      "settlement_outcome": "yes",
+      "pnl_cents": 60,
+      "bankroll_after": 999743,
+      "drawdown_pct": 0.00039394602939397304
+    },
+    {
+      "ticker": "KXSPT-0152",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 27,
+      "settlement_outcome": "no",
+      "pnl_cents": -27,
+      "bankroll_after": 999716,
+      "drawdown_pct": 0.0004209423309006666
+    },
+    {
+      "ticker": "KXSPT-0153",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 54,
+      "settlement_outcome": "yes",
+      "pnl_cents": -54,
+      "bankroll_after": 999662,
+      "drawdown_pct": 0.0004749349339140538
+    },
+    {
+      "ticker": "KXSPT-0154",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "no",
+      "pnl_cents": -44,
+      "bankroll_after": 999618,
+      "drawdown_pct": 0.0005189289067397767
+    },
+    {
+      "ticker": "KXSPT-0155",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 27,
+      "settlement_outcome": "no",
+      "pnl_cents": -27,
+      "bankroll_after": 999591,
+      "drawdown_pct": 0.0005459252082464703
+    },
+    {
+      "ticker": "KXSPT-0156",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 35,
+      "settlement_outcome": "yes",
+      "pnl_cents": 65,
+      "bankroll_after": 999656,
+      "drawdown_pct": 0.00048093411202665236
+    },
+    {
+      "ticker": "KXSPT-0157",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 31,
+      "settlement_outcome": "no",
+      "pnl_cents": -31,
+      "bankroll_after": 999625,
+      "drawdown_pct": 0.0005119298656084116
+    },
+    {
+      "ticker": "KXSPT-0158",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 30,
+      "settlement_outcome": "no",
+      "pnl_cents": -30,
+      "bankroll_after": 999595,
+      "drawdown_pct": 0.0005419257561714045
+    },
+    {
+      "ticker": "KXSPT-0159",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 41,
+      "settlement_outcome": "no",
+      "pnl_cents": -41,
+      "bankroll_after": 999554,
+      "drawdown_pct": 0.0005829201399408281
+    },
+    {
+      "ticker": "KXSPT-0160",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 47,
+      "settlement_outcome": "no",
+      "pnl_cents": 53,
+      "bankroll_after": 999607,
+      "drawdown_pct": 0.0005299273999462074
+    },
+    {
+      "ticker": "KXSPT-0161",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "no",
+      "pnl_cents": -44,
+      "bankroll_after": 999563,
+      "drawdown_pct": 0.0005739213727719302
+    },
+    {
+      "ticker": "KXSPT-0162",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 41,
+      "settlement_outcome": "yes",
+      "pnl_cents": 59,
+      "bankroll_after": 999622,
+      "drawdown_pct": 0.000514929454664711
+    },
+    {
+      "ticker": "KXSPT-0163",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 43,
+      "settlement_outcome": "yes",
+      "pnl_cents": -43,
+      "bankroll_after": 999579,
+      "drawdown_pct": 0.0005579235644716674
+    },
+    {
+      "ticker": "KXSPT-0164",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 40,
+      "settlement_outcome": "yes",
+      "pnl_cents": 60,
+      "bankroll_after": 999639,
+      "drawdown_pct": 0.0004979317833456817
+    },
+    {
+      "ticker": "KXSPT-0165",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 47,
+      "settlement_outcome": "no",
+      "pnl_cents": -47,
+      "bankroll_after": 999592,
+      "drawdown_pct": 0.0005449253452277038
+    },
+    {
+      "ticker": "KXSPT-0166",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 62,
+      "settlement_outcome": "no",
+      "pnl_cents": 38,
+      "bankroll_after": 999630,
+      "drawdown_pct": 0.0005069305505145795
+    },
+    {
+      "ticker": "KXSPT-0167",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 38,
+      "settlement_outcome": "yes",
+      "pnl_cents": 62,
+      "bankroll_after": 999692,
+      "drawdown_pct": 0.0004449390433510609
+    },
+    {
+      "ticker": "KXSPT-0168",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 28,
+      "settlement_outcome": "no",
+      "pnl_cents": -28,
+      "bankroll_after": 999664,
+      "drawdown_pct": 0.0004729352078765209
+    },
+    {
+      "ticker": "KXSPT-0169",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 63,
+      "settlement_outcome": "yes",
+      "pnl_cents": -63,
+      "bankroll_after": 999601,
+      "drawdown_pct": 0.000535926578058806
+    },
+    {
+      "ticker": "KXSPT-0170",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": -39,
+      "bankroll_after": 999562,
+      "drawdown_pct": 0.0005749212357906967
+    },
+    {
+      "ticker": "KXSPT-0171",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 35,
+      "settlement_outcome": "no",
+      "pnl_cents": -35,
+      "bankroll_after": 999527,
+      "drawdown_pct": 0.0006099164414475217
+    },
+    {
+      "ticker": "KXSPT-0172",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 33,
+      "settlement_outcome": "yes",
+      "pnl_cents": 67,
+      "bankroll_after": 999594,
+      "drawdown_pct": 0.0005429256191901709
+    },
+    {
+      "ticker": "KXSPT-0173",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 62,
+      "settlement_outcome": "no",
+      "pnl_cents": 38,
+      "bankroll_after": 999632,
+      "drawdown_pct": 0.0005049308244770466
+    },
+    {
+      "ticker": "KXSPT-0174",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 35,
+      "settlement_outcome": "no",
+      "pnl_cents": -35,
+      "bankroll_after": 999597,
+      "drawdown_pct": 0.0005399260301338717
+    },
+    {
+      "ticker": "KXSPT-0175",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 34,
+      "settlement_outcome": "yes",
+      "pnl_cents": 66,
+      "bankroll_after": 999663,
+      "drawdown_pct": 0.00047393507089528734
+    },
+    {
+      "ticker": "KXSPT-0176",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 48,
+      "settlement_outcome": "yes",
+      "pnl_cents": -48,
+      "bankroll_after": 999615,
+      "drawdown_pct": 0.0005219284957960759
+    },
+    {
+      "ticker": "KXSPT-0177",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "yes",
+      "pnl_cents": 56,
+      "bankroll_after": 999671,
+      "drawdown_pct": 0.0004659361667451559
+    },
+    {
+      "ticker": "KXSPT-0178",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 34,
+      "settlement_outcome": "no",
+      "pnl_cents": -34,
+      "bankroll_after": 999637,
+      "drawdown_pct": 0.0004999315093832145
+    },
+    {
+      "ticker": "KXSPT-0179",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 50,
+      "settlement_outcome": "yes",
+      "pnl_cents": 50,
+      "bankroll_after": 999687,
+      "drawdown_pct": 0.00044993835844489306
+    },
+    {
+      "ticker": "KXSPT-0180",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 40,
+      "settlement_outcome": "no",
+      "pnl_cents": 60,
+      "bankroll_after": 999747,
+      "drawdown_pct": 0.0003899465773189073
+    },
+    {
+      "ticker": "KXSPT-0181",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 33,
+      "settlement_outcome": "no",
+      "pnl_cents": -33,
+      "bankroll_after": 999714,
+      "drawdown_pct": 0.0004229420569381995
+    },
+    {
+      "ticker": "KXSPT-0182",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 53,
+      "settlement_outcome": "no",
+      "pnl_cents": 47,
+      "bankroll_after": 999761,
+      "drawdown_pct": 0.0003759484950561773
+    },
+    {
+      "ticker": "KXSPT-0183",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 28,
+      "settlement_outcome": "no",
+      "pnl_cents": -28,
+      "bankroll_after": 999733,
+      "drawdown_pct": 0.0004039446595816373
+    },
+    {
+      "ticker": "KXSPT-0184",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 27,
+      "settlement_outcome": "no",
+      "pnl_cents": -27,
+      "bankroll_after": 999706,
+      "drawdown_pct": 0.00043094096108833087
+    },
+    {
+      "ticker": "KXSPT-0185",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 42,
+      "settlement_outcome": "no",
+      "pnl_cents": -42,
+      "bankroll_after": 999664,
+      "drawdown_pct": 0.0004729352078765209
+    },
+    {
+      "ticker": "KXSPT-0186",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 55,
+      "settlement_outcome": "no",
+      "pnl_cents": 45,
+      "bankroll_after": 999709,
+      "drawdown_pct": 0.00042794137203203163
+    },
+    {
+      "ticker": "KXSPT-0187",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 40,
+      "settlement_outcome": "yes",
+      "pnl_cents": 60,
+      "bankroll_after": 999769,
+      "drawdown_pct": 0.0003679495909060459
+    },
+    {
+      "ticker": "KXSPT-0188",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 42,
+      "settlement_outcome": "no",
+      "pnl_cents": -42,
+      "bankroll_after": 999727,
+      "drawdown_pct": 0.0004099438376942359
+    },
+    {
+      "ticker": "KXSPT-0189",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 38,
+      "settlement_outcome": "no",
+      "pnl_cents": -38,
+      "bankroll_after": 999689,
+      "drawdown_pct": 0.0004479386324073602
+    },
+    {
+      "ticker": "KXSPT-0190",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 44,
+      "settlement_outcome": "no",
+      "pnl_cents": -44,
+      "bankroll_after": 999645,
+      "drawdown_pct": 0.0004919326052330831
+    },
+    {
+      "ticker": "KXSPT-0191",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 50,
+      "settlement_outcome": "no",
+      "pnl_cents": -50,
+      "bankroll_after": 999595,
+      "drawdown_pct": 0.0005419257561714045
+    },
+    {
+      "ticker": "KXSPT-0192",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 61,
+      "settlement_outcome": "yes",
+      "pnl_cents": -61,
+      "bankroll_after": 999534,
+      "drawdown_pct": 0.0006029174003161566
+    },
+    {
+      "ticker": "KXSPT-0193",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 27,
+      "settlement_outcome": "no",
+      "pnl_cents": 73,
+      "bankroll_after": 999607,
+      "drawdown_pct": 0.0005299273999462074
+    },
+    {
+      "ticker": "KXSPT-0194",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 43,
+      "settlement_outcome": "no",
+      "pnl_cents": -43,
+      "bankroll_after": 999564,
+      "drawdown_pct": 0.0005729215097531638
+    },
+    {
+      "ticker": "KXSPT-0195",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 62,
+      "settlement_outcome": "yes",
+      "pnl_cents": -62,
+      "bankroll_after": 999502,
+      "drawdown_pct": 0.0006349130169166824
+    },
+    {
+      "ticker": "KXSPT-0196",
+      "vertical": "sports",
+      "side": "no",
+      "entry_price": 68,
+      "settlement_outcome": "yes",
+      "pnl_cents": -68,
+      "bankroll_after": 999434,
+      "drawdown_pct": 0.0007029037021927996
+    },
+    {
+      "ticker": "KXSPT-0197",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 28,
+      "settlement_outcome": "no",
+      "pnl_cents": -28,
+      "bankroll_after": 999406,
+      "drawdown_pct": 0.0007308998667182596
+    },
+    {
+      "ticker": "KXSPT-0198",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 24,
+      "settlement_outcome": "no",
+      "pnl_cents": -24,
+      "bankroll_after": 999382,
+      "drawdown_pct": 0.0007548965791686539
+    },
+    {
+      "ticker": "KXSPT-0199",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 36,
+      "settlement_outcome": "no",
+      "pnl_cents": -36,
+      "bankroll_after": 999346,
+      "drawdown_pct": 0.0007908916478442453
+    },
+    {
+      "ticker": "KXSPT-0200",
+      "vertical": "sports",
+      "side": "yes",
+      "entry_price": 45,
+      "settlement_outcome": "yes",
+      "pnl_cents": 55,
+      "bankroll_after": 999401,
+      "drawdown_pct": 0.0007358991818120918
+    }
+  ]
+}

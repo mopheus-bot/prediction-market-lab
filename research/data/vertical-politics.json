@@ -1,0 +1,1525 @@
+{
+  "strategy": "ml",
+  "vertical_filter": "politics",
+  "seed": 42,
+  "n_markets_settled": 500,
+  "n_trades": 150,
+  "n_signals_fired": 150,
+  "n_signals_skipped": 0,
+  "sharpe": -2.1619373312083034,
+  "max_drawdown_pct": 0.0014583247956196281,
+  "hit_rate": 0.25333333333333335,
+  "total_pnl_cents": -996,
+  "final_bankroll_cents": 999004,
+  "per_vertical": {
+    "politics": {
+      "n_trades": 150,
+      "sharpe": -2.1619373312083034,
+      "max_drawdown_pct": 0.0014583247956196281,
+      "hit_rate": 0.25333333333333335,
+      "total_pnl_cents": -996
+    }
+  },
+  "trades": [
+    {
+      "ticker": "KXPOL-0001",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 19,
+      "settlement_outcome": "yes",
+      "pnl_cents": -19,
+      "bankroll_after": 999981,
+      "drawdown_pct": 1.9e-05
+    },
+    {
+      "ticker": "KXPOL-0002",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 10,
+      "settlement_outcome": "no",
+      "pnl_cents": -10,
+      "bankroll_after": 999971,
+      "drawdown_pct": 2.9e-05
+    },
+    {
+      "ticker": "KXPOL-0003",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 17,
+      "settlement_outcome": "no",
+      "pnl_cents": -17,
+      "bankroll_after": 999954,
+      "drawdown_pct": 4.6e-05
+    },
+    {
+      "ticker": "KXPOL-0004",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 68,
+      "settlement_outcome": "yes",
+      "pnl_cents": 32,
+      "bankroll_after": 999986,
+      "drawdown_pct": 1.4e-05
+    },
+    {
+      "ticker": "KXPOL-0005",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 61,
+      "settlement_outcome": "yes",
+      "pnl_cents": 39,
+      "bankroll_after": 1000025,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXPOL-0006",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 19,
+      "settlement_outcome": "yes",
+      "pnl_cents": -19,
+      "bankroll_after": 1000006,
+      "drawdown_pct": 1.8999525011874702e-05
+    },
+    {
+      "ticker": "KXPOL-0007",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 19,
+      "settlement_outcome": "no",
+      "pnl_cents": 81,
+      "bankroll_after": 1000087,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXPOL-0008",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 75,
+      "settlement_outcome": "no",
+      "pnl_cents": 25,
+      "bankroll_after": 1000112,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXPOL-0009",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 36,
+      "settlement_outcome": "yes",
+      "pnl_cents": 64,
+      "bankroll_after": 1000176,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXPOL-0010",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 9,
+      "settlement_outcome": "yes",
+      "pnl_cents": 91,
+      "bankroll_after": 1000267,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXPOL-0011",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 39,
+      "settlement_outcome": "yes",
+      "pnl_cents": 61,
+      "bankroll_after": 1000328,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXPOL-0012",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 17,
+      "settlement_outcome": "yes",
+      "pnl_cents": -17,
+      "bankroll_after": 1000311,
+      "drawdown_pct": 1.6994425828328308e-05
+    },
+    {
+      "ticker": "KXPOL-0013",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 30,
+      "settlement_outcome": "yes",
+      "pnl_cents": -30,
+      "bankroll_after": 1000281,
+      "drawdown_pct": 4.698458905479003e-05
+    },
+    {
+      "ticker": "KXPOL-0014",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 73,
+      "settlement_outcome": "yes",
+      "pnl_cents": 27,
+      "bankroll_after": 1000308,
+      "drawdown_pct": 1.999344215097448e-05
+    },
+    {
+      "ticker": "KXPOL-0015",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 58,
+      "settlement_outcome": "no",
+      "pnl_cents": 42,
+      "bankroll_after": 1000350,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXPOL-0016",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 17,
+      "settlement_outcome": "yes",
+      "pnl_cents": -17,
+      "bankroll_after": 1000333,
+      "drawdown_pct": 1.699405208177138e-05
+    },
+    {
+      "ticker": "KXPOL-0017",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 35,
+      "settlement_outcome": "no",
+      "pnl_cents": -35,
+      "bankroll_after": 1000298,
+      "drawdown_pct": 5.198180636777128e-05
+    },
+    {
+      "ticker": "KXPOL-0018",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 21,
+      "settlement_outcome": "no",
+      "pnl_cents": -21,
+      "bankroll_after": 1000277,
+      "drawdown_pct": 7.297445893937122e-05
+    },
+    {
+      "ticker": "KXPOL-0019",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 10,
+      "settlement_outcome": "no",
+      "pnl_cents": -10,
+      "bankroll_after": 1000267,
+      "drawdown_pct": 8.297096016394262e-05
+    },
+    {
+      "ticker": "KXPOL-0020",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 21,
+      "settlement_outcome": "yes",
+      "pnl_cents": -21,
+      "bankroll_after": 1000246,
+      "drawdown_pct": 0.00010396361273554256
+    },
+    {
+      "ticker": "KXPOL-0021",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 17,
+      "settlement_outcome": "no",
+      "pnl_cents": -17,
+      "bankroll_after": 1000229,
+      "drawdown_pct": 0.00012095766481731394
+    },
+    {
+      "ticker": "KXPOL-0022",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 4,
+      "settlement_outcome": "no",
+      "pnl_cents": -4,
+      "bankroll_after": 1000225,
+      "drawdown_pct": 0.0001249562653071425
+    },
+    {
+      "ticker": "KXPOL-0023",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 62,
+      "settlement_outcome": "no",
+      "pnl_cents": -62,
+      "bankroll_after": 1000163,
+      "drawdown_pct": 0.00018693457289948519
+    },
+    {
+      "ticker": "KXPOL-0024",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 54,
+      "settlement_outcome": "no",
+      "pnl_cents": 46,
+      "bankroll_after": 1000209,
+      "drawdown_pct": 0.00014095066726645675
+    },
+    {
+      "ticker": "KXPOL-0025",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 30,
+      "settlement_outcome": "yes",
+      "pnl_cents": 70,
+      "bankroll_after": 1000279,
+      "drawdown_pct": 7.097515869445694e-05
+    },
+    {
+      "ticker": "KXPOL-0026",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 37,
+      "settlement_outcome": "yes",
+      "pnl_cents": 63,
+      "bankroll_after": 1000342,
+      "drawdown_pct": 7.99720097965712e-06
+    },
+    {
+      "ticker": "KXPOL-0027",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 2,
+      "settlement_outcome": "no",
+      "pnl_cents": -2,
+      "bankroll_after": 1000340,
+      "drawdown_pct": 9.9965012245714e-06
+    },
+    {
+      "ticker": "KXPOL-0028",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 12,
+      "settlement_outcome": "no",
+      "pnl_cents": 88,
+      "bankroll_after": 1000428,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXPOL-0029",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 65,
+      "settlement_outcome": "yes",
+      "pnl_cents": 35,
+      "bankroll_after": 1000463,
+      "drawdown_pct": 0.0
+    },
+    {
+      "ticker": "KXPOL-0030",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 40,
+      "settlement_outcome": "no",
+      "pnl_cents": -40,
+      "bankroll_after": 1000423,
+      "drawdown_pct": 3.998148857079172e-05
+    },
+    {
+      "ticker": "KXPOL-0031",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 75,
+      "settlement_outcome": "no",
+      "pnl_cents": -75,
+      "bankroll_after": 1000348,
+      "drawdown_pct": 0.00011494677964102621
+    },
+    {
+      "ticker": "KXPOL-0032",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 57,
+      "settlement_outcome": "yes",
+      "pnl_cents": -57,
+      "bankroll_after": 1000291,
+      "drawdown_pct": 0.0001719204008544044
+    },
+    {
+      "ticker": "KXPOL-0033",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 10,
+      "settlement_outcome": "yes",
+      "pnl_cents": -10,
+      "bankroll_after": 1000281,
+      "drawdown_pct": 0.00018191577299710233
+    },
+    {
+      "ticker": "KXPOL-0034",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 66,
+      "settlement_outcome": "no",
+      "pnl_cents": 34,
+      "bankroll_after": 1000315,
+      "drawdown_pct": 0.00014793150771192937
+    },
+    {
+      "ticker": "KXPOL-0035",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 9,
+      "settlement_outcome": "no",
+      "pnl_cents": -9,
+      "bankroll_after": 1000306,
+      "drawdown_pct": 0.0001569273426403575
+    },
+    {
+      "ticker": "KXPOL-0036",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 31,
+      "settlement_outcome": "no",
+      "pnl_cents": -31,
+      "bankroll_after": 1000275,
+      "drawdown_pct": 0.0001879129962827211
+    },
+    {
+      "ticker": "KXPOL-0037",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 11,
+      "settlement_outcome": "yes",
+      "pnl_cents": -11,
+      "bankroll_after": 1000264,
+      "drawdown_pct": 0.00019890790563968882
+    },
+    {
+      "ticker": "KXPOL-0038",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 10,
+      "settlement_outcome": "no",
+      "pnl_cents": -10,
+      "bankroll_after": 1000254,
+      "drawdown_pct": 0.00020890327778238675
+    },
+    {
+      "ticker": "KXPOL-0039",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 22,
+      "settlement_outcome": "yes",
+      "pnl_cents": -22,
+      "bankroll_after": 1000232,
+      "drawdown_pct": 0.0002308930964963222
+    },
+    {
+      "ticker": "KXPOL-0040",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 63,
+      "settlement_outcome": "yes",
+      "pnl_cents": -63,
+      "bankroll_after": 1000169,
+      "drawdown_pct": 0.00029386394099531916
+    },
+    {
+      "ticker": "KXPOL-0041",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 51,
+      "settlement_outcome": "yes",
+      "pnl_cents": 49,
+      "bankroll_after": 1000218,
+      "drawdown_pct": 0.0002448866174960993
+    },
+    {
+      "ticker": "KXPOL-0042",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 6,
+      "settlement_outcome": "yes",
+      "pnl_cents": -6,
+      "bankroll_after": 1000212,
+      "drawdown_pct": 0.00025088384078171804
+    },
+    {
+      "ticker": "KXPOL-0043",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 13,
+      "settlement_outcome": "no",
+      "pnl_cents": -13,
+      "bankroll_after": 1000199,
+      "drawdown_pct": 0.00026387782456722535
+    },
+    {
+      "ticker": "KXPOL-0044",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 18,
+      "settlement_outcome": "yes",
+      "pnl_cents": -18,
+      "bankroll_after": 1000181,
+      "drawdown_pct": 0.00028186949442408167
+    },
+    {
+      "ticker": "KXPOL-0045",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 21,
+      "settlement_outcome": "no",
+      "pnl_cents": -21,
+      "bankroll_after": 1000160,
+      "drawdown_pct": 0.0003028597759237473
+    },
+    {
+      "ticker": "KXPOL-0046",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 12,
+      "settlement_outcome": "no",
+      "pnl_cents": -12,
+      "bankroll_after": 1000148,
+      "drawdown_pct": 0.00031485422249498483
+    },
+    {
+      "ticker": "KXPOL-0047",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 48,
+      "settlement_outcome": "yes",
+      "pnl_cents": -48,
+      "bankroll_after": 1000100,
+      "drawdown_pct": 0.0003628320087799349
+    },
+    {
+      "ticker": "KXPOL-0048",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 11,
+      "settlement_outcome": "yes",
+      "pnl_cents": -11,
+      "bankroll_after": 1000089,
+      "drawdown_pct": 0.0003738269181369026
+    },
+    {
+      "ticker": "KXPOL-0049",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 46,
+      "settlement_outcome": "yes",
+      "pnl_cents": -46,
+      "bankroll_after": 1000043,
+      "drawdown_pct": 0.0004198056299933131
+    },
+    {
+      "ticker": "KXPOL-0050",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 14,
+      "settlement_outcome": "yes",
+      "pnl_cents": -14,
+      "bankroll_after": 1000029,
+      "drawdown_pct": 0.0004337991509930902
+    },
+    {
+      "ticker": "KXPOL-0051",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 14,
+      "settlement_outcome": "no",
+      "pnl_cents": -14,
+      "bankroll_after": 1000015,
+      "drawdown_pct": 0.0004477926719928673
+    },
+    {
+      "ticker": "KXPOL-0052",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 5,
+      "settlement_outcome": "no",
+      "pnl_cents": -5,
+      "bankroll_after": 1000010,
+      "drawdown_pct": 0.00045279035806421625
+    },
+    {
+      "ticker": "KXPOL-0053",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 68,
+      "settlement_outcome": "yes",
+      "pnl_cents": 32,
+      "bankroll_after": 1000042,
+      "drawdown_pct": 0.0004208051672075829
+    },
+    {
+      "ticker": "KXPOL-0054",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 11,
+      "settlement_outcome": "yes",
+      "pnl_cents": -11,
+      "bankroll_after": 1000031,
+      "drawdown_pct": 0.00043180007656455063
+    },
+    {
+      "ticker": "KXPOL-0055",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 13,
+      "settlement_outcome": "no",
+      "pnl_cents": -13,
+      "bankroll_after": 1000018,
+      "drawdown_pct": 0.00044479406035005794
+    },
+    {
+      "ticker": "KXPOL-0056",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 2,
+      "settlement_outcome": "yes",
+      "pnl_cents": -2,
+      "bankroll_after": 1000016,
+      "drawdown_pct": 0.00044679313477859753
+    },
+    {
+      "ticker": "KXPOL-0057",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 60,
+      "settlement_outcome": "no",
+      "pnl_cents": 40,
+      "bankroll_after": 1000056,
+      "drawdown_pct": 0.0004068116462078058
+    },
+    {
+      "ticker": "KXPOL-0058",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 64,
+      "settlement_outcome": "no",
+      "pnl_cents": -64,
+      "bankroll_after": 999992,
+      "drawdown_pct": 0.00047078202792107257
+    },
+    {
+      "ticker": "KXPOL-0059",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 2,
+      "settlement_outcome": "no",
+      "pnl_cents": -2,
+      "bankroll_after": 999990,
+      "drawdown_pct": 0.00047278110234961216
+    },
+    {
+      "ticker": "KXPOL-0060",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 26,
+      "settlement_outcome": "no",
+      "pnl_cents": -26,
+      "bankroll_after": 999964,
+      "drawdown_pct": 0.0004987690699206267
+    },
+    {
+      "ticker": "KXPOL-0061",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 60,
+      "settlement_outcome": "yes",
+      "pnl_cents": -60,
+      "bankroll_after": 999904,
+      "drawdown_pct": 0.0005587413027768143
+    },
+    {
+      "ticker": "KXPOL-0062",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 65,
+      "settlement_outcome": "yes",
+      "pnl_cents": 35,
+      "bankroll_after": 999939,
+      "drawdown_pct": 0.0005237575002773715
+    },
+    {
+      "ticker": "KXPOL-0063",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 10,
+      "settlement_outcome": "yes",
+      "pnl_cents": -10,
+      "bankroll_after": 999929,
+      "drawdown_pct": 0.0005337528724200695
+    },
+    {
+      "ticker": "KXPOL-0064",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 4,
+      "settlement_outcome": "yes",
+      "pnl_cents": -4,
+      "bankroll_after": 999925,
+      "drawdown_pct": 0.0005377510212771487
+    },
+    {
+      "ticker": "KXPOL-0065",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 13,
+      "settlement_outcome": "no",
+      "pnl_cents": -13,
+      "bankroll_after": 999912,
+      "drawdown_pct": 0.000550745005062656
+    },
+    {
+      "ticker": "KXPOL-0066",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 14,
+      "settlement_outcome": "yes",
+      "pnl_cents": -14,
+      "bankroll_after": 999898,
+      "drawdown_pct": 0.000564738526062433
+    },
+    {
+      "ticker": "KXPOL-0067",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 69,
+      "settlement_outcome": "no",
+      "pnl_cents": -69,
+      "bankroll_after": 999829,
+      "drawdown_pct": 0.0006337065938470488
+    },
+    {
+      "ticker": "KXPOL-0068",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 63,
+      "settlement_outcome": "yes",
+      "pnl_cents": -63,
+      "bankroll_after": 999766,
+      "drawdown_pct": 0.0006966774383460458
+    },
+    {
+      "ticker": "KXPOL-0069",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 7,
+      "settlement_outcome": "no",
+      "pnl_cents": -7,
+      "bankroll_after": 999759,
+      "drawdown_pct": 0.0007036741988459343
+    },
+    {
+      "ticker": "KXPOL-0070",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 3,
+      "settlement_outcome": "yes",
+      "pnl_cents": -3,
+      "bankroll_after": 999756,
+      "drawdown_pct": 0.0007066728104887437
+    },
+    {
+      "ticker": "KXPOL-0071",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 2,
+      "settlement_outcome": "yes",
+      "pnl_cents": -2,
+      "bankroll_after": 999754,
+      "drawdown_pct": 0.0007086718849172833
+    },
+    {
+      "ticker": "KXPOL-0072",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 57,
+      "settlement_outcome": "no",
+      "pnl_cents": -57,
+      "bankroll_after": 999697,
+      "drawdown_pct": 0.0007656455061306615
+    },
+    {
+      "ticker": "KXPOL-0073",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 62,
+      "settlement_outcome": "no",
+      "pnl_cents": 38,
+      "bankroll_after": 999735,
+      "drawdown_pct": 0.0007276630919884093
+    },
+    {
+      "ticker": "KXPOL-0074",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 55,
+      "settlement_outcome": "no",
+      "pnl_cents": 45,
+      "bankroll_after": 999780,
+      "drawdown_pct": 0.0006826839173462687
+    },
+    {
+      "ticker": "KXPOL-0075",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 69,
+      "settlement_outcome": "yes",
+      "pnl_cents": 31,
+      "bankroll_after": 999811,
+      "drawdown_pct": 0.0006516982637039051
+    },
+    {
+      "ticker": "KXPOL-0076",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 55,
+      "settlement_outcome": "no",
+      "pnl_cents": -55,
+      "bankroll_after": 999756,
+      "drawdown_pct": 0.0007066728104887437
+    },
+    {
+      "ticker": "KXPOL-0077",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 8,
+      "settlement_outcome": "no",
+      "pnl_cents": -8,
+      "bankroll_after": 999748,
+      "drawdown_pct": 0.0007146691082029021
+    },
+    {
+      "ticker": "KXPOL-0078",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 12,
+      "settlement_outcome": "yes",
+      "pnl_cents": 88,
+      "bankroll_after": 999836,
+      "drawdown_pct": 0.0006267098333471603
+    },
+    {
+      "ticker": "KXPOL-0079",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 8,
+      "settlement_outcome": "no",
+      "pnl_cents": -8,
+      "bankroll_after": 999828,
+      "drawdown_pct": 0.0006347061310613187
+    },
+    {
+      "ticker": "KXPOL-0080",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 18,
+      "settlement_outcome": "no",
+      "pnl_cents": -18,
+      "bankroll_after": 999810,
+      "drawdown_pct": 0.0006526978009181749
+    },
+    {
+      "ticker": "KXPOL-0081",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 2,
+      "settlement_outcome": "no",
+      "pnl_cents": -2,
+      "bankroll_after": 999808,
+      "drawdown_pct": 0.0006546968753467145
+    },
+    {
+      "ticker": "KXPOL-0082",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 10,
+      "settlement_outcome": "yes",
+      "pnl_cents": -10,
+      "bankroll_after": 999798,
+      "drawdown_pct": 0.0006646922474894124
+    },
+    {
+      "ticker": "KXPOL-0083",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 2,
+      "settlement_outcome": "yes",
+      "pnl_cents": -2,
+      "bankroll_after": 999796,
+      "drawdown_pct": 0.000666691321917952
+    },
+    {
+      "ticker": "KXPOL-0084",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 3,
+      "settlement_outcome": "yes",
+      "pnl_cents": -3,
+      "bankroll_after": 999793,
+      "drawdown_pct": 0.0006696899335607614
+    },
+    {
+      "ticker": "KXPOL-0085",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 3,
+      "settlement_outcome": "yes",
+      "pnl_cents": -3,
+      "bankroll_after": 999790,
+      "drawdown_pct": 0.0006726885452035707
+    },
+    {
+      "ticker": "KXPOL-0086",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 62,
+      "settlement_outcome": "yes",
+      "pnl_cents": 38,
+      "bankroll_after": 999828,
+      "drawdown_pct": 0.0006347061310613187
+    },
+    {
+      "ticker": "KXPOL-0087",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 6,
+      "settlement_outcome": "yes",
+      "pnl_cents": 94,
+      "bankroll_after": 999922,
+      "drawdown_pct": 0.0005407496329199581
+    },
+    {
+      "ticker": "KXPOL-0088",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 59,
+      "settlement_outcome": "yes",
+      "pnl_cents": -59,
+      "bankroll_after": 999863,
+      "drawdown_pct": 0.0005997223285618759
+    },
+    {
+      "ticker": "KXPOL-0089",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 15,
+      "settlement_outcome": "yes",
+      "pnl_cents": -15,
+      "bankroll_after": 999848,
+      "drawdown_pct": 0.0006147153867759228
+    },
+    {
+      "ticker": "KXPOL-0090",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 59,
+      "settlement_outcome": "yes",
+      "pnl_cents": 41,
+      "bankroll_after": 999889,
+      "drawdown_pct": 0.0005737343609908612
+    },
+    {
+      "ticker": "KXPOL-0091",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 36,
+      "settlement_outcome": "no",
+      "pnl_cents": -36,
+      "bankroll_after": 999853,
+      "drawdown_pct": 0.0006097177007045738
+    },
+    {
+      "ticker": "KXPOL-0092",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 26,
+      "settlement_outcome": "yes",
+      "pnl_cents": -26,
+      "bankroll_after": 999827,
+      "drawdown_pct": 0.0006357056682755884
+    },
+    {
+      "ticker": "KXPOL-0093",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 13,
+      "settlement_outcome": "yes",
+      "pnl_cents": -13,
+      "bankroll_after": 999814,
+      "drawdown_pct": 0.0006486996520610957
+    },
+    {
+      "ticker": "KXPOL-0094",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 73,
+      "settlement_outcome": "no",
+      "pnl_cents": -73,
+      "bankroll_after": 999741,
+      "drawdown_pct": 0.0007216658687027906
+    },
+    {
+      "ticker": "KXPOL-0095",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 7,
+      "settlement_outcome": "yes",
+      "pnl_cents": -7,
+      "bankroll_after": 999734,
+      "drawdown_pct": 0.0007286626292026791
+    },
+    {
+      "ticker": "KXPOL-0096",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 63,
+      "settlement_outcome": "no",
+      "pnl_cents": -63,
+      "bankroll_after": 999671,
+      "drawdown_pct": 0.0007916334737016761
+    },
+    {
+      "ticker": "KXPOL-0097",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 76,
+      "settlement_outcome": "no",
+      "pnl_cents": -76,
+      "bankroll_after": 999595,
+      "drawdown_pct": 0.0008675983019861804
+    },
+    {
+      "ticker": "KXPOL-0098",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 23,
+      "settlement_outcome": "no",
+      "pnl_cents": -23,
+      "bankroll_after": 999572,
+      "drawdown_pct": 0.0008905876579143856
+    },
+    {
+      "ticker": "KXPOL-0099",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 63,
+      "settlement_outcome": "yes",
+      "pnl_cents": 37,
+      "bankroll_after": 999609,
+      "drawdown_pct": 0.0008536047809864033
+    },
+    {
+      "ticker": "KXPOL-0100",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 10,
+      "settlement_outcome": "no",
+      "pnl_cents": -10,
+      "bankroll_after": 999599,
+      "drawdown_pct": 0.0008636001531291013
+    },
+    {
+      "ticker": "KXPOL-0101",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 31,
+      "settlement_outcome": "yes",
+      "pnl_cents": 69,
+      "bankroll_after": 999668,
+      "drawdown_pct": 0.0007946320853444855
+    },
+    {
+      "ticker": "KXPOL-0102",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 25,
+      "settlement_outcome": "yes",
+      "pnl_cents": -25,
+      "bankroll_after": 999643,
+      "drawdown_pct": 0.0008196205157012304
+    },
+    {
+      "ticker": "KXPOL-0103",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 12,
+      "settlement_outcome": "no",
+      "pnl_cents": -12,
+      "bankroll_after": 999631,
+      "drawdown_pct": 0.0008316149622724678
+    },
+    {
+      "ticker": "KXPOL-0104",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 54,
+      "settlement_outcome": "no",
+      "pnl_cents": -54,
+      "bankroll_after": 999577,
+      "drawdown_pct": 0.0008855899718430367
+    },
+    {
+      "ticker": "KXPOL-0105",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 19,
+      "settlement_outcome": "yes",
+      "pnl_cents": -19,
+      "bankroll_after": 999558,
+      "drawdown_pct": 0.0009045811789141628
+    },
+    {
+      "ticker": "KXPOL-0106",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 4,
+      "settlement_outcome": "no",
+      "pnl_cents": -4,
+      "bankroll_after": 999554,
+      "drawdown_pct": 0.000908579327771242
+    },
+    {
+      "ticker": "KXPOL-0107",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 64,
+      "settlement_outcome": "no",
+      "pnl_cents": 36,
+      "bankroll_after": 999590,
+      "drawdown_pct": 0.0008725959880575293
+    },
+    {
+      "ticker": "KXPOL-0108",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 24,
+      "settlement_outcome": "no",
+      "pnl_cents": -24,
+      "bankroll_after": 999566,
+      "drawdown_pct": 0.0008965848812000044
+    },
+    {
+      "ticker": "KXPOL-0109",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 37,
+      "settlement_outcome": "yes",
+      "pnl_cents": -37,
+      "bankroll_after": 999529,
+      "drawdown_pct": 0.0009335677581279868
+    },
+    {
+      "ticker": "KXPOL-0110",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 2,
+      "settlement_outcome": "no",
+      "pnl_cents": -2,
+      "bankroll_after": 999527,
+      "drawdown_pct": 0.0009355668325565263
+    },
+    {
+      "ticker": "KXPOL-0111",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 17,
+      "settlement_outcome": "yes",
+      "pnl_cents": -17,
+      "bankroll_after": 999510,
+      "drawdown_pct": 0.0009525589651991129
+    },
+    {
+      "ticker": "KXPOL-0112",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 64,
+      "settlement_outcome": "no",
+      "pnl_cents": -64,
+      "bankroll_after": 999446,
+      "drawdown_pct": 0.0010165293469123796
+    },
+    {
+      "ticker": "KXPOL-0113",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 66,
+      "settlement_outcome": "yes",
+      "pnl_cents": -66,
+      "bankroll_after": 999380,
+      "drawdown_pct": 0.001082498803054186
+    },
+    {
+      "ticker": "KXPOL-0114",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 13,
+      "settlement_outcome": "yes",
+      "pnl_cents": -13,
+      "bankroll_after": 999367,
+      "drawdown_pct": 0.0010954927868396932
+    },
+    {
+      "ticker": "KXPOL-0115",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 15,
+      "settlement_outcome": "no",
+      "pnl_cents": -15,
+      "bankroll_after": 999352,
+      "drawdown_pct": 0.0011104858450537401
+    },
+    {
+      "ticker": "KXPOL-0116",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 3,
+      "settlement_outcome": "yes",
+      "pnl_cents": -3,
+      "bankroll_after": 999349,
+      "drawdown_pct": 0.0011134844566965496
+    },
+    {
+      "ticker": "KXPOL-0117",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 59,
+      "settlement_outcome": "no",
+      "pnl_cents": -59,
+      "bankroll_after": 999290,
+      "drawdown_pct": 0.0011724571523384674
+    },
+    {
+      "ticker": "KXPOL-0118",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 57,
+      "settlement_outcome": "no",
+      "pnl_cents": -57,
+      "bankroll_after": 999233,
+      "drawdown_pct": 0.0012294307735518455
+    },
+    {
+      "ticker": "KXPOL-0119",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 68,
+      "settlement_outcome": "no",
+      "pnl_cents": 32,
+      "bankroll_after": 999265,
+      "drawdown_pct": 0.001197445582695212
+    },
+    {
+      "ticker": "KXPOL-0120",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 67,
+      "settlement_outcome": "yes",
+      "pnl_cents": -67,
+      "bankroll_after": 999198,
+      "drawdown_pct": 0.0012644145760512882
+    },
+    {
+      "ticker": "KXPOL-0121",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 2,
+      "settlement_outcome": "yes",
+      "pnl_cents": -2,
+      "bankroll_after": 999196,
+      "drawdown_pct": 0.0012664136504798279
+    },
+    {
+      "ticker": "KXPOL-0122",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 18,
+      "settlement_outcome": "no",
+      "pnl_cents": -18,
+      "bankroll_after": 999178,
+      "drawdown_pct": 0.001284405320336684
+    },
+    {
+      "ticker": "KXPOL-0123",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 23,
+      "settlement_outcome": "no",
+      "pnl_cents": -23,
+      "bankroll_after": 999155,
+      "drawdown_pct": 0.0013073946762648893
+    },
+    {
+      "ticker": "KXPOL-0124",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 19,
+      "settlement_outcome": "no",
+      "pnl_cents": -19,
+      "bankroll_after": 999136,
+      "drawdown_pct": 0.0013263858833360155
+    },
+    {
+      "ticker": "KXPOL-0125",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 68,
+      "settlement_outcome": "yes",
+      "pnl_cents": 32,
+      "bankroll_after": 999168,
+      "drawdown_pct": 0.001294400692479382
+    },
+    {
+      "ticker": "KXPOL-0126",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 64,
+      "settlement_outcome": "yes",
+      "pnl_cents": 36,
+      "bankroll_after": 999204,
+      "drawdown_pct": 0.0012584173527656695
+    },
+    {
+      "ticker": "KXPOL-0127",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 67,
+      "settlement_outcome": "yes",
+      "pnl_cents": 33,
+      "bankroll_after": 999237,
+      "drawdown_pct": 0.0012254326246947662
+    },
+    {
+      "ticker": "KXPOL-0128",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 45,
+      "settlement_outcome": "yes",
+      "pnl_cents": -45,
+      "bankroll_after": 999192,
+      "drawdown_pct": 0.001270411799336907
+    },
+    {
+      "ticker": "KXPOL-0129",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 68,
+      "settlement_outcome": "yes",
+      "pnl_cents": 32,
+      "bankroll_after": 999224,
+      "drawdown_pct": 0.0012384266084802737
+    },
+    {
+      "ticker": "KXPOL-0130",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 11,
+      "settlement_outcome": "no",
+      "pnl_cents": -11,
+      "bankroll_after": 999213,
+      "drawdown_pct": 0.0012494215178372413
+    },
+    {
+      "ticker": "KXPOL-0131",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 27,
+      "settlement_outcome": "no",
+      "pnl_cents": -27,
+      "bankroll_after": 999186,
+      "drawdown_pct": 0.0012764090226225259
+    },
+    {
+      "ticker": "KXPOL-0132",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 54,
+      "settlement_outcome": "yes",
+      "pnl_cents": 46,
+      "bankroll_after": 999232,
+      "drawdown_pct": 0.0012304303107661153
+    },
+    {
+      "ticker": "KXPOL-0133",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 29,
+      "settlement_outcome": "no",
+      "pnl_cents": -29,
+      "bankroll_after": 999203,
+      "drawdown_pct": 0.0012594168899799393
+    },
+    {
+      "ticker": "KXPOL-0134",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 26,
+      "settlement_outcome": "no",
+      "pnl_cents": -26,
+      "bankroll_after": 999177,
+      "drawdown_pct": 0.0012854048575509538
+    },
+    {
+      "ticker": "KXPOL-0135",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 35,
+      "settlement_outcome": "no",
+      "pnl_cents": -35,
+      "bankroll_after": 999142,
+      "drawdown_pct": 0.0013203886600503967
+    },
+    {
+      "ticker": "KXPOL-0136",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 11,
+      "settlement_outcome": "yes",
+      "pnl_cents": -11,
+      "bankroll_after": 999131,
+      "drawdown_pct": 0.0013313835694073644
+    },
+    {
+      "ticker": "KXPOL-0137",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 61,
+      "settlement_outcome": "no",
+      "pnl_cents": 39,
+      "bankroll_after": 999170,
+      "drawdown_pct": 0.0012924016180508424
+    },
+    {
+      "ticker": "KXPOL-0138",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 29,
+      "settlement_outcome": "no",
+      "pnl_cents": -29,
+      "bankroll_after": 999141,
+      "drawdown_pct": 0.0013213881972646664
+    },
+    {
+      "ticker": "KXPOL-0139",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 67,
+      "settlement_outcome": "yes",
+      "pnl_cents": 33,
+      "bankroll_after": 999174,
+      "drawdown_pct": 0.0012884034691937633
+    },
+    {
+      "ticker": "KXPOL-0140",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 6,
+      "settlement_outcome": "yes",
+      "pnl_cents": -6,
+      "bankroll_after": 999168,
+      "drawdown_pct": 0.001294400692479382
+    },
+    {
+      "ticker": "KXPOL-0141",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 36,
+      "settlement_outcome": "no",
+      "pnl_cents": -36,
+      "bankroll_after": 999132,
+      "drawdown_pct": 0.0013303840321930945
+    },
+    {
+      "ticker": "KXPOL-0142",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 8,
+      "settlement_outcome": "no",
+      "pnl_cents": -8,
+      "bankroll_after": 999124,
+      "drawdown_pct": 0.001338380329907253
+    },
+    {
+      "ticker": "KXPOL-0143",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 21,
+      "settlement_outcome": "no",
+      "pnl_cents": -21,
+      "bankroll_after": 999103,
+      "drawdown_pct": 0.0013593706114069185
+    },
+    {
+      "ticker": "KXPOL-0144",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 68,
+      "settlement_outcome": "yes",
+      "pnl_cents": -68,
+      "bankroll_after": 999035,
+      "drawdown_pct": 0.0014273391419772645
+    },
+    {
+      "ticker": "KXPOL-0145",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 58,
+      "settlement_outcome": "yes",
+      "pnl_cents": 42,
+      "bankroll_after": 999077,
+      "drawdown_pct": 0.0013853585789779333
+    },
+    {
+      "ticker": "KXPOL-0146",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 24,
+      "settlement_outcome": "yes",
+      "pnl_cents": -24,
+      "bankroll_after": 999053,
+      "drawdown_pct": 0.0014093474721204083
+    },
+    {
+      "ticker": "KXPOL-0147",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 2,
+      "settlement_outcome": "yes",
+      "pnl_cents": -2,
+      "bankroll_after": 999051,
+      "drawdown_pct": 0.0014113465465489478
+    },
+    {
+      "ticker": "KXPOL-0148",
+      "vertical": "politics",
+      "side": "yes",
+      "entry_price": 13,
+      "settlement_outcome": "no",
+      "pnl_cents": -13,
+      "bankroll_after": 999038,
+      "drawdown_pct": 0.0014243405303344552
+    },
+    {
+      "ticker": "KXPOL-0149",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 18,
+      "settlement_outcome": "yes",
+      "pnl_cents": -18,
+      "bankroll_after": 999020,
+      "drawdown_pct": 0.0014423322001913114
+    },
+    {
+      "ticker": "KXPOL-0150",
+      "vertical": "politics",
+      "side": "no",
+      "entry_price": 16,
+      "settlement_outcome": "yes",
+      "pnl_cents": -16,
+      "bankroll_after": 999004,
+      "drawdown_pct": 0.0014583247956196281
+    }
+  ]
+}
