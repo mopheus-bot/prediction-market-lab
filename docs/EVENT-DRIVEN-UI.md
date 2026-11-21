@@ -88,7 +88,7 @@ Every dollar value renders as `$X.XX (+Y.YY% of bankroll)` or `$X.XX (Y.YY% retu
 function fmtCentsPct(cents, bankrollCents, ctx) {
   const dollars = (cents / 100).toFixed(2);
   const pct = (cents / bankrollCents * 100).toFixed(2);
-  const sign = cents < 0 ? '−' : cents > 0 ? '+' : '';
+  const sign = cents < 0 ? '−': cents > 0 ? '+': '';
   return `${sign}$${Math.abs(dollars)} (${sign}${Math.abs(pct)}%)`;
 }
 ```
@@ -224,11 +224,11 @@ The Phase 5 spec called for: (a) audit every page for paper/real visual differen
 
 ### Audit findings
 
-1. **SAFETY BUG — body attribute depended on SSE only.** The `data-trading-mode` + `data-kill-switch` attrs on `<body>` were only written by SSE event handlers (`init`, `mode_change`, `kill_switch` in `app.js`). If the EventSource dropped while in real mode, the polling `refresh()` was still returning `botStatus.config.trading_mode = "real"`, but the body attribute was never set — so the CSS rule `body[data-trading-mode="real"] .real-money-warning` never fired, and the operator lost the "real money on the line" visual while trades were actually live.
+1. **SAFETY BUG — body attribute depended on SSE only.** The `data-trading-mode` + `data-kill-switch` attrs on `<body>` were only written by SSE event handlers (`init`, `mode_change`, `kill_switch` in `app.js`). If the EventSource dropped while in real mode, the polling `refresh()` was still returning `botStatus.config.trading_mode = "real"`, but the body attribute was never set — so the CSS rule `body[data-trading-mode="real"].real-money-warning` never fired, and the operator lost the "real money on the line" visual while trades were actually live.
 
    **Fix:** `renderTradingControls(status)` in `app.js` now writes the body attributes on every polling refresh (and on SSE, for symmetry). Defense-in-depth: SSE-down no longer hides the warning.
 
-2. **FOUC on 5 of 6 pages.** Only `trades.html` had `data-trading-mode="paper" data-kill-switch="false"` set on the initial `<body>` tag. The other five (`bot.html`, `positions.html`, `dev.html`, `index.html`, `models.html`, `schedule.html`) had plain `<body>`. The CSS rule `body[data-trading-mode="real"] .real-money-warning` couldn't match until the SSE `init` event fired (a few hundred ms), so a real-mode page render had a brief flash of "no warning."
+2. **FOUC on 5 of 6 pages.** Only `trades.html` had `data-trading-mode="paper" data-kill-switch="false"` set on the initial `<body>` tag. The other five (`bot.html`, `positions.html`, `dev.html`, `index.html`, `models.html`, `schedule.html`) had plain `<body>`. The CSS rule `body[data-trading-mode="real"].real-money-warning` couldn't match until the SSE `init` event fired (a few hundred ms), so a real-mode page render had a brief flash of "no warning."
 
    **Fix:** all six pages now have `data-trading-mode="paper" data-kill-switch="false"` on the initial `<body>`. The SSE `init` event then overwrites the attribute with the actual values.
 

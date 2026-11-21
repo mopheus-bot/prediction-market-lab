@@ -1,4 +1,4 @@
-# Changelog — 2026-08-11 (later) — Dashboard live-data + PnL fix
+# Dashboard live-data and PnL fix (2026-08-11)
 
 Post-Phase-4 bug-fix push. Four commits, no behavior changes
 beyond making the dashboard reflect the actual real-time state
@@ -140,7 +140,7 @@ always prioritized, total bounded at 100.
   writes the downloaded object to `./<key>` by default, so
   investigating the R2 file left a stray empty
   `daily-recap/latest.json` that got auto-committed. Cleaned
-  up + added the dir to .gitignore.
+  up + added the dir to.gitignore.
 - Removed `import { readDailyRecap } from "./daily-recap.js"`
   from `src/api/status.ts` (no longer used in that file).
 

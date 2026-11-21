@@ -1,6 +1,6 @@
-# pm-bot operator onboarding (chunk 10.9d)
+# prediction-market-lab operator onboarding (.9d)
 
-Welcome to pm-bot — Cloudflare Workers + D1 + DO + R2 + a
+Welcome to prediction-market-lab — Cloudflare Workers + D1 + DO + R2 + a
 Fly.io WebSocket relay, paper-trading (or real) on Kalshi.
 
 This doc is the **copy-paste setup flow** for one operator. It
@@ -30,7 +30,7 @@ takes ~10 minutes. Each step is a *single Telegram message* or
 
 ```bash
 git clone https://github.com/.git
-cd pm-bot
+cd prediction-market-lab
 npm install
 ```
 
@@ -43,14 +43,14 @@ npm install
    `Key ID` + downloads a `.pem` file
 3. **Production (when ready for real money):** same flow on
    the prod account
-4. Save the .pem to `~/keys/`:
+4. Save the.pem to `~/keys/`:
    ```bash
    mkdir -p ~/keys
    cp ~/Downloads/kalshi-*.pem ~/keys/kalshi-demo.pem
    chmod 600 ~/keys/kalshi-demo.pem
    ```
 
-> **Never commit the .pem.** `pm-bot/.gitignore` already
+> **Never commit the.pem.** `prediction-market-lab/.gitignore` already
 > excludes it. The Key ID is fine to commit.
 
 ---
@@ -67,9 +67,9 @@ and end in `bot`.
 
 | Name (display) | Username (handle) | Vibe |
 |---|---|---|
-| `pm-bot-alerts` | `mo_pm_alerts_bot` | short, project-tied (this is what we used) |
+| `prediction-market-lab-alerts` | `mo_pm_alerts_bot` | short, project-tied (this is what we used) |
 | `trader-bot-alerts` | `mo_trader_alerts_bot` | generic — fits any trading bot |
-| `kalshi-pm-bot` | `mo_kalshi_pm_bot` | ties to the platform |
+| `kalshi-prediction-market-lab` | `mo_kalshi_pm_bot` | ties to the platform |
 | `paper-money-bot` | `mo_paper_money_bot` | funny, what it actually does |
 | `<your-pm>-alerts` | `<your-pm>_alerts_bot` | blank-slate — pick your own |
 
@@ -145,10 +145,10 @@ YOU  →  /start
 ═══════════════════════════════════════════════════════════════
 ```
 
-(No auto-reply — your bot only speaks when pm-bot pings it.
+(No auto-reply — your bot only speaks when prediction-market-lab pings it.
 The `/start` is just opening the chat for delivery.)
 
-### 3d. Get your chat ID (the number pm-bot sends messages to)
+### 3d. Get your chat ID (the number prediction-market-lab sends messages to)
 
 The chat ID is the **first thing you'll need in step 5**.
 Run this once you've sent `/start` to the new bot:
@@ -184,13 +184,13 @@ step 5.
 ```bash
 # Already authenticated if you ran `wrangler login` in prereqs.
 # Create the D1 database (idempotent; ignore "already exists"):
-npx wrangler d1 create pm-bot-prod
+npx wrangler d1 create prediction-market-lab
 
 # Apply the migrations (rebuilds the schema in your D1):
-npx wrangler d1 migrations apply pm-bot-prod --remote
+npx wrangler d1 migrations apply prediction-market-lab --remote
 
 # R2 bucket for model artifacts:
-npx wrangler r2 bucket create pm-bot
+npx wrangler r2 bucket create prediction-market-lab
 ```
 
 Copy the `database_id` from the D1 create output into
@@ -201,7 +201,7 @@ Copy the `database_id` from the D1 create output into
 ## 5. Set your secrets (~1 min)
 
 ```bash
-cd pm-bot
+cd prediction-market-lab
 
 # Kalshi demo
 echo "<KALSHI_DEMO_KEY_ID>" | npx wrangler secret put KALSHI_DEMO_KEY_ID
@@ -241,7 +241,7 @@ echo "<FLY_API_TOKEN>" | npx wrangler secret put FLY_API_TOKEN
 ## 6. Deploy the relay (Fly.io, ~2 min)
 
 ```bash
-cd pm-bot/relay
+cd prediction-market-lab/relay
 ./deploy.sh   # auto-detects OAuth from ~/.fly/config.yml
               # OR set FLY_API_TOKEN=... first
 ```
@@ -249,7 +249,7 @@ cd pm-bot/relay
 Takes ~1 min to build + deploy. Smoke-test:
 
 ```bash
-curl -i https://pm-bot-relay.fly.dev/
+curl -i https://prediction-market-lab-relay.fly.dev/
 # → HTTP/1.1 426 Upgrade Required (this is correct — it's WS-only)
 ```
 
@@ -258,7 +258,7 @@ curl -i https://pm-bot-relay.fly.dev/
 ## 7. Deploy the Worker (~30 sec)
 
 ```bash
-cd pm-bot
+cd prediction-market-lab
 npx wrangler deploy
 ```
 
@@ -333,7 +333,7 @@ curl -sS -X POST api/pm/bot/trading-mode \
 
 ## Multi-tenant notes (future work)
 
-pm-bot today is **single-tenant per Worker deployment**. To
+prediction-market-lab today is **single-tenant per Worker deployment**. To
 go multi-tenant, each operator would need their own Worker
 deployment (different `*.workers.dev` subdomain) with their
 own:
@@ -346,10 +346,10 @@ single Worker can host multiple DOs but only one set of env
 secrets. To go true multi-tenant, the Worker would need a
 `user_id → secrets` mapping table in D1 + a per-user auth
 layer at the gateway. **Not built yet** — single-tenant is
-the supported configuration as of chunk 10.9.
+the supported configuration as of.
 
 If you want to deploy for a client, the simplest path is:
-clone the repo → `wrangler deploy --name their-pm-bot` →
+clone the repo → `wrangler deploy --name their-prediction-market-lab` →
 set their secrets → share the dashboard URL. Each
 deployment is independent.
 

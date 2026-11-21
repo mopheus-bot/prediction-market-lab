@@ -1,7 +1,7 @@
-# pm-bot — Strategy Refresh: Parlays, Verticals, and the 8B Model Path
+# prediction-market-lab — Strategy Refresh: Parlays, Verticals, and the 8B Model Path
 
-> **Status (2026-08-11):** Phase 1 SHIPPED (chunks 15 + 15.1 + 15.2 +
-> 15.3 + 15.4). pm-bot now covers all 17 Kalshi verticals (not just
+> **Status (2026-08-11):** Phase 1 SHIPPED (steps 15 + 15.1 + 15.2 +
+> 15.3 + 15.4). prediction-market-lab now covers all 17 Kalshi verticals (not just
 > the 4 legacy). The taxonomy expansion + research-cron scope fix +
 > LLM-PIPELINE Bug A + auto-retrain pipeline landed. Phase 2 (parlay
 > strategy with leg-probability model) is still deferred — the
@@ -15,7 +15,7 @@
 > 2 + science_technology 2 + world/weather/financials 1 each).
 >
 > **Decision status (2026-08-11, refreshed):**
-> - **Phase 1 (widen verticals + deploy):** ✅ DONE (chunks 15
+> - **Phase 1 (widen verticals + deploy):** ✅ DONE (steps 15
 >   + 15.1 + 15.2). User said: "expand coverage to include all
 >   17 verticals, let the bot settle in (full immediate auto
 >   circle). We'll let the bot train while we talk and plan
@@ -51,7 +51,7 @@ demo credentials. The result completely reframes the bot's strategy work:
 
 **2026-08-11 (post-17-vertical expansion, 9,610 open events):**
 
-| Vertical (pm-bot) | Open events | Auto-promoted tickers in bot universe |
+| Vertical (prediction-market-lab) | Open events | Auto-promoted tickers in bot universe |
 |---|---|---|
 | `weather` | 106 | 1 (KXWARMING-50) |
 | `economic` | 375 | 0 (thin data) |
@@ -73,10 +73,9 @@ demo credentials. The result completely reframes the bot's strategy work:
 | **total** | **9,610** | **49+** (growing) |
 
 The "99% parlays" problem is real but contained — the research cron
-skips KXMVESPORTS* and KXMVECROSSCATEGORY* at the LIST level
-(chunk 15.1), and the LLM's per-domain confidence cap
+skips KXMVESPORTS* and KXMVECROSSCATEGORY* at the LIST level, and the LLM's per-domain confidence cap
 (KXMVECROSSCATEGORY/* and KXMVESPORTSMULTIGAME/* cap at 0.6)
-prevents parlay hallucination from auto-promoting (chunk 15 +
+prevents parlay hallucination from auto-promoting ( +
 15.4). The 13 newly-expanded verticals are where the new
 opportunities live.
 
@@ -161,9 +160,9 @@ handles new listings.
 
 ---
 
-## 4. Phase 1 — Widen verticals + deploy (CHUNKS)
+## 4. Phase 1 — Widen verticals + deploy (STEPS)
 
-### Chunk 1.1 — Update the vertical taxonomy
+### Step 1.1 — Update the vertical taxonomy
 
 **Goal:** the bot's vertical model reflects Kalshi's actual product
 mix, not the original single-event taxonomy.
@@ -182,8 +181,8 @@ mix, not the original single-event taxonomy.
   ```ts
   export type Vertical =
     | "weather"        // single-event weather (KXWARMING*)
-    | "economic"       // single-event economic (KXGDP*, KXCPI*, KXFED*, ...)
-    | "politics"       // single-event politics (KXPRES*, KXSENATE*, ...)
+    | "economic"       // single-event economic (KXGDP*, KXCPI*, KXFED*,...)
+    | "politics"       // single-event politics (KXPRES*, KXSENATE*,...)
     | "sports"         // single-event sports (hypothetical — currently 0)
     | "parlay"         // multi-game parlays (KXMVESPORTS*)
     | "cross_category" // cross-category parlays (KXMVECROSSCATEGORY* — observation only)
@@ -225,14 +224,14 @@ handle the new verticals + writing the prefix tests)
 
 ---
 
-### Chunk 1.2 — Wire the per-vertical distribution into cron artifacts
+### Step 1.2 — Wire the per-vertical distribution into cron artifacts
 
 **Goal:** every cron run reports how many open Kalshi markets it saw
 in each vertical, surfaced in the cadence / Dev-page artifacts.
 
 **Scope:**
 - The cron already has `n_add`, `n_drop`, `n_expired_drops` in
-  artifacts. Add `n_per_vertical: { weather: 1, economic: 0, ... }`
+  artifacts. Add `n_per_vertical: { weather: 1, economic: 0,... }`
   so the Dev page can show "Kalshi currently has 1 weather market,
   0 economic, 0 politics, 30 sports (parlay) shown, 30 cross_category
   (obs only)" — the operator can see at a glance.
@@ -253,7 +252,7 @@ in each vertical, surfaced in the cadence / Dev-page artifacts.
 - `src/api/leads.ts` — surface in `last_run` summary for the Dev
   page
 - `public/app/dev.html` — render the per-vertical bar
-- (no test changes for this chunk — it's just plumbing)
+- (no test changes for this step — it's just plumbing)
 
 **Tests:**
 - Existing tests should pass without modification (the new artifact
@@ -268,7 +267,7 @@ in each vertical, surfaced in the cadence / Dev-page artifacts.
 
 ---
 
-### Chunk 1.3 — Update the LLM prompt to know about the new verticals
+### Step 1.3 — Update the LLM prompt to know about the new verticals
 
 **Goal:** the LLM understands `parlay` and `cross_category` and
 behaves correctly — suggests real parlays, doesn't suggest
@@ -308,7 +307,7 @@ verified with the dry-run test)
 
 ---
 
-### Chunk 1.4 — Update the bot's current universe to use one real ticker
+### Step 1.4 — Update the bot's current universe to use one real ticker
 
 **Goal:** the bot trades on `KXWARMING-50` (the one real single-event
 market), not on the 4 fictional tickers currently in
@@ -354,7 +353,7 @@ To actually update the running bot, the operator either:
 
 ---
 
-### Chunk 1.5 — Deploy + monitor
+### Step 1.5 — Deploy + monitor
 
 **Goal:** the new code is live, the bot is healthy, and we observe
 the per-vertical distribution over the next few cron runs.
@@ -372,7 +371,7 @@ the per-vertical distribution over the next few cron runs.
 D1 migrations. We have no schema changes here, so this is safe —
 the existing migrations table already has `lead_suggestions`. But
 verify with a quick `SELECT name FROM sqlite_master WHERE type='table'`
-query via `wrangler d1 execute pm-bot-prod --remote` if anything
+query via `wrangler d1 execute prediction-market-lab --remote` if anything
 looks off.
 
 **Files to touch:** none (deploy-only)
@@ -406,7 +405,7 @@ This is the strategic bet. Without a leg-probability model, the bot
 has no edge on the 4,065 sports markets that make up 68% of
 Kalshi's catalog. The shape of Phase 2:
 
-### Chunk 2.1 — Leg decomposition
+### Step 2.1 — Leg decomposition
 
 **Goal:** for each parlay market, parse the title into a list of
 legs. A title like "yes Team A,yes Team B,yes Over 7.5" becomes
@@ -423,7 +422,7 @@ legs. A title like "yes Team A,yes Team B,yes Over 7.5" becomes
 **Est. effort:** 2-3 days (parser is straightforward but
 title-formatting is messy)
 
-### Chunk 2.2 — Probability model
+### Step 2.2 — Probability model
 
 **Goal:** given a leg, estimate its true resolution probability.
 
@@ -557,7 +556,7 @@ backtested AND the parlay math is validated in production paper
 trading. We don't start (a) until (b) has been backtested
 against held-out data and the edge is real.
 
-### Chunk 2.3 — Joint probability + edge calculator
+### Step 2.3 — Joint probability + edge calculator
 
 **Goal:** given N leg probabilities, compute the joint probability
 (assuming independence — a simplification), and compare to
@@ -573,7 +572,7 @@ from Kalshi's quote, the parlay is a candidate.
 
 **Est. effort:** 1-2 weeks
 
-### Chunk 2.4 — Backtest harness
+### Step 2.4 — Backtest harness
 
 **Goal:** validate the parlay strategy against historical Kalshi
 resolution data before any live/paper trading.
@@ -586,7 +585,7 @@ resolution data before any live/paper trading.
 
 **Est. effort:** 1 week
 
-### Chunk 2.5 — Paper trade
+### Step 2.5 — Paper trade
 
 **Goal:** the bot enters paper trades on mispriced parlays.
 Operator watches for 30 days, then decides if to go real.
@@ -599,7 +598,7 @@ Operator watches for 30 days, then decides if to go real.
 **The 8B model idea is captured here as Phase 2.2 option (b).** It
 remains the right call for "if the external API doesn't work, or
 if we want our own model that we control." The user wanted to make
-sure this option doesn't get lost — it lives in Chunk 2.2 as the
+sure this option doesn't get lost — it lives in Step 2.2 as the
 "if all else fails" path. We don't need to commit to it now; we
 talk sports-data-API costs first and see if option (a) is good
 enough.
@@ -608,7 +607,7 @@ enough.
 > ordering. (a) is the last-resort, not the default. Phase 2
 > total estimate is now ~2 months for the (c)+first-cut-(b)
 > path; ~3-4 months if (b) requires a from-scratch model build
-> (no fine-tuning, no transfer learning). See Chunk 2.2 for the
+> (no fine-tuning, no transfer learning). See Step 2.2 for the
 > full decision rationale.
 
 ---
@@ -629,7 +628,7 @@ single-event markets with the "other legs" as a fee.
 - Apply the existing single-event strategy to the dominant leg
 - Compare backtested P&L to the multi-leg full pricing
 
-**Est. effort:** 1-2 weeks (could be a Chunk 2.0 before the full
+**Est. effort:** 1-2 weeks (could be a Step 2.0 before the full
 parlay strategy)
 
 **My take:** worth doing only if Phase 2 is taking too long. The
@@ -842,7 +841,7 @@ infrastructure budget doesn't cover:
 To keep scope tight:
 
 - **Real-money trading.** The bot stays in paper mode. The
-  auto-pilot cron (chunk 11b) is the path to live; that's a
+  auto-pilot cron is the path to live; that's a
   separate concern and gates on Phase 2 success.
 - **Multi-user support.** The bot is single-user. Adding a
   second user is a schema + auth change, not a strategy change.

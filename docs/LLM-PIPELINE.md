@@ -68,7 +68,7 @@ silently misbehaving in ways the operator couldn't see.
 
 ### Bug A — LLM hallucinates because the research worker doesn't feed it the data it needs
 
-**Status: ✅ FIXED (chunk 15.4, 2026-08-11, commit `6d1f87b`).**
+**Status: ✅ FIXED (, 2026-08-11, commit `6d1f87b`).**
 
 **Symptom (observed 2026-08-11 06:42):** LLM returned `side="no", confidence=0.85`
 on KXMVECROSSCAT-...0577AE735B9 at a 5¢ current YES price. The system prompt
@@ -85,7 +85,7 @@ the LLM has no idea what bundle of outcomes is in the market — it
 hallucinates a directional view that sounds plausible but is unsupported
 by any ground truth.
 
-**Fix (chunk 15.4, commit `6d1f87b`):**
+**Fix (, commit `6d1f87b`):**
 
 Added `client.getEvent(eventTicker, { withNestedMarkets: true })` to
 `src/kalshi/client.ts`. The LLM cron now calls this for each market
@@ -104,7 +104,7 @@ judgment of each leg's implied probability to decide if the bundle
 is mispriced at the current YES price."
 
 Per-domain confidence cap (parlays → 0.6 max) was already in place
-from chunk 15, so parlay hallucination at 0.85 confidence is now
+from, so parlay hallucination at 0.85 confidence is now
 auto-capped to 0.6 — the auto-promote gate at 0.5 still passes, but
 the strategy's 0.6 floor means a parlay only auto-promotes at the
 upper bound (a strong signal even with the cap).
@@ -116,7 +116,7 @@ vertical. KXPERSONPRESFUENTES-45=no@0.95 on the next run.
 
 ### Bug B — LLM cron doesn't scan the entire Kalshi market (only 50 of 2,184)
 
-**Status: 🟡 PARTIALLY FIXED (chunk 15.2, 2026-08-11, commit `2cee7eb`).**
+**Status: 🟡 PARTIALLY FIXED (, 2026-08-11, commit `2cee7eb`).**
 Catalog is now sampled at 200 events per cron via `/events` (covers
 ~5+ verticals per page) + 15 LLM calls per 2-min run (5 parallel ×
 3 batches). The 9,610-event catalog cycles in ~21 hours. The long
@@ -135,7 +135,7 @@ rolls them in over ~1.5 days.
 **Original root cause:** the LLM call throttle was the bottleneck
 despite the research worker having comprehensive snapshot data.
 
-**Series of fixes (chunk 15.2, commits `78b6f1b` → `149449a` → `8b3ad9f` → `7038453` → `2cee7eb`):**
+**Series of fixes (, commits `78b6f1b` → `149449a` → `8b3ad9f` → `7038453` → `2cee7eb`):**
 
 1. Pre-existing D1 100-param bind cap: the snapshot query was a
    single IN-clause with 200+ tickers. Fixed by chunking into
@@ -164,7 +164,7 @@ despite the research worker having comprehensive snapshot data.
    auto-promote. The polling feed will start tracking the new
    ticker, and a price may appear later.
 
-**Result (chunk 15.2):** 15 calls × 30 runs/hour = 450 calls/hour.
+**Result:** 15 calls × 30 runs/hour = 450 calls/hour.
 The 9,610-event catalog cycles in ~21 hours. Within 10 min of
 deploy: universe size 44 → 49+, 5 auto-promotes across 4 new
 verticals (financials: KXRAMPBREX-40-RAMP, science_technology:
@@ -177,7 +177,7 @@ bid/ask) is not in the snapshots table (the research cron's
 up via the `/events` discovery, but only the first 200 events per
 cron. A full catalog sweep would need a separate `markets-discover`
 cron that pages through all 9,610 events and surfaces the long
-tail. Out of scope for chunk 15.2.
+tail. Out of scope for.
 
 ### Bug C — bot doesn't re-examine already-bought tickers
 
@@ -258,12 +258,12 @@ the flip-filter makes it inert for open positions.
       (Kalshi's GET /events/{event_ticker} returns the rules +
       legs). Plus price history + orderbook depth. Add a per-market
       confidence cap (e.g. parlays cap at 0.6).
-- [x] **Bug A** (chunk 15.4, commit `6d1f87b`): DONE.
+- [x] **Bug A** (, commit `6d1f87b`): DONE.
       `client.getEvent()` + 4 new LLM prompt fields
       (eventTitle, eventSubTitle, rulesPrimary, parlayLegs).
-      Per-domain cap was already in place from chunk 15.
+      Per-domain cap was already in place from.
       parse_failed rate 30-50% → ~0%.
-- [x] **Bug B** (chunk 15.2, commit `2cee7eb`): PARTIALLY
+- [x] **Bug B** (, commit `2cee7eb`): PARTIALLY
       DONE. LLM_LOOP_CAP 50 → 200 → 3 → 15 (with parallel).
       Switched fresh-discovery from `/markets` to `/events`.
       450 calls/hour; full 9,610-event catalog cycles in ~21

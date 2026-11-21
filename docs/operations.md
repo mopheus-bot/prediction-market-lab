@@ -1,6 +1,6 @@
-# pm-bot — operations runbook
+# prediction-market-lab — operations runbook
 
-This is the rules-of-engagement for everything pm-bot does
+This is the rules-of-engagement for everything prediction-market-lab does
 in production. Read this before changing cron intervals, the
 LLM call pattern, or the data feed strategy.
 
@@ -9,7 +9,7 @@ LLM call pattern, or the data feed strategy.
 The bot went from 4 hardcoded verticals to all 17 Kalshi
 categories in one day. The relevant commits:
 
-- **chunks 15 + 15.1** — `Vertical` enum 4 → 17; prefix maps +
+- **steps 15 + 15.1** — `Vertical` enum 4 → 17; prefix maps +
   title-keyword fallbacks for 13 new categories; `category-mapper`
   1:1 Kalshi category → vertical; strategy router profiles for
   all 17 (default `naive + LLM`); `AUTO_PROMOTE_VERTICALS` = all
@@ -18,22 +18,22 @@ categories in one day. The relevant commits:
   KXMVECROSSCATEGORY* at the LIST level + caps GETs to top 100
   by volume + bumps throttle 2 → 5 req/s. 30s wall-clock (was
   5+ min timeout).
-- **chunk 15.2** — LLM cron parallelized + cap bumped 3 → 15
+- **** — LLM cron parallelized + cap bumped 3 → 15
   (5 in parallel via pMap × 3 batches). Dropped the no_price
   filter (LLM now evaluates title + event context alone for
   markets without live bid/ask). Fresh-discovery switched from
   `/markets` (200 parlays) to `/events` (200 events spanning
   5+ verticals).
-- **chunk 15.3** — Auto-retrain pipeline wired: GitHub Action
+- **** — Auto-retrain pipeline wired: GitHub Action
   weekly (Saturday 22:00 UTC) + `scripts/retrain.py` orchestrator
   + Python trainer `VALID_VERTICALS` 4 → 17 + Python
   `category_mapper` 13 → 43 entries. Sunday train-cron
   auto-registers; operator promotes via Dev page.
-- **chunk 15.4 (LLM-PIPELINE Bug A)** — `client.getEvent()`
+- ** (LLM-PIPELINE Bug A)** — `client.getEvent()`
   added; LLM prompt now includes `eventTitle`, `eventSubTitle`,
   `rulesPrimary`, `parlayLegs` (capped at 10 legs). Per-domain
   confidence cap on parlays (0.6 max) was already in place from
-  chunk 15. parse_failed rate 30-50% → ~0%.
+. parse_failed rate 30-50% → ~0%.
 
 **Observed result (within 10 min of the parallelize+drop-no_price
 deploy):**
@@ -158,9 +158,9 @@ The `llm_calls` D1 table records every LLM call with a `purpose` column so the c
 
 | Purpose         | Caller                           | Frequency                  | Dedup window        |
 | --------------- | -------------------------------- | -------------------------- | ------------------- |
-| `news_verdict`  | news-cron (chunk 6)              | every 6h, per open position | 4h per ticker       |
-| `daily_recap`   | daily-cron (chunk 6)             | 1/day at 06:00 UTC         | 24h                 |
-| `leads_cron`    | leads-cron (chunk 11+)           | every 6h                  | 24h (next run supersedes) |
+| `news_verdict`  | news-cron              | every 6h, per open position | 4h per ticker       |
+| `daily_recap`   | daily-cron             | 1/day at 06:00 UTC         | 24h                 |
+| `leads_cron`    | leads-cron           | every 6h                  | 24h (next run supersedes) |
 | `llm_test`      | `/api/pm/bot/llm-test`           | manual (operator)          | none                |
 | `smoke_test`    | `/api/pm/bot/smoke-test`         | manual (operator) + heartbeat-cron (passive) | none |
 
@@ -223,7 +223,7 @@ The bot has to make at least $0.40-2.40/mo in net PnL after fees, or we have no 
 - `GET /api/pm/cost` — usage + projected monthly cost.
 - `GET /api/pm/cadence` — every service with last-ran + next-scheduled.
 - `GET /api/pm/bot/stage` — single badge: what is the bot doing right now.
-- `wrangler tail pm-bot` — live Worker logs.
+- `wrangler tail prediction-market-lab` — live Worker logs.
 
 ---
 
@@ -251,7 +251,7 @@ The bot has to make at least $0.40-2.40/mo in net PnL after fees, or we have no 
 5. Convert each `.joblib` to the JSON tree format the TS port
    consumes via `scripts/convert-models-to-json.py`.
 6. Upload each `<vertical>-v2.json` to R2 at
-   `pm-bot/models/reversion-<vertical>-v2.json` via
+   `prediction-market-lab/models/reversion-<vertical>-v2.json` via
    `wrangler r2 object put`.
 
 The Sunday 00:00 UTC `train-cron` (`src/cron/train-cron.ts`)
@@ -307,9 +307,9 @@ hyperparameters and want to test them on fresh data.
 **Required GitHub secrets:**
 
 - `CLOUDFLARE_API_TOKEN` — scoped to D1 read + R2
-  write on the pm-bot account. **Do not reuse the
+  write on the prediction-market-lab account. **Do not reuse the
   deploy token** (broader scope than this needs).
-- `CLOUDFLARE_ACCOUNT_ID` — the pm-bot account ID
+- `CLOUDFLARE_ACCOUNT_ID` — the prediction-market-lab account ID
   (`8c995c329fee2ee6ab33d9d3d6a30e55`).
 - `GH_PAT` — Personal Access Token with `repo` scope
   on `` (the action checks

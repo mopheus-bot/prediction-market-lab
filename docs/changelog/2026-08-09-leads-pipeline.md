@@ -1,8 +1,8 @@
-# Chunk 13 — LLM-driven lead generation + retargeting pipeline (2026-08-09)
+# LLM-driven lead generation and retargeting pipeline (2026-08-09)
 
 **Scope:** wire the leads feature as a recurring automation, not a one-off
 endpoint. The previous `suggest-leads` endpoint was a manual call; this
-chunk makes it a daily pipeline with operator approval, vertical retargeting,
+step makes it a daily pipeline with operator approval, vertical retargeting,
 and a 24h TTL on undecided suggestions.
 
 ## What was already there
