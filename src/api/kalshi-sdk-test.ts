@@ -1,5 +1,5 @@
 /**
- * pm-bot — kalshi-typescript SDK smoke test (chunk 10.8).
+ * prediction-market-lab — kalshi-typescript SDK smoke test.
  *
  * Calls `getBalance` + `getPositions` on the Kalshi demo
  * endpoint via the SDK adapter and returns the raw response.
@@ -68,8 +68,8 @@ export async function handleKalshiSdkTest(env: KalshiSdkTestEnv): Promise<Respon
 			latency_ms: { balance: tBalance, positions: tPositions },
 		});
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
-		const stack = e instanceof Error ? e.stack : undefined;
+		const msg = e instanceof Error ? e.message: String(e);
+		const stack = e instanceof Error ? e.stack: undefined;
 		return Response.json(
 			{
 				ok: false,

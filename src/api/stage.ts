@@ -1,5 +1,5 @@
 /**
- * pm-bot — Stage API (chunk 10).
+ * prediction-market-lab — Stage API.
  *
  * The single badge in the brand bar — what is the bot
  * doing right now? Derived from the bot's /status +
@@ -14,7 +14,7 @@
  *   - real        — WS connected, trading_mode = real
  *   - paused      — trading_mode = off
  *   - killed      — kill_switch on
- *   - backtesting — backtest sweep running (chunk 11+)
+ *   - backtesting — backtest sweep running
  *   - retraining  — train cron running
  *   - error       — last WS error
  *
@@ -156,7 +156,7 @@ export async function handleStage(env: StageEnv, _url: URL): Promise<Response> {
 	} else if (wsConnected && tradingMode === "real") {
 		stage = "real";
 		label = "Trading real money";
-		description = `Live. Watching ${nFrames >= 0 ? nFrames : 0} frames in. ${nTrades} trade(s) executed so far.`;
+		description = `Live. Watching ${nFrames >= 0 ? nFrames: 0} frames in. ${nTrades} trade(s) executed so far.`;
 		color = "live";
 		action_label = "Kill switch";
 		action_path = "kill-switch?on=true";

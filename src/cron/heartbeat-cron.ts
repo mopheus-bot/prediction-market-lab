@@ -1,5 +1,5 @@
 /**
- * pm-bot — heartbeat cron (chunk 11+).
+ * prediction-market-lab — heartbeat cron.
  *
  * Runs once a day (07:00 UTC, after the daily recap at 06:00
  * UTC). Calls the same logic the manual /api/pm/bot/smoke-test
@@ -61,10 +61,10 @@ export async function runHeartbeatCron(env: HeartbeatEnv): Promise<CronResult> {
 		checks.push({
 			name: "llm round-trip",
 			ok: r.ok && !r.stub,
-			detail: r.ok ? `${r.input_tokens ?? "?"}in/${r.output_tokens ?? "?"}out` : (r.error_message ?? "stub"),
+			detail: r.ok ? `${r.input_tokens ?? "?"}in/${r.output_tokens ?? "?"}out`: (r.error_message ?? "stub"),
 		});
 	} catch (e) {
-		checks.push({ name: "llm round-trip", ok: false, detail: e instanceof Error ? e.message : String(e) });
+		checks.push({ name: "llm round-trip", ok: false, detail: e instanceof Error ? e.message: String(e) });
 	}
 
 	// 2. Telegram (lightweight — just check config + reachability, don't spam)
@@ -79,7 +79,7 @@ export async function runHeartbeatCron(env: HeartbeatEnv): Promise<CronResult> {
 			checks.push({ name: "telegram", ok: true, detail: "configured" });
 		}
 	} catch (e) {
-		checks.push({ name: "telegram", ok: false, detail: e instanceof Error ? e.message : String(e) });
+		checks.push({ name: "telegram", ok: false, detail: e instanceof Error ? e.message: String(e) });
 	}
 
 	// 2b. 2026-08-10: cron health check. Walk the last
@@ -150,7 +150,7 @@ export async function runHeartbeatCron(env: HeartbeatEnv): Promise<CronResult> {
 			checks.push({
 				name: "cron health (24h)",
 				ok: false,
-				detail: e instanceof Error ? e.message : String(e),
+				detail: e instanceof Error ? e.message: String(e),
 			});
 		}
 	}
@@ -164,7 +164,7 @@ export async function runHeartbeatCron(env: HeartbeatEnv): Promise<CronResult> {
 	// Only send a Telegram on failure. Success is silent.
 	if (!allOk && telegramConfigured(env)) {
 		const date = new Date().toISOString().slice(0, 10);
-		const msg = `pm-bot heartbeat: ${failed.length}/${checks.length} checks failed on ${date}\n\n` +
+		const msg = `prediction-market-lab heartbeat: ${failed.length}/${checks.length} checks failed on ${date}\n\n` +
 			failed.map((c) => `• ${c.name}: ${c.detail}`).join("\n");
 		try {
 			await sendTelegramMessage(env, msg);

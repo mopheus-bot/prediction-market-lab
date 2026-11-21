@@ -1,5 +1,5 @@
 /**
- * pm-bot — risk entry point.
+ * prediction-market-lab — risk entry point.
  * Re-exports config, state, and engine.
  */
 

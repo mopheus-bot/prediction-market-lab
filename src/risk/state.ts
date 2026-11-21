@@ -1,5 +1,5 @@
 /**
- * pm-bot — risk engine state.
+ * prediction-market-lab — risk engine state.
  *
  * Mirrors `Prediction Market Lab/.../risk/state.py`.
  *
@@ -61,7 +61,7 @@ export interface RiskState {
 	cooldown_until_tick: number;
 	/** Recent per-trade PnL (FIFO, capped at 10,000). */
 	pnl_history: number[];
-	/** Chunk 9: rolling 24h notional deployed in cents. We track
+	/**: rolling 24h notional deployed in cents. We track
 	 * the last 1,000 individual trade notionals in a FIFO queue
 	 * and sum any entry whose `ts_ms` is within the last 24h
 	 * (`Date.now() - 86_400_000`). On every new trade we trim
@@ -106,7 +106,7 @@ export function totalPnlCents(state: RiskState): number {
 	return state.bankroll_cents - state.starting_bankroll_cents;
 }
 
-/** Chunk 9: sum of trade notionals (cents) deployed in the last
+/**: sum of trade notionals (cents) deployed in the last
  * 24h. Trims stale entries (older than 24h from `now`) and
  * returns the new total. Pure function over the array — caller
  * should assign the returned value back to `state.daily_notional_history`.

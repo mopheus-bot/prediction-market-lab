@@ -1,5 +1,5 @@
 /**
- * pm-bot — backtest cron (chunk 11a).
+ * prediction-market-lab — backtest cron.
  *
  * Runs on a schedule (Sunday 01:00 UTC, after the train
  * cron at 00:00 UTC). Computes a model retrospective over
@@ -14,7 +14,7 @@
  * if they want the live bot to use the backtest's metrics
  * as the new model_version.
  *
- * **Why a "candidate" model?** the existing chunk-8 train
+ * **Why a "candidate" model?** the existing  train
  * flow uses `candidate` for any newly-registered model and
  * `active` for the one currently in use. Backtest metrics
  * aren't a model — they're a score. We still register
@@ -50,11 +50,11 @@ export async function runBacktestCron(env: BacktestEnv): Promise<CronResult> {
 		metrics = await runBacktest(env, now, windowDays);
 	} catch (e) {
 		status = "error";
-		errorMessage = e instanceof Error ? e.message : String(e);
+		errorMessage = e instanceof Error ? e.message: String(e);
 	}
 
 	const durationMs = Date.now() - startMs;
-	const summary = metrics ? metricsSummary(metrics) : "no DB / no metrics";
+	const summary = metrics ? metricsSummary(metrics): "no DB / no metrics";
 
 	// Record the cron run.
 	if (env.DB) {
@@ -65,7 +65,7 @@ export async function runBacktestCron(env: BacktestEnv): Promise<CronResult> {
 			duration_ms: durationMs,
 			status,
 			error_message: errorMessage,
-			artifacts_json: metrics ? JSON.stringify(metrics) : null,
+			artifacts_json: metrics ? JSON.stringify(metrics): null,
 		};
 		try {
 			await cronRunsDb.insert(env.DB, cronRun);

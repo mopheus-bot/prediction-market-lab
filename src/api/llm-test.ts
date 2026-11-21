@@ -1,5 +1,5 @@
 /**
- * pm-bot — LLM test endpoint (chunk 11+).
+ * prediction-market-lab — LLM test endpoint.
  *
  * Sends a fixed test prompt to the configured MiniMax-M3
  * endpoint and returns the full result (text + tokens +
@@ -63,7 +63,7 @@ export async function handleLLMTest(env: LLMTestEnv): Promise<Response> {
 				input_tokens_est: result.input_tokens ?? 0,
 				output_tokens_est: result.output_tokens ?? 0,
 				duration_ms: result.duration_ms,
-				status: result.ok ? "success" : "error",
+				status: result.ok ? "success": "error",
 				error_message: result.error_message ?? null,
 			});
 		} catch (e) {

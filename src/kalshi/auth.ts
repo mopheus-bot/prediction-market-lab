@@ -1,5 +1,5 @@
 /**
- * pm-bot — Kalshi RSA-signed auth headers.
+ * prediction-market-lab — Kalshi RSA-signed auth headers.
  *
  * The Kalshi API authenticates every private request
  * (portfolio, orders, WebSocket handshake) with three headers:
@@ -21,10 +21,10 @@
  * gets signed. The function defensively strips `?...` from the
  * passed path, so passing the full URL path is safe.
  *
- * **PKCS#8 PEM required.** The .pem files Kalshi issues are PKCS#1
+ * **PKCS#8 PEM required.** The.pem files Kalshi issues are PKCS#1
  * (`BEGIN RSA PRIVATE KEY`). Web Crypto API only accepts
  * PKCS#8 (`BEGIN PRIVATE KEY`). Convert once with the
- * helper at `scripts/gen-auth-golden.py` (or `openssl pkcs8 -topk8`).
+ * helper at `scripts/gen-auth-vectors.py` (or `openssl pkcs8 -topk8`).
  *
  * **Parity:** the bytes that get signed match the Python
  * `cryptography` implementation byte-for-byte. Verified two ways in
@@ -45,7 +45,7 @@ declare const crypto: {
 
 /**
  * Load an RSA private key from a PKCS#8 PEM string. Returns a
- * `CryptoKey` ready for `crypto.subtle.sign("RSA-PSS", ...)`.
+ * `CryptoKey` ready for `crypto.subtle.sign("RSA-PSS",...)`.
  *
  * The input must be PKCS#8 PEM. If you have PKCS#1 (`-----BEGIN
  * RSA PRIVATE KEY-----`), convert first — see scripts/convert-pem-to-pkcs8.py.

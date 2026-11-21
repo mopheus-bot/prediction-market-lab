@@ -1,5 +1,5 @@
 /**
- * pm-bot — leads API (chunk 11+).
+ * prediction-market-lab — leads API.
  *
  * The frontend for the leads-cron. The cron (every 6h +30min,
  * 00:30/06:30/12:30/18:30 UTC) writes LLM-generated add+drop
@@ -231,7 +231,7 @@ async function applyToBot(
 			};
 		};
 		const cfg = statusData.config ?? {};
-		const currentTickers = Array.isArray(cfg.tickers) ? cfg.tickers : [];
+		const currentTickers = Array.isArray(cfg.tickers) ? cfg.tickers: [];
 		const currentVerticals = cfg.ticker_verticals ?? {};
 
 		// Build the new universe.
@@ -258,7 +258,7 @@ async function applyToBot(
 			// ticker_verticals={}), fall back to "unknown"
 			// — the live book will populate the real
 			// vertical on the first frame.
-			newVerticals = { ...currentVerticals };
+			newVerticals = {...currentVerticals };
 			for (const t of newTickers) {
 				if (!newVerticals[t]) {
 					newVerticals[t] = "unknown";
@@ -272,7 +272,7 @@ async function applyToBot(
 				return { ok: true, new_universe: currentTickers, bot_response: { not_in_universe: true } };
 			}
 			newTickers = currentTickers.filter((t) => t !== row.ticker);
-			newVerticals = { ...currentVerticals };
+			newVerticals = {...currentVerticals };
 			delete newVerticals[row.ticker];
 			// Same rule as above: populate verticals for
 			// every remaining ticker so /start doesn't
@@ -305,6 +305,6 @@ async function applyToBot(
 			bot_response: startData,
 		};
 	} catch (e) {
-		return { ok: false, error: e instanceof Error ? e.message : String(e) };
+		return { ok: false, error: e instanceof Error ? e.message: String(e) };
 	}
 }

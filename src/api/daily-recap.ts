@@ -1,5 +1,5 @@
 /**
- * pm-bot — daily recap R2 read helper.
+ * prediction-market-lab — daily recap R2 read helper.
  *
  * The daily cron (src/cron/daily-cron.ts) writes a recap
  * JSON to R2 at `daily-recap/YYYY-MM-DD.json`. The status

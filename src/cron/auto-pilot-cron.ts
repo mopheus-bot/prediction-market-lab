@@ -1,5 +1,5 @@
 /**
- * pm-bot — auto-pilot cron (chunk 11b).
+ * prediction-market-lab — auto-pilot cron.
  *
  * Runs daily (05:30 UTC, before the daily recap). If
  * AUTO_PILOT_ENABLED is true and the bot is in paper mode,
@@ -7,7 +7,7 @@
  * flips trading_mode from "paper" to "real" and sends a
  * Telegram notification.
  *
- * **The rule (chunk 11b default):**
+ * **The rule ( default):**
  *   - At least 7 days of paper trading
  *   - At least 30 closed trades
  *   - Annualized Sharpe > 0.5
@@ -157,7 +157,7 @@ export async function runAutoPilotCron(env: AutoPilotEnv): Promise<CronResult> {
 				: sharpe.passes_auto_pilot
 					? "🟡 AUTO-PILOT: passed but flip failed (check logs)"
 					: "⏸️ AUTO-PILOT: not yet",
-			`trades=${sharpe.trade_count} days=${sharpe.days_elapsed} sharpe=${Number.isNaN(sharpe.sharpe_annualized) ? "n/a" : sharpe.sharpe_annualized.toFixed(2)} pnl=${sharpe.total_pnl_cents}¢ ($${(sharpe.total_pnl_cents / 100).toFixed(2)})`,
+			`trades=${sharpe.trade_count} days=${sharpe.days_elapsed} sharpe=${Number.isNaN(sharpe.sharpe_annualized) ? "n/a": sharpe.sharpe_annualized.toFixed(2)} pnl=${sharpe.total_pnl_cents}¢ ($${(sharpe.total_pnl_cents / 100).toFixed(2)})`,
 			`thresholds: minDays=${minDays} minTrades=${minTrades} minSharpe=${minSharpe}`,
 		];
 		await sendTelegramMessage(env, lines.join("\n")).catch(() => undefined);

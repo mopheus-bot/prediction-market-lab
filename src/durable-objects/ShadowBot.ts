@@ -1,11 +1,11 @@
 /**
- * pm-bot — ShadowBot Durable Object (chunk 8).
+ * prediction-market-lab — ShadowBot Durable Object.
  *
  * Runs a parallel paper-trading loop on a *candidate* model
  * version (the one being evaluated) and records how the
  * candidate's signals + outcomes differ from the live bot's.
  *
- * **Architecture (chunk 8 minimal version):**
+ * **Architecture ( minimal version):**
  *   - The shadow DO subscribes to the same Kalshi WS feed
  *     as the live bot (tickers overlap).
  *   - It runs the candidate model + strategy on every frame.
@@ -15,14 +15,14 @@
  *     records the disagreement to the `signals` table with
  *     `source='shadow'`.
  *   - The operator can compare live vs shadow outcomes
- *     from the dashboard (chunk 7) or via the API.
+ *     from the dashboard or via the API.
  *
- * **What the chunk-8 minimal does NOT do:**
+ * **What the step-8 minimal does NOT do:**
  *   - The shadow DO doesn't write to `trades` (only `signals`).
  *     The live bot is the only producer of trades.
  *   - No PnL attribution. The shadow signals are recorded
  *     for back-comparison; outcomes (would-have-been PnL)
- *     are computed in the daily recap (chunk 8+).
+ *     are computed in the daily recap.
  *   - No signal reconciliation. The shadow records what
  *     the candidate WOULD have done; the live records what
  *     it actually did. The diff is the operator's
@@ -100,12 +100,12 @@ export class ShadowBot implements DurableObject {
 		this._tickers = config.tickers ?? [];
 		// The shadow DO would open the Kalshi WS, run the
 		// candidate model, and record signal comparisons.
-		// For chunk 8 the minimal version stops at config
-		// persistence + status reporting. A chunk-8+ commit
+		// For  the minimal version stops at config
+		// persistence + status reporting. A + commit
 		// adds the full parallel-bot loop.
 		console.log(
 			`[shadow-bot] started: model=${this._modelVersion} ` +
-				`tickers=${this._tickers.length} (chunk-8 minimal: WS loop deferred)`,
+				`tickers=${this._tickers.length} ( minimal: WS loop deferred)`,
 		);
 	}
 

@@ -1,5 +1,5 @@
 /**
- * pm-bot — Telegram bridge (chunk 6).
+ * prediction-market-lab — Telegram bridge.
  *
  * Thin wrapper over the Telegram Bot API. We use the HTTP
  * API directly (POST to `api.telegram.org/bot<token>/sendMessage`)
@@ -44,7 +44,7 @@ export function chatIdOf(env: TelegramEnv): number | string | null {
 	const id = env.TELEGRAM_CHAT_ID;
 	if (!id) return null;
 	const n = parseInt(id, 10);
-	return Number.isFinite(n) ? n : id;
+	return Number.isFinite(n) ? n: id;
 }
 
 /** True if the env has both bot token + chat id configured. */
@@ -78,7 +78,7 @@ export async function sendMessage(
 	if (chatId === null) {
 		return { ok: false, error_message: "TELEGRAM_CHAT_ID not set" };
 	}
-	const body = (text.length > 4000 ? text.slice(0, 4000) + "\n…[truncated]" : text);
+	const body = (text.length > 4000 ? text.slice(0, 4000) + "\n…[truncated]": text);
 	const url = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
 	const payload: Record<string, unknown> = {
 		chat_id: chatId,
@@ -114,7 +114,7 @@ export async function sendMessage(
 	} catch (e) {
 		return {
 			ok: false,
-			error_message: e instanceof Error ? e.message : String(e),
+			error_message: e instanceof Error ? e.message: String(e),
 			chat_id: chatId,
 		};
 	}
@@ -129,7 +129,7 @@ export async function sendMarkdown(
 	text: string,
 	opts: { chat_id?: number | string; disable_notification?: boolean } = {},
 ): Promise<TelegramSendResult> {
-	return sendMessage(env, text, { ...opts, parse_mode: "Markdown" });
+	return sendMessage(env, text, {...opts, parse_mode: "Markdown" });
 }
 
 // Suppress unused-import warning for Env (the type is used

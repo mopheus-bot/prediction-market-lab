@@ -1,5 +1,5 @@
 /**
- * pm-bot — scan math (chunk 5).
+ * prediction-market-lab — scan math.
  *
  * Mirrors `Prediction Market Lab/.../live/scan.py`:
  *   - `computeRealizedVol` (sample std of returns)

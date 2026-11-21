@@ -1,5 +1,5 @@
 /**
- * pm-bot — D1 query helpers.
+ * prediction-market-lab — D1 query helpers.
  *
  * All repo functions take a `D1Database` as the first argument so
  * they're testable in isolation (you can pass a real `env.DB` from
@@ -58,7 +58,7 @@ export class D1Stmt<T = unknown> {
 
 	async first(...params: unknown[]): Promise<T | null> {
 		const res = await this.stmt.bind(...params).first();
-		return res ? this.parse(res as Record<string, unknown>) : null;
+		return res ? this.parse(res as Record<string, unknown>): null;
 	}
 
 	async run(...params: unknown[]): Promise<D1Result> {
@@ -70,9 +70,9 @@ export class D1Stmt<T = unknown> {
 
 export const trades = {
 	async insert(db: D1Database, t: NewTrade): Promise<number> {
-		// Chunk 9: trading_mode defaults to "paper" for any caller
-		// that doesn't pass it (legacy chunk-1-8 call sites and
-		// the chunk-1-8 test fixtures). real_order_id is null
+		//: trading_mode defaults to "paper" for any caller
+		// that doesn't pass it (legacy -8 call sites and
+		// the step-1-8 test fixtures). real_order_id is null
 		// for paper trades. Real-trade call sites must set
 		// `trading_mode: "real"` and supply the Kalshi order id.
 		const tradingMode = t.trading_mode ?? "paper";
@@ -357,7 +357,7 @@ export const models = {
 		status: ModelStatus,
 		ts: number,
 	): Promise<void> {
-		const column = status === "retired" ? "retired_at" : "deployed_at";
+		const column = status === "retired" ? "retired_at": "deployed_at";
 		await db
 			.prepare(
 				`UPDATE models SET status = ?1, ${column} = ?2
@@ -525,7 +525,7 @@ export const cronRuns = {
 					    AND (status = 'success'
 					         OR (status = 'error' AND error_message NOT LIKE ?3))),
 					 0
-				   )`,
+				)`,
 			)
 			.bind(cron_name, user_id, `%${errorMessageContains}%`)
 			.first<{ n: number }>();
@@ -843,7 +843,7 @@ export const liveMarketSnapshots = {
 		params.push(opts.limit ?? 100);
 		const res = await db.prepare(sql).bind(...params).all<LiveMarketSnapshotRow & { rn: number }>();
 		return (res.results ?? []).map((r) => {
-			const { rn: _rn, ...rest } = r;
+			const { rn: _rn,...rest } = r;
 			return rest as LiveMarketSnapshotRow;
 		});
 	},
@@ -971,7 +971,7 @@ export const llmOpinions = {
 			.bind(user_id, opts.limit ?? 100)
 			.all<LLMOpinionRow & { rn: number }>();
 		return (res.results ?? []).map((r) => {
-			const { rn: _rn, ...rest } = r;
+			const { rn: _rn,...rest } = r;
 			return rest;
 		});
 	},

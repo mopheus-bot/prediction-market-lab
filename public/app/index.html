@@ -384,9 +384,9 @@
 				const { realized: todayPaper, n: nPaperCloses } = todayPnlByMode(trades, "paper");
 				const { realized: todayReal, n: nRealCloses } = todayPnlByMode(trades, "real");
 				// Headline: the mode the bot is in.
-				const todayRealized = mode === "real" ? todayReal : todayPaper;
-				const todayCloses = mode === "real" ? nRealCloses : nPaperCloses;
-				const otherRealized = mode === "real" ? todayPaper : todayReal;
+				const todayRealized = mode === "real" ? todayReal: todayPaper;
+				const todayCloses = mode === "real" ? nRealCloses: nPaperCloses;
+				const otherRealized = mode === "real" ? todayPaper: todayReal;
 
 				// Today's PnL = realized (closed) + unrealized (open).
 				// Unrealized is global (all open positions in the
@@ -396,10 +396,10 @@
 				// were opened, not what's in flight.
 				const unrealized = status?.risk?.total_unrealized_pnl_cents ?? 0;
 				const todayPnl = todayRealized + unrealized;
-				const pnlCls = todayPnl > 0 ? "ok" : todayPnl < 0 ? "bad" : "muted";
-				heroEl.setAttribute("data-color", pnlCls === "muted" ? "ok" : pnlCls);
+				const pnlCls = todayPnl > 0 ? "ok": todayPnl < 0 ? "bad": "muted";
+				heroEl.setAttribute("data-color", pnlCls === "muted" ? "ok": pnlCls);
 				pnlEl.textContent = fmtCents(todayPnl);
-				pnlEl.className = `pos-hero-num mono ${pnlCls === "muted" ? "" : pnlCls}`;
+				pnlEl.className = `pos-hero-num mono ${pnlCls === "muted" ? "": pnlCls}`;
 				const nTrades24 = summary?.recap?.n_trades_24h ?? 0;
 				const nOpen = status?.risk?.open_positions?.length ?? 0;
 				// Sub: include the other mode's realized so the
@@ -422,7 +422,7 @@
 					bankrollEl.textContent = fmtCentsPct(balanceCents);
 					bankrollSubEl.textContent = balance.portfolio_value_dollars != null
 						? `portfolio $${balance.portfolio_value_dollars} on Kalshi`
-						: (mode === "paper" ? "simulated capital" : "on Kalshi");
+						: (mode === "paper" ? "simulated capital": "on Kalshi");
 				} else {
 					bankrollEl.textContent = "—";
 					bankrollSubEl.textContent = DASH_KPI_COPY.bankroll[mode].sub;
@@ -430,13 +430,13 @@
 
 				// Open positions — no mode split (unrealized is global).
 				openEl.textContent = String(nOpen);
-				openSubEl.textContent = nOpen === 0 ? "none" : `unrealized ${fmtCents(unrealized)}`;
+				openSubEl.textContent = nOpen === 0 ? "none": `unrealized ${fmtCents(unrealized)}`;
 
 				// 24h PnL — same field; sub flips per mode.
 				const pnl24 = summary?.recap?.last_24h_cents ?? 0;
 				pnl24El.textContent = fmtCents(pnl24);
-				pnl24El.className = `kpi-num mono ${pnl24 > 0 ? "ok" : pnl24 < 0 ? "bad" : ""}`;
-				pnl24SubEl.textContent = `${nTrades24} trade${nTrades24 === 1 ? "" : "s"}`;
+				pnl24El.className = `kpi-num mono ${pnl24 > 0 ? "ok": pnl24 < 0 ? "bad": ""}`;
+				pnl24SubEl.textContent = `${nTrades24} trade${nTrades24 === 1 ? "": "s"}`;
 
 				// Fees — total_fees_cents is global. We don't
 				// currently split fees by mode in D1, so the
@@ -457,7 +457,7 @@
 					return;
 				}
 				tbody.innerHTML = trades.slice(0, 5).map((t) => {
-					const pnlCls = t.pnl_cents == null ? "muted" : t.pnl_cents > 0 ? "pos" : t.pnl_cents < 0 ? "neg" : "";
+					const pnlCls = t.pnl_cents == null ? "muted": t.pnl_cents > 0 ? "pos": t.pnl_cents < 0 ? "neg": "";
 					const modePill = t.is_paper === 0
 						? `<span class="pill ok" style="font-size: 9px;">real</span>`
 						: `<span class="pill muted" style="font-size: 9px;">paper</span>`;
@@ -467,7 +467,7 @@
 						<td>${esc(t.side)}</td>
 						<td class="num mono">${esc(t.price_cents)}¢</td>
 						<td class="num mono">${fmtNum(t.size)}</td>
-						<td class="num mono ${pnlCls}">${t.pnl_cents == null ? "—" : fmtCents(t.pnl_cents)}</td>
+						<td class="num mono ${pnlCls}">${t.pnl_cents == null ? "—": fmtCents(t.pnl_cents)}</td>
 					</tr>`;
 				}).join("");
 			}
@@ -482,7 +482,7 @@
 				tbody.innerHTML = signals.slice(0, 5).map((s) => {
 					const p = s.p_model ?? s.signal_p ?? 0;
 					const pStr = (p * 100).toFixed(0) + "%";
-					const pCls = p >= 0.7 ? "ok" : p >= 0.55 ? "warn" : "muted";
+					const pCls = p >= 0.7 ? "ok": p >= 0.55 ? "warn": "muted";
 					return `<tr>
 						<td class="mono" style="font-size: 11px;">${esc(fmtTime(s.ts))}</td>
 						<td class="mono">${esc(s.ticker || "—")}</td>
@@ -503,8 +503,8 @@
 				tbody.innerHTML = verticals.map((v) => {
 					const pnlToday = v.pnl_cents_24h ?? 0;
 					const pnlLife = v.pnl_cents_total ?? 0;
-					const todayCls = pnlToday > 0 ? "ok" : pnlToday < 0 ? "bad" : "muted";
-					const lifeCls = pnlLife > 0 ? "ok" : pnlLife < 0 ? "bad" : "muted";
+					const todayCls = pnlToday > 0 ? "ok": pnlToday < 0 ? "bad": "muted";
+					const lifeCls = pnlLife > 0 ? "ok": pnlLife < 0 ? "bad": "muted";
 					return `<tr>
 						<td><strong>${v.emoji || ""} ${esc(v.label || v.id)}</strong></td>
 						<td class="num mono ${todayCls}">${fmtCents(pnlToday)}</td>

@@ -1,5 +1,5 @@
 /**
- * pm-bot — Kalshi category -> vertical mapper.
+ * prediction-market-lab — Kalshi category -> vertical mapper.
  *
  * Mirrors `Prediction Market Lab/.../live/category_mapper.py`.
  * The mapping lives in one place so the scan + bot

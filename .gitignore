@@ -2,14 +2,15 @@ node_modules/
 .wrangler/
 dist/
 dist-tsc/
-.env
-.env.*
-.dev.vars
 *.log
 .DS_Store
 *.tsbuildinfo
 
 # Secrets — never commit
+.env
+.env.*
+!.env.example
+.dev.vars
 secrets/
 *.pem
 *.key
@@ -21,7 +22,14 @@ tokens/
 *.sqlite-shm
 *.sqlite-wal
 
-# Dashboard validation artifacts (chunk 7)
+# Python (research harness)
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Dashboard validation artifacts
 public/_validate-screenshot.png
 
 # Local R2 downloads — `wrangler r2 object get` writes

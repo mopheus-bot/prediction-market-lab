@@ -1,5 +1,5 @@
 /**
- * pm-bot — E2E smoke test endpoint (chunk 11+).
+ * prediction-market-lab — E2E smoke test endpoint.
  *
  * One-call way to verify the full operator pipeline is
  * healthy: LLM round-trip, Telegram delivery, each cron
@@ -86,7 +86,7 @@ export async function handleSmokeTest(env: SmokeTestEnv): Promise<Response> {
 			} else if (llm.stub) {
 				results.push({ name: "llm round-trip", status: "fail", duration_ms: Date.now() - t0, detail: "returned stub (MMX_API_KEY not configured)" });
 			} else {
-				results.push({ name: "llm round-trip", status: "pass", duration_ms: Date.now() - t0, detail: `model=${llm.stub ? "stub" : DEFAULT_MODEL} tokens=${llm.input_tokens ?? "?"}in/${llm.output_tokens ?? "?"}out text=${JSON.stringify(llm.text).slice(0, 60)}` });
+				results.push({ name: "llm round-trip", status: "pass", duration_ms: Date.now() - t0, detail: `model=${llm.stub ? "stub": DEFAULT_MODEL} tokens=${llm.input_tokens ?? "?"}in/${llm.output_tokens ?? "?"}out text=${JSON.stringify(llm.text).slice(0, 60)}` });
 				// Also record to D1 so the cadence + cost panels
 				// reflect the smoke test.
 				if (env.DB) {
@@ -105,7 +105,7 @@ export async function handleSmokeTest(env: SmokeTestEnv): Promise<Response> {
 				}
 			}
 		} catch (e) {
-			results.push({ name: "llm round-trip", status: "fail", duration_ms: Date.now() - t0, detail: e instanceof Error ? e.message : String(e) });
+			results.push({ name: "llm round-trip", status: "fail", duration_ms: Date.now() - t0, detail: e instanceof Error ? e.message: String(e) });
 		}
 	}
 
@@ -117,7 +117,7 @@ export async function handleSmokeTest(env: SmokeTestEnv): Promise<Response> {
 				results.push({ name: "telegram delivery", status: "fail", duration_ms: Date.now() - t0, detail: "telegram not configured (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID missing)" });
 			} else {
 				const tg = await withTimeout(
-					sendTelegramMessage(env, `🧪 pm-bot smoke test · ${new Date().toISOString()}`),
+					sendTelegramMessage(env, `🧪 prediction-market-lab smoke test · ${new Date().toISOString()}`),
 					TIMEOUT_MS,
 					"telegram",
 				);
@@ -128,7 +128,7 @@ export async function handleSmokeTest(env: SmokeTestEnv): Promise<Response> {
 				}
 			}
 		} catch (e) {
-			results.push({ name: "telegram delivery", status: "fail", duration_ms: Date.now() - t0, detail: e instanceof Error ? e.message : String(e) });
+			results.push({ name: "telegram delivery", status: "fail", duration_ms: Date.now() - t0, detail: e instanceof Error ? e.message: String(e) });
 		}
 	}
 
@@ -151,14 +151,14 @@ export async function handleSmokeTest(env: SmokeTestEnv): Promise<Response> {
 				artifacts: artifacts as unknown as Record<string, unknown>,
 			};
 			await recordRun(env, result);
-			const detail = result.artifacts ? JSON.stringify(result.artifacts).slice(0, 100) : "ok";
+			const detail = result.artifacts ? JSON.stringify(result.artifacts).slice(0, 100): "ok";
 			results.push({ name: `cron:${cronName}`, status: "pass", duration_ms: Date.now() - t0, detail });
 		} catch (e) {
 			const result: CronResult = {
 				ok: false,
 				cron_name: cronName,
 				duration_ms: Date.now() - t0,
-				error_message: e instanceof Error ? e.message : String(e),
+				error_message: e instanceof Error ? e.message: String(e),
 			};
 			await recordRun(env, result);
 			results.push({ name: `cron:${cronName}`, status: "fail", duration_ms: Date.now() - t0, detail: result.error_message ?? "unknown error" });
@@ -176,7 +176,7 @@ export async function handleSmokeTest(env: SmokeTestEnv): Promise<Response> {
 				const allOk = s.n_error === 0 && s.n_off === 0;
 				results.push({
 					name: "cadence panel",
-					status: allOk ? "pass" : "fail",
+					status: allOk ? "pass": "fail",
 					duration_ms: Date.now() - t0,
 					detail: `${s.n_ok} ok · ${s.n_error} error · ${s.n_off} off`,
 				});
@@ -184,7 +184,7 @@ export async function handleSmokeTest(env: SmokeTestEnv): Promise<Response> {
 				results.push({ name: "cadence panel", status: "fail", duration_ms: Date.now() - t0, detail: "cadence returned non-ok" });
 			}
 		} catch (e) {
-			results.push({ name: "cadence panel", status: "fail", duration_ms: Date.now() - t0, detail: e instanceof Error ? e.message : String(e) });
+			results.push({ name: "cadence panel", status: "fail", duration_ms: Date.now() - t0, detail: e instanceof Error ? e.message: String(e) });
 		}
 	}
 

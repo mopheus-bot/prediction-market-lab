@@ -1,5 +1,5 @@
 /**
- * pm-bot — research API (chunk 14.1, 2026-08-10).
+ * prediction-market-lab — research API (, 2026-08-10).
  *
  * Surfaces the live_market_snapshots table the research-cron
  * writes every 15 min. Two endpoints:
@@ -64,7 +64,7 @@ export async function handleGetLiveMarkets(
 			{ headers: NO_STORE },
 		);
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
+		const msg = e instanceof Error ? e.message: String(e);
 		return Response.json({ ok: false, error: msg }, { status: 500, headers: NO_STORE });
 	}
 }
@@ -83,8 +83,8 @@ export async function handleGetLiveMarketHistory(
 	const since = url.searchParams.get("since");
 	const until = url.searchParams.get("until");
 	const limit = Math.min(5000, Math.max(1, Number(url.searchParams.get("limit") ?? 200) || 200));
-	const sinceTs = since ? parseInt(since, 10) * 1000 : undefined;
-	const untilTs = until ? parseInt(until, 10) * 1000 : undefined;
+	const sinceTs = since ? parseInt(since, 10) * 1000: undefined;
+	const untilTs = until ? parseInt(until, 10) * 1000: undefined;
 
 	try {
 		const history = await liveMarketSnapshots.history(env.DB, DEFAULT_USER_ID, ticker, {
@@ -103,7 +103,7 @@ export async function handleGetLiveMarketHistory(
 			{ headers: NO_STORE },
 		);
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
+		const msg = e instanceof Error ? e.message: String(e);
 		return Response.json({ ok: false, error: msg }, { status: 500, headers: NO_STORE });
 	}
 }

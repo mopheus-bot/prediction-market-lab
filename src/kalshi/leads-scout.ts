@@ -1,5 +1,5 @@
 /**
- * pm-bot — leads scout (chunk 13+, 2026-08-09).
+ * prediction-market-lab — leads scout.
  *
  * The leads-cron and the /suggest-leads endpoint ask an LLM to
  * pick Kalshi tickers for the bot. The LLM can and does hallucinate
@@ -463,7 +463,7 @@ const TITLE_FALLBACK: Record<Vertical, RegExp> = {
 	commodities:
 		/\b(gold|silver|oil\b|crude|brent|west texas|wti\b|natural gas|propane|copper|aluminum|zinc|nickel|lithium|uranium|corn|wheat|soybean|sugar|coffee|cocoa|cotton|cattle|hogs|goldman|silverman|spot price|commodit(y|ies)|token price|pricing|input token|output token|gpt-?5|gpt-?4|claude opus|claude sonnet|model api|api price)\b/i,
 	mentions:
-		/\b(earnings call|quarterly (call|earnings|report)|guidance|forward[- ]looking|raise(d)? guidance|cut (guidance|estimates)|beat (estimates|expectations)|miss(ed)? (estimates|expectations)|revenue (beat|miss|grew|declined)|eps (beat|miss)|mention(ed|s)?\b|will say|say during|earnings (transcript|recap)|what will .* say|comments? on (the )?(covid|china|recession|inflation|outlook))?\b/i,
+		/\b(earnings call|quarterly (call|earnings|report)|guidance|forward[- ]looking|raise(d)? guidance|cut (guidance|estimates)|beat (estimates|expectations)|miss(ed)? (estimates|expectations)|revenue (beat|miss|grew|declined)|eps (beat|miss)|mention(ed|s)?\b|will say|say during|earnings (transcript|recap)|what will.* say|comments? on (the)?(covid|china|recession|inflation|outlook))?\b/i,
 	social:
 		/\b(population|census|immigration|migration|border|refugee|asylum|visa\b|green card|marriage rate|divorce rate|birth rate|death rate|protest|demonstration|riot|unrest|strike|labor (union|stoppage)|walkout|putin\b|zelensky\b|erdogan|xi jinping|kim jong|khamenei|saudi|iran|israel|hamas|hezbollah|houthi|diplomatic|summit|treaty|sanction|ceasefire|truce)\b/i,
 	world:
@@ -644,7 +644,7 @@ export async function fetchAndFilterMarkets(env: ScoutEnv): Promise<ScoutResult>
 			total_scanned: totalScanned,
 			fetched_at: startedAt,
 			ok: false,
-			error: `Kalshi /markets failed: ${e instanceof Error ? e.message : String(e)}`,
+			error: `Kalshi /markets failed: ${e instanceof Error ? e.message: String(e)}`,
 		};
 	}
 
@@ -836,7 +836,7 @@ function filterForLlm(
 			expiration_time: m.expiration_time ?? null,
 		});
 	}
-	const combined = [...nonParlay, ...fallback];
+	const combined = [...nonParlay,...fallback];
 	return combined.slice(0, opts.maxTotal);
 }
 
@@ -967,7 +967,7 @@ export async function buildScoutFromSnapshots(
 			`SELECT * FROM (
 			  SELECT *, ROW_NUMBER() OVER (
 			    PARTITION BY ticker ORDER BY ts DESC
-			  ) AS rn
+			) AS rn
 			  FROM live_market_snapshots
 			  WHERE user_id = ?1 AND ts >= ?2
 			) WHERE rn = 1`,
@@ -1022,7 +1022,7 @@ export async function buildScoutFromSnapshots(
 			last_price_cents: row.last_price_cents ?? 0,
 			volume_24h: row.volume_24h ?? 0,
 			open_interest: row.open_interest ?? 0,
-			is_live: (row.is_live === 1 ? 1 : 0) as 0 | 1,
+			is_live: (row.is_live === 1 ? 1: 0) as 0 | 1,
 			close_time: row.close_time,
 			expiration_time: null,
 		};
@@ -1136,7 +1136,7 @@ export function formatScoutForPrompt(
 			const title = m.title.length > maxTitle
 				? m.title.slice(0, maxTitle - 1) + "…"
 				: m.title;
-			const live = m.is_live === 1 ? "LIVE" : "1-sided";
+			const live = m.is_live === 1 ? "LIVE": "1-sided";
 			const book = m.yes_bid_cents > 0
 				? `${m.yes_bid_cents}/${m.yes_ask_cents}¢`
 				: "—";

@@ -1,11 +1,11 @@
 /**
- * pm-bot — cost estimation endpoint (chunk 9.7 + 10.5).
+ * prediction-market-lab — cost estimation endpoint ( + 10.5).
  *
  * Returns:
  *   - **cf** (24h): Workers request count + estimated cost.
  *   - **mmx** (24h): MMX token usage + estimated cost.
  *   - **d1 / r2** (24h, approx): row counts + storage estimate.
- *   - **cf_monthly** (chunk 10.5): usage vs the Workers Paid
+ *   - **cf_monthly**: usage vs the Workers Paid
  *     plan's monthly included amounts, with a "resets on"
  *     date and progress bars.
  *
@@ -97,7 +97,7 @@ export interface CostResponse {
 	monthly_estimate: number;
 	notes: string[];
 	dashboard_url: string;
-	// Chunk 10.5:
+	//:
 	cf_monthly: CfMonthlySection;
 }
 
@@ -243,7 +243,7 @@ function computeCfMonthly(
 
 export async function handleCost(env: CostEnv, url: URL): Promise<Response> {
 	const accountTag = env.CF_ACCOUNT_TAG ?? "8c995c329fee2ee6ab33d9d3d6a30e55";
-	const scriptName = env.CF_SCRIPT_NAME ?? "pm-bot";
+	const scriptName = env.CF_SCRIPT_NAME ?? "prediction-market-lab";
 	const dashboardUrl =
 		`https://dash.cloudflare.com/${accountTag}` +
 		`/workers/services/view/${scriptName}/production/overview`;
@@ -288,7 +288,7 @@ export async function handleCost(env: CostEnv, url: URL): Promise<Response> {
 			}
 		} catch (e) {
 			notes.push(
-				`CF analytics fetch failed: ${e instanceof Error ? e.message : String(e)}`,
+				`CF analytics fetch failed: ${e instanceof Error ? e.message: String(e)}`,
 			);
 		}
 	} else {
@@ -339,7 +339,7 @@ export async function handleCost(env: CostEnv, url: URL): Promise<Response> {
 		CF_PRICING.r2.storagePerGBMonth;
 	notes.push("R2: ~10MB storage; reads not measured. Below free tier.");
 
-	// ─── CF monthly (chunk 10.5) ───
+	// ─── CF monthly ───
 	const cycleStart = env.CF_BILLING_CYCLE_START ?? "2026-08-08";
 	const cfMonthly = computeCfMonthly(
 		cycleStart,

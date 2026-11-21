@@ -1,5 +1,5 @@
 /**
- * pm-bot — backtest manual trigger (chunk 10.8c).
+ * prediction-market-lab — backtest manual trigger (.8c).
  *
  * POST /api/pm/backtest/run — runs the backtest
  * retrospective immediately and returns the metrics. The
@@ -94,7 +94,7 @@ export async function handleBacktestRun(
 				candidateModelId = ts; // surrogate ID — operator
 				// can find it via list endpoint.
 			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
+				const msg = e instanceof Error ? e.message: String(e);
 				console.warn("[backtest-run] register candidate failed:", msg);
 			}
 		}
@@ -108,7 +108,7 @@ export async function handleBacktestRun(
 		};
 		return Response.json(response);
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
+		const msg = e instanceof Error ? e.message: String(e);
 		return Response.json(
 			{ ok: false, error: "backtest_failed", detail: msg.slice(0, 500) },
 			{ status: 500 },

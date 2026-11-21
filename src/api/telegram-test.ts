@@ -1,5 +1,5 @@
 /**
- * pm-bot — Telegram test endpoint (chunk 10.9+).
+ * prediction-market-lab — Telegram test endpoint.
  *
  * Sends a "still alive" message via the same code path as
  * the order fill alert. Used to verify end-to-end Telegram
@@ -31,8 +31,8 @@ export interface TelegramTestEnv extends TelegramEnv {
 export async function handleTelegramTest(env: TelegramTestEnv): Promise<Response> {
 	const configured = telegramConfigured(env);
 	const text = [
-		`🧪 pm-bot telegram test`,
-		`service=${env.SERVICE_NAME ?? "pm-bot"} env=${env.ENVIRONMENT ?? "?"}`,
+		`🧪 prediction-market-lab telegram test`,
+		`service=${env.SERVICE_NAME ?? "prediction-market-lab"} env=${env.ENVIRONMENT ?? "?"}`,
 		`ts=${new Date().toISOString()}`,
 		`configured=${configured}`,
 	].join("\n");

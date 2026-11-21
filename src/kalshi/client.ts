@@ -1,8 +1,8 @@
 /**
- * pm-bot — Kalshi REST client.
+ * prediction-market-lab — Kalshi REST client.
  *
  * **DEPRECATED 2026-08-12: Kalshi venue is shut down.**
- * See `docs/ALPACA-PIVOT.md` for the pivot to Alpaca. This file
+ * See `docs/venue-analysis.md` for the pivot to Alpaca. This file
  * is kept as a reference for the Alpaca mirror — wire formats,
  * auth shape, polling patterns, error handling. Do not add new
  * Kalshi-specific code; the Alpaca integration in `src/alpaca/`
@@ -20,11 +20,11 @@
  * Set `requestsPerSecond: 0` to disable.
  *
  * Used by:
- *  - Chunk 5 (cron scan): list_markets, iter_markets
- *  - Chunk 5 (cron news): get_market
- *  - Chunk 3 (live bot DO): get_market, get_orderbook, list_trades
- *  - Chunk 6 (status API): get_portfolio_balance, get_positions
- *  - Chunk 9 (real trading): post_order, delete, get_orders
+ *  -  (cron scan): list_markets, iter_markets
+ *  -  (cron news): get_market
+ *  -  (live bot DO): get_market, get_orderbook, list_trades
+ *  -  (status API): get_portfolio_balance, get_positions
+ *  -  (real trading): post_order, delete, get_orders
  */
 
 import type { KalshiCredentials, AuthHeaders } from "./auth.js";
@@ -56,7 +56,7 @@ export interface KalshiClientOptions {
 	 * Max retry attempts on 5xx / 429. Default 3. Retries use
 	 * exponential backoff (500ms × 2^attempt + jitter) and
 	 * respect the server's `Retry-After` header when present.
-	 * (chunk 10.8: the SDK adapter has retries; this brings the
+	 * (the SDK adapter has retries; this brings the
 	 * hand-rolled client to parity without rewriting call sites.)
 	 */
 	maxRetries?: number;
@@ -96,7 +96,7 @@ export class KalshiClient {
 		this.pathPrefix = u.pathname; // "/trade-api/v2"
 		this.credentials = opts.credentials;
 		const rps = opts.requestsPerSecond ?? 2.0;
-		this.minIntervalMs = rps > 0 ? 1000 / rps : 0;
+		this.minIntervalMs = rps > 0 ? 1000 / rps: 0;
 		this.timeoutMs = opts.timeoutMs ?? 10_000;
 		this.fetcher = opts.fetcher ?? fetch.bind(globalThis);
 		this.maxRetries = opts.maxRetries ?? 3;
@@ -129,7 +129,7 @@ export class KalshiClient {
 	}
 
 	/**
-	 * Chunk 10.8: exponential-backoff retries on 5xx + 429.
+	 *: exponential-backoff retries on 5xx + 429.
 	 * Honors `Retry-After` from the server when present
 	 * (Kalshi's rate limiter sends it). 4xx errors other than
 	 * 429 are not retried — they're caller bugs, not transient
@@ -190,7 +190,7 @@ export class KalshiClient {
 			const res = await this.fetcher(url.toString(), {
 				method,
 				headers,
-				body: opts.json !== undefined ? JSON.stringify(opts.json) : undefined,
+				body: opts.json !== undefined ? JSON.stringify(opts.json): undefined,
 				signal: controller.signal,
 			});
 			if (res.status < 200 || res.status >= 300) {
@@ -199,7 +199,7 @@ export class KalshiClient {
 			}
 			// Some endpoints return 204; treat as null body.
 			const text = await res.text();
-			return text ? JSON.parse(text) : null;
+			return text ? JSON.parse(text): null;
 		} finally {
 			clearTimeout(timeout);
 		}
@@ -253,7 +253,7 @@ export class KalshiClient {
 			cursor?: string;
 		};
 		const markets = (data.markets ?? []).map(parseMarket);
-		return { markets, cursor: data.cursor && data.cursor !== "" ? data.cursor : null };
+		return { markets, cursor: data.cursor && data.cursor !== "" ? data.cursor: null };
 	}
 
 	async *iterMarkets(
@@ -268,7 +268,7 @@ export class KalshiClient {
 		let cursor: string | null = null;
 		let pages = 0;
 		while (true) {
-			const page = await this.listMarkets({ ...opts, cursor: cursor ?? undefined });
+			const page = await this.listMarkets({...opts, cursor: cursor ?? undefined });
 			for (const m of page.markets) yield m;
 			pages += 1;
 			if (!page.cursor) return;
@@ -305,7 +305,7 @@ export class KalshiClient {
 			cursor?: string;
 		};
 		const trades = (data.trades ?? []).map(parseTrade);
-		return { trades, cursor: data.cursor && data.cursor !== "" ? data.cursor : null };
+		return { trades, cursor: data.cursor && data.cursor !== "" ? data.cursor: null };
 	}
 
 	async *iterTrades(
@@ -318,7 +318,7 @@ export class KalshiClient {
 		let cursor: string | null = null;
 		let pages = 0;
 		while (true) {
-			const page = await this.listTrades({ ...opts, cursor: cursor ?? undefined });
+			const page = await this.listTrades({...opts, cursor: cursor ?? undefined });
 			for (const t of page.trades) yield t;
 			pages += 1;
 			if (!page.cursor) return;
@@ -343,7 +343,7 @@ export class KalshiClient {
 			cursor?: string;
 		};
 		const events = (data.events ?? []).map(parseEvent);
-		return { events, cursor: data.cursor && data.cursor !== "" ? data.cursor : null };
+		return { events, cursor: data.cursor && data.cursor !== "" ? data.cursor: null };
 	}
 
 	// 2026-08-11 (Phase 4, LLM-PIPELINE Bug A): single-event
@@ -415,11 +415,11 @@ export class KalshiClient {
 		};
 		return {
 			orders: data.orders ?? [],
-			cursor: data.cursor && data.cursor !== "" ? data.cursor : null,
+			cursor: data.cursor && data.cursor !== "" ? data.cursor: null,
 		};
 	}
 
-	// --- orders (chunk 9) ------------------------------------------
+	// --- orders ------------------------------------------
 
 	/**
 	 * Place an order on Kalshi using the V2 endpoint
@@ -439,7 +439,7 @@ export class KalshiClient {
 	 *   - post_only: optional bool
 	 *
 	 * Returns the V2 response shape: `{order_id, fill_count,
-	 * remaining_count, ts_ms, ...}`. Throws KalshiAPIError on
+	 * remaining_count, ts_ms,...}`. Throws KalshiAPIError on
 	 * non-2xx.
 	 */
 	async placeOrder(body: Record<string, unknown>): Promise<Record<string, unknown>> {

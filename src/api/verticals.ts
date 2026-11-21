@@ -1,5 +1,5 @@
 /**
- * pm-bot — verticals API (chunk 10.8c).
+ * prediction-market-lab — verticals API (.8c).
  *
  * The single source of truth for the dashboard's "Verticals"
  * panel. Returns per-vertical state:

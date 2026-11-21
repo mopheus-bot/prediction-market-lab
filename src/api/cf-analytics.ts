@@ -1,8 +1,8 @@
 /**
- * pm-bot — Cloudflare Workers Analytics API endpoint (chunk 9.5).
+ * prediction-market-lab — Cloudflare Workers Analytics API endpoint.
  *
  * Surfaces the same metrics that live at dash.cloudflare.com
- * (Workers & Pages → pm-bot → Metrics) but inline in the
+ * (Workers & Pages → prediction-market-lab → Metrics) but inline in the
  * dashboard. The query is a read against the CF GraphQL
  * Analytics API using a CF API token. No new CF product is
  * enabled — Workers Analytics is on by default for every
@@ -10,7 +10,7 @@
  *
  * **Auth:** `CF_API_TOKEN` secret. The token needs
  * `account:read` scope (the `cfut_*` token in
- * `~/Documents/clients/dev/tokens/cloudflare-tokens.md`
+ * `your Cloudflare API token`
  * already has this). The `cfoat_*` OAuth token used by
  * wrangler would also work but it's tied to a single user
  * and has a short TTL — the API token is the right call.
@@ -47,7 +47,7 @@ query PmBotAnalytics(
           scriptName: $scriptName
           datetime_geq: $since
         }
-      ) {
+) {
         sum {
           requests
           errors
@@ -104,11 +104,11 @@ export interface CfAnalyticsEnv {
 	CF_SCRIPT_NAME?: string;
 }
 
-/** Default account tag (pm-bot lives here). Hardcoded so
+/** Default account tag (prediction-market-lab lives here). Hardcoded so
  *  the dashboard works even without the env var; the user
  *  can override if they fork. */
 const DEFAULT_ACCOUNT_TAG = "8c995c329fee2ee6ab33d9d3d6a30e55";
-const DEFAULT_SCRIPT_NAME = "pm-bot";
+const DEFAULT_SCRIPT_NAME = "prediction-market-lab";
 /** How many hours back to pull. 24h is the dashboard
  *  default; users can pass ?hours=168 for 7d if they
  *  want a longer view (CF keeps 30 days of hourly
@@ -140,7 +140,7 @@ export async function handleCfAnalytics(
 
 	// Parse the `?hours=` query (default 24).
 	const hoursRaw = Number(url.searchParams.get("hours") ?? DEFAULT_HOURS);
-	const hours = Math.max(1, Math.min(168, Number.isFinite(hoursRaw) ? hoursRaw : DEFAULT_HOURS));
+	const hours = Math.max(1, Math.min(168, Number.isFinite(hoursRaw) ? hoursRaw: DEFAULT_HOURS));
 	const sinceDate = new Date(Date.now() - hours * 60 * 60 * 1000);
 	// CF's Time scalar is RFC3339.
 	const since = sinceDate.toISOString();
@@ -203,7 +203,7 @@ export async function handleCfAnalytics(
 			json.data?.viewer?.accounts?.[0]?.workersInvocationsAdaptive ?? [];
 		// Aggregate totals across all hourly buckets.
 		// (subrequests + cpuTime were dropped from the
-		// query in chunk 10.9 — the CF schema returned
+		// query in  — the CF schema returned
 		// "unknown field cpuTime". The response will
 		// simply not include them; we keep the totals
 		// shape stable by defaulting to 0.)
@@ -232,7 +232,7 @@ export async function handleCfAnalytics(
 		// Sort hourly by datetime ascending (oldest first).
 		hourly.sort((a, b) => a.datetime.localeCompare(b.datetime));
 		const errorRatePct =
-			totalRequests > 0 ? (totalErrors / totalRequests) * 100 : 0;
+			totalRequests > 0 ? (totalErrors / totalRequests) * 100: 0;
 		const successRatePct = 100 - errorRatePct;
 		const summary: CfAnalyticsSummary = {
 			ok: true,
@@ -258,7 +258,7 @@ export async function handleCfAnalytics(
 			},
 		});
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
+		const msg = e instanceof Error ? e.message: String(e);
 		return Response.json(
 			{
 				ok: false,

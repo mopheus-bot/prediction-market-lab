@@ -1,5 +1,5 @@
 /**
- * pm-bot — shared types
+ * prediction-market-lab — shared types
  *
  * Mirrors the D1 schema in `migrations/0001_initial_schema.sql` 1:1.
  * Multi-tenant from day 1: every entity has a `user_id` field.
@@ -108,10 +108,10 @@ export interface TradeRow {
 	pnl_cents: number | null;
 	fill_type: FillType;
 	is_paper: 0 | 1;
-	/** Chunk 9: the engine mode at the time of fill. "paper" by
+	/**: the engine mode at the time of fill. "paper" by
 	 * default for legacy rows; "real" once a real trade happens. */
 	trading_mode: "paper" | "real" | "off";
-	/** Chunk 9: Kalshi's order id (for real trades only). NULL
+	/**: Kalshi's order id (for real trades only). NULL
 	 * for paper. Lets the dashboard link a D1 row back to the
 	 * actual Kalshi order. */
 	real_order_id: string | null;
@@ -255,7 +255,7 @@ export interface LeadSuggestionRow {
 
 // ─── Insert types (no `id`, no `created_at` — DB sets those) ──────────
 
-/** NewTrade: chunk 9 made `trading_mode` and `real_order_id`
+/** NewTrade:  made `trading_mode` and `real_order_id`
  * optional on insert. Callers that pass them explicitly set
  * `trading_mode: "real"` + `real_order_id: <kalshi id>`. Legacy
  * callers and tests can omit both — the binding defaults to

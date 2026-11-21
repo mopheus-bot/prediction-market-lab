@@ -53,7 +53,7 @@
 
 			<!-- ============================================ -->
 			<!-- ACTIVE MODELS — one card per vertical      -->
-			<!-- (reuses .verticals-grid + .vertical-card    -->
+			<!-- (reuses.verticals-grid +.vertical-card    -->
 			<!-- from app.js renderVerticalsPanel)           -->
 			<!-- ============================================ -->
 			<section class="card" style="margin-bottom: 20px;">
@@ -181,8 +181,8 @@
 				// PnL across all verticals
 				const pnl24 = verticals.reduce((a, v) => a + (v.pnl_cents_24h ?? 0), 0);
 				const pnlLife = verticals.reduce((a, v) => a + (v.pnl_cents_total ?? 0), 0);
-				const pnl24Cls = pnl24 > 0 ? "ok" : pnl24 < 0 ? "bad" : "";
-				const pnlLifeCls = pnlLife > 0 ? "ok" : pnlLife < 0 ? "bad" : "";
+				const pnl24Cls = pnl24 > 0 ? "ok": pnl24 < 0 ? "bad": "";
+				const pnlLifeCls = pnlLife > 0 ? "ok": pnlLife < 0 ? "bad": "";
 				pnl24El.textContent = fmtCents(pnl24);
 				pnl24El.className = `kpi-num mono ${pnl24Cls}`;
 				pnl24SubEl.textContent = `across ${verticals.length} verticals`;
@@ -196,10 +196,10 @@
 				tickersEl.textContent = String(tickersSet.size);
 				tickersSubEl.textContent = tickersSet.size === 0
 					? "no tickers yet"
-					: `${Array.from(tickersSet).slice(0, 3).join(", ")}${tickersSet.size > 3 ? `, +${tickersSet.size - 3}` : ""}`;
+					: `${Array.from(tickersSet).slice(0, 3).join(", ")}${tickersSet.size > 3 ? `, +${tickersSet.size - 3}`: ""}`;
 
 				// Hero border color
-				const heroCls = pnlLife > 0 ? "ok" : pnlLife < 0 ? "bad" : "ok";
+				const heroCls = pnlLife > 0 ? "ok": pnlLife < 0 ? "bad": "ok";
 				heroEl.setAttribute("data-color", heroCls);
 			}
 
@@ -212,16 +212,16 @@
 					countEl.textContent = "0 verticals";
 					return;
 				}
-				countEl.textContent = `${verticals.length} vertical${verticals.length === 1 ? "" : "s"}`;
+				countEl.textContent = `${verticals.length} vertical${verticals.length === 1 ? "": "s"}`;
 				tbody.innerHTML = verticals.map((v) => {
-					const pnl24Cls = (v.pnl_cents_24h ?? 0) > 0 ? "ok" : (v.pnl_cents_24h ?? 0) < 0 ? "bad" : "muted";
-					const pnlLifeCls = (v.pnl_cents_total ?? 0) > 0 ? "ok" : (v.pnl_cents_total ?? 0) < 0 ? "bad" : "muted";
+					const pnl24Cls = (v.pnl_cents_24h ?? 0) > 0 ? "ok": (v.pnl_cents_24h ?? 0) < 0 ? "bad": "muted";
+					const pnlLifeCls = (v.pnl_cents_total ?? 0) > 0 ? "ok": (v.pnl_cents_total ?? 0) < 0 ? "bad": "muted";
 					const capTxt = v.cap_cents != null
 						? fmtCentsPct(v.cap_cents)
 						: `<span class="muted">global</span>`;
 					const tickersTxt = (v.tickers || []).length === 0
 						? `<span class="muted">—</span>`
-						: v.tickers.slice(0, 3).map((t) => `<span class="pill muted" style="font-size: 10px;">${esc(t)}</span>`).join(" ") + ((v.tickers || []).length > 3 ? ` <span class="muted" style="font-size: 10px;">+${v.tickers.length - 3}</span>` : "");
+						: v.tickers.slice(0, 3).map((t) => `<span class="pill muted" style="font-size: 10px;">${esc(t)}</span>`).join(" ") + ((v.tickers || []).length > 3 ? ` <span class="muted" style="font-size: 10px;">+${v.tickers.length - 3}</span>`: "");
 					const strategyLabel = v.strategy_label || v.strategy || "—";
 					const strategyPill = v.strategy === "reversion"
 						? `<span class="pill ok" style="font-size: 10px;">reversion</span>`
@@ -229,7 +229,7 @@
 							? `<span class="pill warn" style="font-size: 10px;">naive</span>`
 							: `<span class="pill muted" style="font-size: 10px;">${esc(v.strategy || "—")}</span>`;
 					return `<tr>
-						<td><strong>${v.emoji || ""} ${esc(v.label || v.id)}</strong> ${v.active ? "" : `<span class="pill muted" style="font-size: 10px;">paused</span>`}</td>
+						<td><strong>${v.emoji || ""} ${esc(v.label || v.id)}</strong> ${v.active ? "": `<span class="pill muted" style="font-size: 10px;">paused</span>`}</td>
 						<td>${strategyPill} <span class="muted" style="font-size: 11px;">${esc(strategyLabel)}</span></td>
 						<td class="num mono ${pnl24Cls}">${fmtCents(v.pnl_cents_24h ?? 0)}</td>
 						<td class="num mono ${pnlLifeCls}">${fmtCents(v.pnl_cents_total ?? 0)}</td>
@@ -247,7 +247,7 @@
 				const risk = bot?.risk ?? {};
 				const modeEl = $("models-config-mode");
 				modeEl.textContent = config.trading_mode ?? "—";
-				modeEl.setAttribute("data-color", config.trading_mode === "real" ? "warn" : "muted");
+				modeEl.setAttribute("data-color", config.trading_mode === "real" ? "warn": "muted");
 
 				// Use the global fmtCentsPct (bankroll-as-base;
 				// shows % of bankroll which is intentionally 100%
@@ -264,10 +264,10 @@
 				// Daily used: prefer live risk.daily_notional_cents over config's static counter
 				const dailyUsed = risk.daily_notional_cents ?? config.daily_notional_cents ?? 0;
 				const dailyCap = config.daily_notional_cents_cap ?? 0;
-				const pct = dailyCap > 0 ? Math.round((dailyUsed / dailyCap) * 100) : 0;
+				const pct = dailyCap > 0 ? Math.round((dailyUsed / dailyCap) * 100): 0;
 				const usedEl = $("models-config-daily-used");
 				usedEl.textContent = `${fmtCentsPct(dailyUsed)} · ${pct}% of cap`;
-				usedEl.setAttribute("data-color", pct >= 90 ? "bad" : pct >= 70 ? "warn" : "ok");
+				usedEl.setAttribute("data-color", pct >= 90 ? "bad": pct >= 70 ? "warn": "ok");
 				$("models-config-lookback").textContent = config.lookback != null
 					? `${config.lookback} frames`
 					: "—";
@@ -302,7 +302,7 @@
 					renderVerticalsPanel(verticals);
 				}
 				// Update the active models card count label.
-				$("models-grid-count").textContent = `${verticals.length} vertical${verticals.length === 1 ? "" : "s"}`;
+				$("models-grid-count").textContent = `${verticals.length} vertical${verticals.length === 1 ? "": "s"}`;
 			}
 
 			// ─── Wire into app.js ───

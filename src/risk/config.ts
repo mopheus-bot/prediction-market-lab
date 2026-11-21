@@ -1,5 +1,5 @@
 /**
- * pm-bot — risk engine configuration.
+ * prediction-market-lab — risk engine configuration.
  *
  * Mirrors `Prediction Market Lab/.../risk/config.py:RiskConfig`.
  *

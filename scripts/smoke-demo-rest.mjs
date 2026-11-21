@@ -12,7 +12,10 @@ import { dirname, join } from "node:path";
 import { KalshiClient, DEFAULT_DEMO_BASE, KalshiCredentials, midCents, spreadCents, bestYesBidCents, orderbookMidCents } from "../dist-tsc/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PKCS8_PEM = readFileSync(join(__dirname, "..", "test", "fixtures", "kalshi-demo.pkcs8.pem"), "utf8");
+const PEM_PATH =
+	process.env.KALSHI_DEMO_PRIVATE_KEY_PATH ??
+	join(__dirname, "..", "test", "fixtures", "kalshi-demo.pkcs8.pem");
+const PKCS8_PEM = readFileSync(PEM_PATH, "utf8");
 const KEY_ID = readFileSync(process.env.HOME + "/keys/kalshi-demo-keyid.txt", "utf8").trim();
 
 const creds = await KalshiCredentials.fromPem(KEY_ID, PKCS8_PEM);

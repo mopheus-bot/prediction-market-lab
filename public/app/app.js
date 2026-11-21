@@ -1,6 +1,6 @@
 /* Trader — app shell JS
  * Shared utilities, API helpers, and renderers used across all sub-pages.
- * Extracted from the original single-page index.html (chunk 11 SaaS refactor).
+ * Extracted from the original single-page index.html ( SaaS refactor).
  *
  * Each sub-page defines a window.appPageInit() function that calls
  * only the renderers it needs. The shell injects the top nav via
@@ -10,7 +10,7 @@
 // ─── Utilities ───
 // Safe $() — returns a no-op Proxy for missing IDs so
 // sub-pages without a given element don't crash on
-// `el.textContent = ...` or `el.classList.add(...)`. Lets
+// `el.textContent =...` or `el.classList.add(...)`. Lets
 // us share renderers (renderHero, renderPositions, etc.)
 // across sub-pages that may not have every element.
 const _noopFn = () => {};
@@ -48,7 +48,7 @@ const _noopEl = new Proxy(_noopFn, {
 const $ = (id) => document.getElementById(id) || _noopEl;
 const fmtCents = (c) => {
 	if (c === null || c === undefined) return "—";
-	const sign = c < 0 ? "−" : c > 0 ? "+" : "";
+	const sign = c < 0 ? "−": c > 0 ? "+": "";
 	const abs = Math.abs(c);
 	const dollars = (abs / 100).toFixed(2);
 	return `${sign}$${dollars}`;
@@ -71,7 +71,7 @@ const fmtCentsPct = (c, opts) => {
 	if (_bankrollCents === null || _bankrollCents === 0) return base;
 	const denom = opts?.denom ?? _bankrollCents;
 	const pct = (c / denom) * 100;
-	const pctSign = pct < 0 ? "−" : pct > 0 ? "+" : "";
+	const pctSign = pct < 0 ? "−": pct > 0 ? "+": "";
 	const absPct = Math.abs(pct);
 	let pctStr;
 	if (absPct < 0.001) pctStr = "0.00%";
@@ -87,7 +87,7 @@ const fmtPctOnly = (c, opts) => {
 	if (_bankrollCents === null || _bankrollCents === 0) return "—";
 	const denom = opts?.denom ?? _bankrollCents;
 	const pct = (c / denom) * 100;
-	const pctSign = pct < 0 ? "−" : pct > 0 ? "+" : "";
+	const pctSign = pct < 0 ? "−": pct > 0 ? "+": "";
 	const absPct = Math.abs(pct);
 	let pctStr;
 	if (absPct < 0.001) pctStr = "0.00%";
@@ -96,7 +96,7 @@ const fmtPctOnly = (c, opts) => {
 	else pctStr = absPct.toFixed(1) + "%";
 	return `${pctSign}${pctStr}`;
 };
-const fmtNum = (n) => (n === null || n === undefined ? "—" : n.toLocaleString());
+const fmtNum = (n) => (n === null || n === undefined ? "—": n.toLocaleString());
 const fmtTime = (ts) => {
 	if (!ts) return "—";
 	const d = new Date(ts);
@@ -121,11 +121,11 @@ async function fetchJSON(path) {
 }
 
 // ─── Renderers ───
-// (setStatusPill removed in chunk 10 — replaced by the
+// (setStatusPill removed in  — replaced by the
 // stage badge + stage panel, which derive from
 // /api/pm/bot/stage.)
 
-// Live indicator (chunk 9.8). Updated on every
+// Live indicator. Updated on every
 // successful refresh. Dot pulses green when data
 // is fresh (<60s). Turns amber when stale (60-300s).
 // Red on error.
@@ -142,7 +142,7 @@ function setLiveIndicator(state, text) {
 	if (el) el.textContent = text;
 }
 
-// ─── Stage (chunk 10) — the single badge that says what the bot is doing ───
+// ─── Stage — the single badge that says what the bot is doing ───
 // Driven by /api/pm/bot/stage. Updates the brand-bar badge,
 // the large stage panel, and the action button.
 let _lastStage = null;
@@ -180,7 +180,7 @@ function renderStage(data) {
 	}
 }
 
-// ─── Schedule (chunk 10, renamed from Cadence in v2) — every auto-running service ───
+// ─── Schedule (, renamed from Cadence in v2) — every auto-running service ───
 // The API endpoint is still /api/pm/cadence (the backend term
 // for the rhythm of services); the user-facing surface is
 // "Schedule". Renamed in v2 of the SaaS UI for clarity.
@@ -200,7 +200,7 @@ function renderSchedule(data) {
 	if (!grid || !data || !data.services) return;
 	const summary = data.summary;
 	$("schedule-summary").textContent =
-		`${summary.n_ok} ok · ${summary.n_error} error${summary.n_error === 1 ? "" : "s"} · ${summary.n_starting} starting`;
+		`${summary.n_ok} ok · ${summary.n_error} error${summary.n_error === 1 ? "": "s"} · ${summary.n_starting} starting`;
 
 	grid.innerHTML = data.services
 		.map(
@@ -214,7 +214,7 @@ function renderSchedule(data) {
 				<span class="cadence-item-status" data-status="${esc(s.status)}">${esc(s.status)}</span>
 			</div>
 			<div class="cadence-item-time">
-				<span>last: ${esc(s.last_ran_label)}</span>${s.next_in_ms !== null ? ` <span aria-hidden="true">·</span> <span>${esc(s.next_label)}</span>` : ""}
+				<span>last: ${esc(s.last_ran_label)}</span>${s.next_in_ms !== null ? ` <span aria-hidden="true">·</span> <span>${esc(s.next_label)}</span>`: ""}
 			</div>
 			<div class="cadence-item-details" title="${esc(s.description)}">${esc(s.details)}</div>
 		</div>`,
@@ -239,7 +239,7 @@ document.addEventListener("click", (e) => {
 	}
 });
 
-// Chunk 11b: blocklist (per-ticker kill switch).
+//: blocklist (per-ticker kill switch).
 // The dashboard reads the current disabled_tickers
 // from /api/pm/bot/status; the user can add/remove
 // via the input below the tags. We PATCH the bot
@@ -256,7 +256,7 @@ async function updateBlocklist(action, ticker) {
 	} else {
 		next = cur.filter((x) => x !== t);
 	}
-	toast(`${action === "add" ? "blocklisting" : "unblocking"} ${t}…`);
+	toast(`${action === "add" ? "blocklisting": "unblocking"} ${t}…`);
 	const r = await fetch("/api/pm/bot/start", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
@@ -296,13 +296,13 @@ document.addEventListener("keydown", (e) => {
 	}
 });
 
-// Chunk 10.8: per-vertical cap overrides. Same
+//: per-vertical cap overrides. Same
 // shape as blocklist — add/remove tags that
 // PATCH the bot config via /api/pm/bot/start.
 async function updatePerVerticalCap(action, vertical, cents) {
 	const v = (vertical ?? "").trim().toLowerCase();
 	if (!v) return;
-	const cur = { ...(window._lastBotStatus?.config?.per_vertical_max_notional_cents ?? {}) };
+	const cur = {...(window._lastBotStatus?.config?.per_vertical_max_notional_cents ?? {}) };
 	let next;
 	if (action === "add") {
 		const c = Math.max(1, Math.floor(Number(cents)));
@@ -316,7 +316,7 @@ async function updatePerVerticalCap(action, vertical, cents) {
 		delete cur[v];
 		next = cur;
 	}
-	toast(`${action === "add" ? `capping ${v} at ${(Number(cents) / 100).toFixed(2)}` : `removing ${v} cap`}…`);
+	toast(`${action === "add" ? `capping ${v} at ${(Number(cents) / 100).toFixed(2)}`: `removing ${v} cap`}…`);
 	const r = await fetch("/api/pm/bot/start", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
@@ -373,7 +373,7 @@ async function postBotAction(path, body) {
 		const r = await fetch(url, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: body ? JSON.stringify(body) : undefined,
+			body: body ? JSON.stringify(body): undefined,
 		});
 		const data = await r.json().catch(() => ({}));
 		if (r.ok && data.ok) {
@@ -387,7 +387,7 @@ async function postBotAction(path, body) {
 	}
 }
 
-// Render the 4 hero stat cards (chunk 9.8):
+// Render the 4 hero stat cards:
 // account balance, total PnL, 24h PnL, fees.
 // Pulls from /api/pm/bot/status + /api/pm/summary.
 function renderHero(status, summary) {
@@ -431,10 +431,10 @@ function renderPositions(positions) {
 		return;
 	}
 	el.innerHTML = positions.map((p) => {
-		const sideCls = p.side === "yes" ? "yes" : "no";
+		const sideCls = p.side === "yes" ? "yes": "no";
 		const pnl = p.unrealized_pnl_cents;
-		const pnlCls = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "zero";
-		const pnlStr = pnl === null || pnl === undefined ? "—" : fmtCents(pnl);
+		const pnlCls = pnl > 0 ? "pos": pnl < 0 ? "neg": "zero";
+		const pnlStr = pnl === null || pnl === undefined ? "—": fmtCents(pnl);
 		const markStr = p.mark_cents === null || p.mark_cents === undefined
 			? ""
 			: ` · mark ${esc(p.mark_cents)}c`;
@@ -474,7 +474,7 @@ async function closePosition(ticker) {
 	if (r.ok) {
 		const data = await r.json().catch(() => ({}));
 		const pnl = data.pnl_cents ?? 0;
-		const sign = pnl > 0 ? "+" : pnl < 0 ? "−" : "";
+		const sign = pnl > 0 ? "+": pnl < 0 ? "−": "";
 		toast(`closed ${ticker} · pnl ${sign}$${(Math.abs(pnl) / 100).toFixed(2)}`, true);
 		setTimeout(() => { void refresh(); void refreshVerticals(); }, 600);
 	} else {
@@ -519,8 +519,8 @@ function renderVerticals(verticals) {
 		if (!order.includes(v)) rows.push([v, d]);
 	}
 	tbody.innerHTML = rows.map(([v, d]) => {
-		const pnl24Cls = d.pnl_24h_cents > 0 ? "pos" : d.pnl_24h_cents < 0 ? "neg" : "muted";
-		const pnlLifeCls = d.pnl_lifetime_cents > 0 ? "pos" : d.pnl_lifetime_cents < 0 ? "neg" : "muted";
+		const pnl24Cls = d.pnl_24h_cents > 0 ? "pos": d.pnl_24h_cents < 0 ? "neg": "muted";
+		const pnlLifeCls = d.pnl_lifetime_cents > 0 ? "pos": d.pnl_lifetime_cents < 0 ? "neg": "muted";
 		return `
 			<tr>
 				<td>${esc(v)}</td>
@@ -541,9 +541,9 @@ function renderTrades(trades) {
 	}
 	tbody.innerHTML = trades.slice(0, 20).map((t) => {
 		const pnl = t.pnl_cents;
-		const pnlCls = pnl === null ? "muted" : pnl > 0 ? "pos" : pnl < 0 ? "neg" : "muted";
-		const pnlStr = pnl === null || pnl === undefined ? "—" : fmtCents(pnl);
-		const sideCls = t.side === "yes" ? "yes" : "no";
+		const pnlCls = pnl === null ? "muted": pnl > 0 ? "pos": pnl < 0 ? "neg": "muted";
+		const pnlStr = pnl === null || pnl === undefined ? "—": fmtCents(pnl);
+		const sideCls = t.side === "yes" ? "yes": "no";
 		return `
 			<tr>
 				<td class="muted">${esc(fmtTime(t.ts))}</td>
@@ -565,8 +565,8 @@ function renderSignals(signals) {
 		return;
 	}
 	tbody.innerHTML = signals.slice(0, 20).map((s) => {
-		const sideStr = s.side ? s.side.toUpperCase() : "—";
-		const pStr = s.signal_p !== null ? s.signal_p.toFixed(2) : "—";
+		const sideStr = s.side ? s.side.toUpperCase(): "—";
+		const pStr = s.signal_p !== null ? s.signal_p.toFixed(2): "—";
 		return `
 			<tr>
 				<td class="muted">${esc(fmtTime(s.ts))}</td>
@@ -574,7 +574,7 @@ function renderSignals(signals) {
 				<td>${esc(sideStr)}</td>
 				<td class="num">${esc(pStr)}</td>
 				<td>${esc(s.source)}</td>
-				<td>${s.was_filled ? '<span class="pos">yes</span>' : '<span class="faint">no</span>'}</td>
+				<td>${s.was_filled ? '<span class="pos">yes</span>': '<span class="faint">no</span>'}</td>
 			</tr>
 		`;
 	}).join("");
@@ -588,7 +588,7 @@ function renderRecap(recap) {
 	}
 	const t = recap.trades ?? {};
 	const s = recap.signals ?? {};
-	const pnlCls = (t.realized_pnl_cents ?? 0) > 0 ? "pos" : (t.realized_pnl_cents ?? 0) < 0 ? "neg" : "muted";
+	const pnlCls = (t.realized_pnl_cents ?? 0) > 0 ? "pos": (t.realized_pnl_cents ?? 0) < 0 ? "neg": "muted";
 	el.innerHTML = `
 		<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
 			<div>
@@ -608,7 +608,7 @@ function renderRecap(recap) {
 	`;
 }
 
-// Render the Verticals panel (chunk 10.8c). One
+// Render the Verticals panel (.8c). One
 // card per vertical with active toggle, model
 // version, strategy + ELI5, 24h + all-time stats,
 // and per-vertical cap. Toggles PATCH
@@ -623,20 +623,20 @@ function renderVerticalsPanel(verticals) {
 	grid.innerHTML = verticals.map((v) => {
 		const pnl24 = v.pnl_cents_24h;
 		const pnlTot = v.pnl_cents_total;
-		const pnl24Cls = pnl24 > 0 ? "pos" : pnl24 < 0 ? "neg" : "";
-		const pnlTotCls = pnlTot > 0 ? "pos" : pnlTot < 0 ? "neg" : "";
+		const pnl24Cls = pnl24 > 0 ? "pos": pnl24 < 0 ? "neg": "";
+		const pnlTotCls = pnlTot > 0 ? "pos": pnlTot < 0 ? "neg": "";
 		const capTxt = v.cap_cents != null
 			? `$${(v.cap_cents / 100).toFixed(2)}`
 			: "global";
 		const tickersTxt = v.tickers.length === 0
 			? "no tickers yet"
-			: `${v.tickers.length} ticker${v.tickers.length === 1 ? "" : "s"}`;
+			: `${v.tickers.length} ticker${v.tickers.length === 1 ? "": "s"}`;
 		return `
-			<div class="vertical-card ${v.active ? "" : "disabled"}" data-vertical="${esc(v.id)}">
+			<div class="vertical-card ${v.active ? "": "disabled"}" data-vertical="${esc(v.id)}">
 				<div class="vertical-card-head">
 					<span class="vertical-emoji">${esc(v.emoji)}</span>
 					<span class="vertical-name">${esc(v.label)}</span>
-					<span class="vertical-status">${v.active ? "live" : "off"}</span>
+					<span class="vertical-status">${v.active ? "live": "off"}</span>
 				</div>
 				<div class="vertical-strategy">${esc(v.strategy_label)} · model ${esc(v.model_version)}</div>
 				<div class="vertical-eli5">${esc(v.strategy_eli5)}</div>
@@ -663,8 +663,8 @@ function renderVerticalsPanel(verticals) {
 					</div>
 				</div>
 				<div class="vertical-toggle">
-					<span class="vertical-toggle-label">${v.active ? "trading enabled" : "all signals blocked"}</span>
-					<div class="toggle-switch ${v.active ? "on" : ""}"
+					<span class="vertical-toggle-label">${v.active ? "trading enabled": "all signals blocked"}</span>
+					<div class="toggle-switch ${v.active ? "on": ""}"
 					     data-vertical="${esc(v.id)}"
 					     role="switch"
 					     aria-checked="${v.active}"
@@ -734,7 +734,7 @@ function renderCronRuns(runs) {
 		return;
 	}
 	tbody.innerHTML = runs.slice(0, 10).map((r) => {
-		const statusCls = r.status === "success" ? "pos" : r.status === "error" ? "neg" : "muted";
+		const statusCls = r.status === "success" ? "pos": r.status === "error" ? "neg": "muted";
 		return `
 			<tr>
 				<td>${esc(r.cron_name)}</td>
@@ -750,7 +750,7 @@ function renderCronRuns(runs) {
 async function fetchOpenPositions() {
 	try {
 		// Pull open positions from the bot's live
-		// state (chunk 9.8: each position comes
+		// state (each position comes
 		// with mark + unrealized_pnl_cents).
 		// Cheaper than computing on the client,
 		// and the mark data is the bot's own
@@ -781,7 +781,7 @@ async function refresh() {
 			fetchSchedule().then((v) => { tick(1); return v; }).catch(() => null),
 		]);
 
-		// Chunk 9.8: hero stat cards.
+		//: hero stat cards.
 		if (status || botStatus) {
 			renderHero(botStatus, summary);
 		}
@@ -790,7 +790,7 @@ async function refresh() {
 		if (trades?.trades) {
 			renderTrades(trades.trades);
 			renderPositions(await fetchOpenPositions());
-			// Chunk 9.6: last-5-trades panel +
+			//: last-5-trades panel +
 			// the modal's trade list.
 			renderLastTrades(trades.trades);
 		} else {
@@ -800,7 +800,7 @@ async function refresh() {
 		if (crons?.runs) renderCronRuns(crons.runs);
 
 		// Per-vertical: derive from summary.recap.verticals
-		// (chunk 10.8: live aggregate now includes
+		// (live aggregate now includes
 		// per-vertical data so this section is no
 		// longer stuck on "loading…").
 		if (summary?.recap?.verticals) {
@@ -809,18 +809,18 @@ async function refresh() {
 			renderVerticals({});
 		}
 
-		// Bot status pill (chunk 10: setStatusPill
+		// Bot status pill (setStatusPill
 		// removed — the stage badge in the brand bar
 		// + the stage panel below are the single
 		// source of truth. Keep the model-version
 		// + trading controls render here.)
 		if (botStatus) {
 			$("model-version").textContent = `v${esc(botStatus.config?.model_version ?? "?")}`;
-			// Chunk 9.6: trading mode + caps + kill
+			//: trading mode + caps + kill
 			// switch state.
 			renderTradingControls(botStatus);
 		}
-		// Chunk 9.8: live indicator. OK if at
+		//: live indicator. OK if at
 		// least 5 of 7 endpoints returned data.
 		_lastLastRefreshMs = Date.now();
 		_lastRefreshError = null;
@@ -834,15 +834,15 @@ async function refresh() {
 		}
 	} catch (e) {
 		console.error("refresh failed", e);
-		_lastRefreshError = e instanceof Error ? e.message : String(e);
-		// Chunk 10: setStatusPill was removed (the
+		_lastRefreshError = e instanceof Error ? e.message: String(e);
+		//: setStatusPill was removed (the
 		// live indicator + stage badge are the single
 		// source of truth). Just update the live dot.
 		setLiveIndicator("err", `err · ${_lastRefreshError.slice(0, 40)}`);
 	}
 }
 
-// ─── CF Workers analytics (chunk 9.5) ───
+// ─── CF Workers analytics ───
 // Pulls /api/pm/cf-analytics on a slower cadence
 // (CF data is ~1m delayed; 90s is enough). On
 // error, shows the message + link to the CF
@@ -864,7 +864,7 @@ async function refreshCfAnalytics() {
 			detail: String(e).slice(0, 200),
 			dashboard_url:
 				"https://dash.cloudflare.com/8c995c329fee2ee6ab33d9d3d6a30e55" +
-				"/workers/services/view/pm-bot/production/metrics",
+				"/workers/services/view/prediction-market-lab/production/metrics",
 		});
 	}
 }
@@ -885,10 +885,10 @@ function renderCfAnalytics(data) {
 	if (!data.hourly || data.hourly.length === 0) {
 		chart.innerHTML = '<div class="empty">no requests in the last 24h</div>';
 	} else {
-		const max = Math.max(1, ...data.hourly.map((b) => b.requests));
+		const max = Math.max(1,...data.hourly.map((b) => b.requests));
 		for (const b of data.hourly) {
 			const bar = document.createElement("div");
-			bar.className = "cf-bar" + (b.errors > 0 ? " err" : "");
+			bar.className = "cf-bar" + (b.errors > 0 ? " err": "");
 			const h = Math.max(1, Math.round((b.requests / max) * 72));
 			bar.style.height = `${h}px`;
 			const ts = b.datetime.replace("T", " ").replace("Z", "Z").slice(0, 16);
@@ -911,17 +911,17 @@ function renderCfAnalyticsError(data) {
 	$("cf-dashboard-link").href =
 		data.dashboard_url ||
 		"https://dash.cloudflare.com/8c995c329fee2ee6ab33d9d3d6a30e55" +
-			"/workers/services/view/pm-bot/production/metrics";
+			"/workers/services/view/prediction-market-lab/production/metrics";
 	$("cf-chart").innerHTML =
 		`<div class="empty">` +
 		`CF analytics unavailable: <code>${esc(data.error || "unknown")}</code>` +
-		(data.detail ? ` — ${esc(data.detail)}` : "") +
+		(data.detail ? ` — ${esc(data.detail)}`: "") +
 		`<br><br><a href="${esc($("cf-dashboard-link").href)}" target="_blank" rel="noopener" style="color: var(--accent);">view at dash.cloudflare.com ↗</a>` +
 		`</div>`;
 	$("cf-foot").innerHTML = "";
 }
 
-// ─── Cost (chunk 9.7) ───
+// ─── Cost ───
 // Pulls /api/pm/cost on a 60s cadence. Shows
 // the operator a single "how much is this
 // costing me" number (24h + monthly estimate).
@@ -934,7 +934,7 @@ async function refreshCost() {
 			$("cost-total").textContent = "—";
 			$("cost-cf").textContent = "—";
 			$("cost-mmx").textContent = "—";
-			$("cost-foot").innerHTML = `cost unavailable: <code>${esc(d.error || "unknown")}</code>${d.detail ? ` — ${esc(d.detail)}` : ""}`;
+			$("cost-foot").innerHTML = `cost unavailable: <code>${esc(d.error || "unknown")}</code>${d.detail ? ` — ${esc(d.detail)}`: ""}`;
 			return;
 		}
 		renderCost(d);
@@ -952,7 +952,7 @@ function renderCost(d) {
 		if (n < 0.01) return "<$0.01";
 		return `$${n.toFixed(2)}`;
 	};
-	// Chunk 12 (2026-08-08): when a cost is $0, the
+	//  (2026-08-08): when a cost is $0, the
 	// old display just showed "$0.00" which looks
 	// broken. Add a context line below the dollar
 	// amount so the operator sees what's actually
@@ -999,19 +999,19 @@ function renderCost(d) {
 			? freeContext("mmx")
 			: `${fmtNum(d.mmx.calls_24h)} calls · ${fmtNum(d.mmx.input_tokens_24h)} in / ${fmtNum(d.mmx.output_tokens_24h)} out tokens`;
 
-	// Chunk 10.5: monthly limits card.
+	//: monthly limits card.
 	renderMonthlyLimits(d.cf_monthly, d.dashboard_url);
 
 	$("cost-cf-dashboard").href = d.dashboard_url;
 	const notesHtml = (d.notes || []).map((n) => `<li>${esc(n)}</li>`).join("");
 	$("cost-foot").innerHTML =
 		`<strong>assumptions:</strong>` +
-		(notesHtml ? `<ul>${notesHtml}</ul>` : " no notes") +
+		(notesHtml ? `<ul>${notesHtml}</ul>`: " no notes") +
 		`<div style="margin-top:6px; opacity:0.7;">estimates, not invoiced. confirm at the CF billing dashboard.</div>`;
 }
 
-// ─── Monthly limits (chunk 10.5) ───
-// Single section: CF (Workers Paid plan). pm-bot
+// ─── Monthly limits ───
+// Single section: CF (Workers Paid plan). prediction-market-lab
 // is fully Cloudflare-native — no third-party
 // infrastructure to track.
 function renderMonthlyLimits(cf, dashboardUrl) {
@@ -1020,17 +1020,17 @@ function renderMonthlyLimits(cf, dashboardUrl) {
 
 	// CF section
 	const cfPctClass = (pct) =>
-		pct >= 90 ? "bar-err" : pct >= 70 ? "bar-warn" : "bar-ok";
+		pct >= 90 ? "bar-err": pct >= 70 ? "bar-warn": "bar-ok";
 
 	const cfResetInfo = cf
-		? `<div class="monthly-reset">resets in <strong>${esc(String(cf.days_until_reset))}</strong> day${cf.days_until_reset === 1 ? "" : "s"} · on <strong>${esc(cf.resets_on)}</strong> · day ${esc(String(cf.days_elapsed))}/30 of cycle</div>`
+		? `<div class="monthly-reset">resets in <strong>${esc(String(cf.days_until_reset))}</strong> day${cf.days_until_reset === 1 ? "": "s"} · on <strong>${esc(cf.resets_on)}</strong> · day ${esc(String(cf.days_elapsed))}/30 of cycle</div>`
 		: "";
 
 	const cfBar = (label, current, limit, pct, suffix = "") => `
 		<div class="monthly-bar">
 			<div class="monthly-bar-head">
 				<span class="monthly-bar-label">${esc(label)}</span>
-				<span class="monthly-bar-pct ${pct >= 90 ? "pct-err" : pct >= 70 ? "pct-warn" : "pct-ok"}">${pct.toFixed(1)}%</span>
+				<span class="monthly-bar-pct ${pct >= 90 ? "pct-err": pct >= 70 ? "pct-warn": "pct-ok"}">${pct.toFixed(1)}%</span>
 			</div>
 			<div class="monthly-bar-track">
 				<div class="monthly-bar-fill ${cfPctClass(pct)}" style="width: ${Math.min(100, pct).toFixed(1)}%;"></div>
@@ -1079,7 +1079,7 @@ function renderMonthlyLimits(cf, dashboardUrl) {
 		</div>`;
 }
 
-// ─── Skeleton + empty state helpers (chunk 12) ───
+// ─── Skeleton + empty state helpers ───
 // Replace "loading…" text with shimmer bars that
 // give a sense of "data is coming" without the
 // visual monotony of a static "loading…" string.
@@ -1097,7 +1097,7 @@ function skelTbody(tbodyId, cols, widths) {
 		skelRow(cols, widths) + skelRow(cols, widths) + skelRow(cols, widths);
 }
 // Friendly empty state. The previous version just
-// had "no trades yet" — chunk 12 adds a small icon
+// had "no trades yet" —  adds a small icon
 // + a hint explaining what the operator should do.
 function emptyState(tbodyId, icon, message, hint) {
 	const tbody = $(tbodyId);
@@ -1105,21 +1105,21 @@ function emptyState(tbodyId, icon, message, hint) {
 	tbody.innerHTML = `<tr><td colspan="${tbody.closest("table")?.querySelectorAll("thead th").length ?? 4}" class="empty">
 		<div class="empty-icon">${esc(icon)}</div>
 		<div>${esc(message)}</div>
-		${hint ? `<div class="empty-hint">${esc(hint)}</div>` : ""}
+		${hint ? `<div class="empty-hint">${esc(hint)}</div>`: ""}
 	</td></tr>`;
 }
 
-// ─── Toast (chunk 12: icon + dismiss) ───
+// ─── Toast (icon + dismiss) ───
 let toastTimer = null;
 function toast(msg, ok = true) {
 	const el = $("toast");
 	el.classList.remove("ok", "err", "show");
-	el.classList.add(ok ? "ok" : "err");
-	// Chunk 12: wrap the message in icon + body +
+	el.classList.add(ok ? "ok": "err");
+	//: wrap the message in icon + body +
 	// dismiss button. The icon distinguishes ok vs
 	// err at a glance.
 	el.innerHTML = `
-		<span class="toast-icon" aria-hidden="true">${ok ? "✓" : "!"}</span>
+		<span class="toast-icon" aria-hidden="true">${ok ? "✓": "!"}</span>
 		<span class="toast-body">${esc(String(msg))}</span>
 		<button class="toast-dismiss" aria-label="Dismiss">×</button>
 	`;
@@ -1136,11 +1136,11 @@ function toast(msg, ok = true) {
 	// Errors stay 5s (longer — the operator might
 	// need to read the message); success auto-dismisses
 	// in 2.5s.
-	const ttl = ok ? 2500 : 5000;
+	const ttl = ok ? 2500: 5000;
 	toastTimer = setTimeout(() => el.classList.remove("show"), ttl);
 }
 
-// ─── Trading mode + caps + kill switch (chunk 9.6) ───
+// ─── Trading mode + caps + kill switch ───
 // Set the trading mode via the API. The "real"
 // mode opens a confirmation modal first.
 async function setTradingMode(mode) {
@@ -1172,7 +1172,7 @@ async function setKillSwitch(on) {
 		if (!r.ok) throw new Error(`HTTP ${r.status}`);
 		const body = await r.json();
 		if (!body.ok) throw new Error(body.error ?? "unknown");
-		toast(`kill switch → ${on ? "ON" : "off"}`, on ? false : true);
+		toast(`kill switch → ${on ? "ON": "off"}`, on ? false: true);
 		await refresh();
 	} catch (e) {
 		toast(`kill switch failed: ${e.message}`, false);
@@ -1248,7 +1248,7 @@ function renderTradingControls(status) {
 	}
 	const perVertical = status.config.per_vertical_max_notional_cents ?? {};
 
-	// Active button highlight. (Chunk 10.8b: chunk 10.8
+	// Active button highlight. (: 
 	// wrote "active primary" as a single space-separated
 	// token which throws InvalidCharacterError. Use
 	// classList.remove with each token separately.)
@@ -1269,13 +1269,13 @@ function renderTradingControls(status) {
 	$("caps-per-trade").textContent = `$${perTrade.toFixed(2)}`;
 	$("caps-daily").textContent = `$${dailyUsed.toFixed(2)} / $${dailyCap.toFixed(2)}`;
 	const bar = $("caps-bar");
-	const pct = dailyCap > 0 ? Math.min(100, (dailyUsed / dailyCap) * 100) : 0;
+	const pct = dailyCap > 0 ? Math.min(100, (dailyUsed / dailyCap) * 100): 0;
 	bar.style.width = `${pct}%`;
 	bar.classList.remove("warn", "over");
 	if (pct >= 100) bar.classList.add("over");
 	else if (pct >= 80) bar.classList.add("warn");
 
-	// Per-vertical caps (chunk 11b). Display as
+	// Per-vertical caps. Display as
 	// removable tags so the operator can drop
 	// overrides from the UI. Empty state shows a
 	// muted "using global cap" hint.
@@ -1295,7 +1295,7 @@ function renderTradingControls(status) {
 		}
 	}
 
-	// Blocklist (chunk 11b). Display the disabled
+	// Blocklist. Display the disabled
 	// tickers as tags + an input to add more.
 	const blocklistEl = $("blocklist");
 	if (blocklistEl) {
@@ -1311,14 +1311,14 @@ function renderTradingControls(status) {
 	// Kill switch state.
 	const killEl = $("kill-state");
 	killEl.classList.toggle("on", killOn);
-	killEl.textContent = killOn ? "ON" : "off";
+	killEl.textContent = killOn ? "ON": "off";
 
 	// Modal (mirror the live values for the
 	// confirmation dialog).
 	$("modal-per-trade").textContent = `$${perTrade.toFixed(2)}`;
 	$("modal-daily-cap").textContent = `$${dailyCap.toFixed(2)}`;
 	$("modal-today").textContent = `$${dailyUsed.toFixed(2)} / $${dailyCap.toFixed(2)}`;
-	$("modal-kill").textContent = killOn ? "ON" : "off";
+	$("modal-kill").textContent = killOn ? "ON": "off";
 }
 
 // Render the "last 5 trades" panel + the
@@ -1340,8 +1340,8 @@ function renderLastTrades(trades) {
 		const pnl = t.pnl_cents;
 		const pnlTxt = pnl === null || pnl === undefined
 			? "—"
-			: `${pnl < 0 ? "−" : pnl > 0 ? "+" : ""}$${(Math.abs(pnl) / 100).toFixed(2)}`;
-		const pnlClass = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "";
+			: `${pnl < 0 ? "−": pnl > 0 ? "+": ""}$${(Math.abs(pnl) / 100).toFixed(2)}`;
+		const pnlClass = pnl > 0 ? "pos": pnl < 0 ? "neg": "";
 		// Show a Cancel button for open real
 		// orders (action="open" + pnl=null + real_order_id).
 		const cancelBtn = (mode === "real" && t.action === "open" && t.pnl_cents == null && t.real_order_id)
@@ -1374,8 +1374,8 @@ function renderLastTrades(trades) {
 		const pnl = t.pnl_cents;
 		const pnlTxt = pnl === null || pnl === undefined
 			? "—"
-			: `${pnl < 0 ? "−" : pnl > 0 ? "+" : ""}$${(Math.abs(pnl) / 100).toFixed(2)}`;
-		const pnlClass = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "";
+			: `${pnl < 0 ? "−": pnl > 0 ? "+": ""}$${(Math.abs(pnl) / 100).toFixed(2)}`;
+		const pnlClass = pnl > 0 ? "pos": pnl < 0 ? "neg": "";
 		return `<tr>
 			<td><code>${esc(t.ticker)}</code></td>
 			<td>${esc(t.side)}</td>
@@ -1442,7 +1442,7 @@ async function botCall(action) {
 		const r = await fetch(endpoints[action], {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: action === "start" ? JSON.stringify({}) : "{}",
+			body: action === "start" ? JSON.stringify({}): "{}",
 		});
 		if (!r.ok) throw new Error(`HTTP ${r.status}`);
 		const body = await r.json();
@@ -1470,7 +1470,7 @@ $("btn-restart").addEventListener("click", () => {
 });
 
 // ─── Initial load + auto-refresh ───
-// Chunk 9.8: auto-start. On first dashboard
+//: auto-start. On first dashboard
 // load, if the bot isn't running, hit
 // /api/pm/bot/auto-start. Idempotent — does
 // nothing if already running. The user
@@ -1600,7 +1600,7 @@ function injectAppNav() {
 			</span>
 			<a href="${signoutUrl()}" class="app-nav-signout" id="app-nav-signout" rel="nofollow" aria-label="Sign out of Trader">
 				<svg class="app-nav-signout-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-					<path fill="currentColor" d="M3 3.5A1.5 1.5 0 0 1 4.5 2h5A1.5 1.5 0 0 1 11 3.5v1a.5.5 0 0 1-1 0v-1A.5.5 0 0 0 9.5 3h-5A.5.5 0 0 0 4 3.5v9a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 1 1 0v1A1.5 1.5 0 0 1 9.5 14h-5A1.5 1.5 0 0 1 3 12.5v-9Zm8.854 4.354a.5.5 0 0 0-.708-.708L9.793 8.5H6a.5.5 0 0 0 0 1h3.793l-1.353 1.354a.5.5 0 0 0 .708.708l2.5-2.5Z"/>
+					<path fill="currentColor" d="M3 3.5A1.5 1.5 0 0 1 4.5 2h5A1.5 1.5 0 0 1 11 3.5v1a.5.5 0 0 1-1 0v-1A.5.5 0 0 0 9.5 3h-5A.5.5 0 0 0 4 3.5v9a.5.5 0 0 0.5.5h5a.5.5 0 0 0.5-.5v-1a.5.5 0 0 1 1 0v1A1.5 1.5 0 0 1 9.5 14h-5A1.5 1.5 0 0 1 3 12.5v-9Zm8.854 4.354a.5.5 0 0 0-.708-.708L9.793 8.5H6a.5.5 0 0 0 0 1h3.793l-1.353 1.354a.5.5 0 0 0.708.708l2.5-2.5Z"/>
 				</svg>
 				<span class="app-nav-signout-label">Sign out</span>
 			</a>
@@ -1639,7 +1639,7 @@ const COST_REFRESH_MS = 60000;
 let _appTimers = [];
 
 function startTimers(spec) {
-	// spec: [{ fn, ms }, ...]
+	// spec: [{ fn, ms },...]
 	stopTimers();
 	for (const { fn, ms } of spec) {
 		// initial fire
@@ -1716,7 +1716,7 @@ function setModeBannerState(mode, killOn) {
 // Replaces (or supplements) the timer-polling pattern.
 // The LiveBot DO pushes events to /api/pm/bot/stream;
 // we dispatch them to registered handlers. Pages call
-// `registerSSEHandler("trade_close", (data) => { ... })`
+// `registerSSEHandler("trade_close", (data) => {... })`
 // in their appPageInit, and the events drive DOM updates
 // in place — no manual refresh.
 //

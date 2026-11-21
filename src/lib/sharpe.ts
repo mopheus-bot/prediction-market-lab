@@ -1,5 +1,5 @@
 /**
- * pm-bot — Sharpe ratio + auto-pilot metrics (chunk 11b).
+ * prediction-market-lab — Sharpe ratio + auto-pilot metrics.
  *
  * Used by the auto-pilot cron to decide whether the bot
  * has earned the right to flip from paper to real money.
@@ -18,7 +18,7 @@
  *   - Annualization depends on the window. For 7 days
  *     of trading, √(252 / 7) ≈ 6. For 30 days, ≈ 2.9.
  *   - A Sharpe > 0.5 over 30 trades is the auto-pilot
- *     threshold (chunk 11b default).
+ *     threshold ( default).
  *
  * **Edge cases:**
  *   - < 2 closed trades: Sharpe is undefined (return NaN).
@@ -86,7 +86,7 @@ export function computeSharpe(
 	const returns = closedTrades.map((t) => {
 		const denom = t.price_cents * t.size;
 		const pnl = t.pnl_cents as number; // closedTrades filters non-null
-		return denom > 0 ? pnl / denom : 0;
+		return denom > 0 ? pnl / denom: 0;
 	});
 	const total_pnl_cents = closedTrades.reduce(
 		(s, t) => s + (t.pnl_cents as number),
@@ -102,15 +102,15 @@ export function computeSharpe(
 	// sqrt is below machine epsilon, the per-trade returns are
 	// effectively identical — treat that as "no variance" rather
 	// than a 5.88e15 Sharpe from floating-point error.
-	const stddevMeaningful = stddev > 1e-9 ? stddev : 0;
-	const sharpe_raw = stddevMeaningful > 0 ? mean / stddevMeaningful : NaN;
+	const stddevMeaningful = stddev > 1e-9 ? stddev: 0;
+	const sharpe_raw = stddevMeaningful > 0 ? mean / stddevMeaningful: NaN;
 	// Days elapsed: from the first trade to now.
 	const oldestTs = Math.min(...closedTrades.map((t) => t.ts));
 	const days_elapsed = Math.max(1, Math.floor((nowMs - oldestTs) / 86400000));
 	// Annualize: assume the window repeats 252/days_elapsed
 	// times per year.
 	const annualization =
-		days_elapsed > 0 ? Math.sqrt(annualizationDays / days_elapsed) : 0;
+		days_elapsed > 0 ? Math.sqrt(annualizationDays / days_elapsed): 0;
 	const sharpe_annualized = Number.isNaN(sharpe_raw)
 		? NaN
 		: sharpe_raw * annualization;

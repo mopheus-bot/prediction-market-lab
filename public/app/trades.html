@@ -377,8 +377,8 @@
 					.filter((t) => (t.ts || 0) > dayAgo && t.is_paper === 0)
 					.reduce((a, t) => a + (t.pnl_cents || 0), 0);
 
-				const pnlCls = totalPnlCents > 0 ? "ok" : totalPnlCents < 0 ? "bad" : "muted";
-				heroEl.setAttribute("data-color", pnlCls === "muted" ? "ok" : pnlCls);
+				const pnlCls = totalPnlCents > 0 ? "ok": totalPnlCents < 0 ? "bad": "muted";
+				heroEl.setAttribute("data-color", pnlCls === "muted" ? "ok": pnlCls);
 				// 2026-08-10: every $X.XX gets a (+Y.YY%) next
 				// to it (% of bankroll). fmtCentsPct is provided
 				// by app.js — it uses the global _bankrollCents
@@ -387,7 +387,7 @@
 				totalPnlEl.className = `pos-hero-num mono ${pnlCls}`;
 				totalPnlSub.textContent = closedTrades.length === 0
 					? "0 closed trades"
-					: `${closedTrades.length} closed trade${closedTrades.length === 1 ? "" : "s"}`;
+					: `${closedTrades.length} closed trade${closedTrades.length === 1 ? "": "s"}`;
 
 				countEl.textContent = String(trades.length);
 				countSub.textContent = `${realTrades.length} real · ${paperTrades.length} paper`;
@@ -396,7 +396,7 @@
 				modeSubEl.textContent = "paper / real";
 
 				pnl24hEl.textContent = fmtCentsPct(pnl24h);
-				pnl24hEl.className = `kpi-num mono ${pnl24h > 0 ? "ok" : pnl24h < 0 ? "bad" : ""}`;
+				pnl24hEl.className = `kpi-num mono ${pnl24h > 0 ? "ok": pnl24h < 0 ? "bad": ""}`;
 				// Sub-line: paper $X · real $X with percentages
 				// so the operator can see the mode split at a
 				// glance without toggling the filter.
@@ -411,11 +411,11 @@
 				// always complete and scannable.
 				if (paperPnlEl) {
 					paperPnlEl.textContent = fmtCentsPct(paperPnlCents);
-					paperPnlEl.className = `trades-pnl-split-val mono ${paperPnlCents > 0 ? "ok" : paperPnlCents < 0 ? "bad" : "muted"}`;
+					paperPnlEl.className = `trades-pnl-split-val mono ${paperPnlCents > 0 ? "ok": paperPnlCents < 0 ? "bad": "muted"}`;
 				}
 				if (realPnlEl) {
 					realPnlEl.textContent = fmtCentsPct(realPnlCents);
-					realPnlEl.className = `trades-pnl-split-val mono ${realPnlCents > 0 ? "ok" : realPnlCents < 0 ? "bad" : "muted"}`;
+					realPnlEl.className = `trades-pnl-split-val mono ${realPnlCents > 0 ? "ok": realPnlCents < 0 ? "bad": "muted"}`;
 				}
 
 				// Signals count comes from signals fetch
@@ -468,8 +468,8 @@
 				const paperPoints = cumulate(paperTrades);
 				const realPoints = cumulate(realTrades);
 				const points = cumulate(closed); // combined for the y-scale
-				const minPnl = Math.min(0, ...points.map((p) => p.pnl));
-				const maxPnl = Math.max(0, ...points.map((p) => p.pnl));
+				const minPnl = Math.min(0,...points.map((p) => p.pnl));
+				const maxPnl = Math.max(0,...points.map((p) => p.pnl));
 				const range = Math.max(1, maxPnl - minPnl);
 				// SVG viewBox is 800x220
 				const W = 800, H = 220, PAD = 30;
@@ -480,7 +480,7 @@
 				const yOf = (pnl) => PAD + ((maxPnl - pnl) / range) * innerH;
 				const y0 = yOf(0);
 				// Helper: build a polyline path for a series.
-				const buildPath = (series) => series.map((p, i) => `${i === 0 ? "M" : "L"}${xOf(p.ts).toFixed(1)},${yOf(p.pnl).toFixed(1)}`).join(" ");
+				const buildPath = (series) => series.map((p, i) => `${i === 0 ? "M": "L"}${xOf(p.ts).toFixed(1)},${yOf(p.pnl).toFixed(1)}`).join(" ");
 				const paperPath = buildPath(paperPoints);
 				const realPath = buildPath(realPoints);
 				// 2026-08-10: combined path + area fill. The area
@@ -495,9 +495,9 @@
 				const lastX = xOf(points[points.length - 1].ts).toFixed(1);
 				const combinedArea = `${combinedPath} L${lastX},${y0.toFixed(1)} L${firstX},${y0.toFixed(1)} Z`;
 				const finalPnl = points[points.length - 1].pnl;
-				const finalPaper = paperPoints.length > 0 ? paperPoints[paperPoints.length - 1].pnl : 0;
-				const finalReal = realPoints.length > 0 ? realPoints[realPoints.length - 1].pnl : 0;
-				const lineColor = finalPnl > 0 ? "var(--green)" : finalPnl < 0 ? "var(--red)" : "var(--ink-faint)";
+				const finalPaper = paperPoints.length > 0 ? paperPoints[paperPoints.length - 1].pnl: 0;
+				const finalReal = realPoints.length > 0 ? realPoints[realPoints.length - 1].pnl: 0;
+				const lineColor = finalPnl > 0 ? "var(--green)": finalPnl < 0 ? "var(--red)": "var(--ink-faint)";
 
 				svg.innerHTML = `
 					<defs>
@@ -520,33 +520,33 @@
 					     there are paper trades. -->
 					${paperPoints.length > 0 ? `
 						<path d="${paperPath}" fill="none" stroke="var(--ink-faint)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3 3" opacity="0.7" />
-					` : ""}
+					`: ""}
 					<!-- Real line (red, solid, thicker) — only draw if
 					     there are real trades. The red is intentional:
 					     in live mode this is real money. -->
 					${realPoints.length > 0 ? `
 						<path d="${realPath}" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-					` : ""}
+					`: ""}
 					<!-- Per-mode points (small) for hover tooltips. -->
 					${paperPoints.map((p) => `<circle cx="${xOf(p.ts).toFixed(1)}" cy="${yOf(p.pnl).toFixed(1)}" r="2.5" fill="var(--ink-faint)" stroke="var(--bg-1)" stroke-width="1"><title>${escapeHtml(p.trade.ticker)} · paper · ${fmtCents(p.pnl)}</title></circle>`).join("")}
 					${realPoints.map((p) => `<circle cx="${xOf(p.ts).toFixed(1)}" cy="${yOf(p.pnl).toFixed(1)}" r="3" fill="var(--red)" stroke="var(--bg-1)" stroke-width="1.5"><title>${escapeHtml(p.trade.ticker)} · real · ${fmtCents(p.pnl)}</title></circle>`).join("")}
 					<!-- Legend in the top-right corner. -->
 					<g transform="translate(${W - PAD - 140}, ${PAD - 4})">
-						<rect x="0" y="-2" width="140" height="${realPoints.length > 0 && paperPoints.length > 0 ? 32 : 16}" rx="3" fill="var(--bg-1)" stroke="var(--card-border)" stroke-width="1" opacity="0.85"/>
+						<rect x="0" y="-2" width="140" height="${realPoints.length > 0 && paperPoints.length > 0 ? 32: 16}" rx="3" fill="var(--bg-1)" stroke="var(--card-border)" stroke-width="1" opacity="0.85"/>
 						${paperPoints.length > 0 ? `
 							<circle cx="10" cy="8" r="3" fill="var(--ink-faint)"/>
 							<text x="20" y="11" font-size="10" fill="var(--ink-muted)" font-family="ui-monospace, monospace">paper ${fmtCents(finalPaper)}</text>
-						` : ""}
+						`: ""}
 						${realPoints.length > 0 ? `
 							<circle cx="10" cy="24" r="3" fill="var(--red)"/>
 							<text x="20" y="27" font-size="10" fill="var(--ink-muted)" font-family="ui-monospace, monospace">real ${fmtCents(finalReal)}</text>
-						` : ""}
+						`: ""}
 					</g>
 				`;
 				// Summary: combined total + the mode split so the
 				// operator can see paper vs real at a glance
 				// without hovering the chart.
-				summaryEl.textContent = `${closed.length} close${closed.length === 1 ? "" : "s"} · total ${fmtCents(finalPnl)} (paper ${fmtCents(finalPaper)}, real ${fmtCents(finalReal)})`;
+				summaryEl.textContent = `${closed.length} close${closed.length === 1 ? "": "s"} · total ${fmtCents(finalPnl)} (paper ${fmtCents(finalPaper)}, real ${fmtCents(finalReal)})`;
 			}
 
 			// ─── Render: trade history table ───
@@ -558,9 +558,9 @@
 					countEl.textContent = "0 trades";
 					return;
 				}
-				countEl.textContent = `${_tradesCache.length} trade${_tradesCache.length === 1 ? "" : "s"}`;
+				countEl.textContent = `${_tradesCache.length} trade${_tradesCache.length === 1 ? "": "s"}`;
 				tbody.innerHTML = _tradesCache.map((t) => {
-					const pnlCls = t.pnl_cents == null ? "muted" : t.pnl_cents > 0 ? "ok" : t.pnl_cents < 0 ? "bad" : "";
+					const pnlCls = t.pnl_cents == null ? "muted": t.pnl_cents > 0 ? "ok": t.pnl_cents < 0 ? "bad": "";
 					const modePill = t.is_paper === 0
 						? `<span class="pill ok" style="font-size: 10px;">real</span>`
 						: `<span class="pill muted" style="font-size: 10px;">paper</span>`;
@@ -572,9 +572,9 @@
 						<td class="num mono">${escapeHtml(t.side)}</td>
 						<td class="num mono">${fmtPrice(t.price_cents)}</td>
 						<td class="num mono">${t.size || "—"}</td>
-						<td class="num mono ${pnlCls}">${t.pnl_cents == null ? "—" : fmtCents(t.pnl_cents)}</td>
+						<td class="num mono ${pnlCls}">${t.pnl_cents == null ? "—": fmtCents(t.pnl_cents)}</td>
 						<td style="font-size: 12px; color: var(--ink-muted);">${escapeHtml(rationale || "—")}</td>
-						<td>${canCancel ? `<button class="trades-cancel-btn" data-trade-id="${t.id}" data-order-id="${escapeHtml(t.real_order_id)}" title="Cancel this open real order">×</button>` : ""}</td>
+						<td>${canCancel ? `<button class="trades-cancel-btn" data-trade-id="${t.id}" data-order-id="${escapeHtml(t.real_order_id)}" title="Cancel this open real order">×</button>`: ""}</td>
 					</tr>`;
 				}).join("");
 
@@ -605,7 +605,7 @@
 						body: JSON.stringify({ order_id: orderId }),
 					});
 					const text = await r.text();
-					toast(`cancel ${r.ok ? "✓" : "✗"}: ${text.slice(0, 200)}`, r.ok);
+					toast(`cancel ${r.ok ? "✓": "✗"}: ${text.slice(0, 200)}`, r.ok);
 				} catch (e) {
 					toast(`cancel error: ${e.message}`, false);
 				}
@@ -626,12 +626,12 @@
 					["Size", trade.size],
 					["Vertical", trade.vertical],
 					["Mode", trade.trading_mode],
-					["Paper", trade.is_paper === 0 ? "no (real money)" : "yes (simulated)"],
+					["Paper", trade.is_paper === 0 ? "no (real money)": "yes (simulated)"],
 					["Fill type", trade.fill_type],
 					["Model version", trade.model_version],
-					["Signal p(model)", trade.signal_p != null ? (trade.signal_p * 100).toFixed(1) + "%" : "—"],
+					["Signal p(model)", trade.signal_p != null ? (trade.signal_p * 100).toFixed(1) + "%": "—"],
 					["Signal rationale", trade.signal_rationale || "—"],
-					["PnL", trade.pnl_cents != null ? fmtCents(trade.pnl_cents) : "— (open)"],
+					["PnL", trade.pnl_cents != null ? fmtCents(trade.pnl_cents): "— (open)"],
 					["Real order ID", trade.real_order_id || "—"],
 					["Timestamp", tsToLocal(trade.ts)],
 					["Created at", tsToLocal(trade.created_at)],
@@ -664,11 +664,11 @@
 					countEl.textContent = "0 signals";
 					return;
 				}
-				countEl.textContent = `${signals.length} signal${signals.length === 1 ? "" : "s"}`;
+				countEl.textContent = `${signals.length} signal${signals.length === 1 ? "": "s"}`;
 				tbody.innerHTML = signals.map((s) => {
 					const p = s.p_model ?? s.signal_p ?? 0;
 					const pStr = (p * 100).toFixed(0) + "%";
-					const pCls = p >= 0.7 ? "ok" : p >= 0.55 ? "warn" : "muted";
+					const pCls = p >= 0.7 ? "ok": p >= 0.55 ? "warn": "muted";
 					return `<tr>
 						<td class="mono" style="font-size: 12px;">${tsToLocal(s.ts)}</td>
 						<td class="mono">${escapeHtml(s.ticker || "—")}</td>
@@ -725,13 +725,13 @@
 				const headers = ["id", "ts", "ticker", "vertical", "side", "action", "price_cents", "size", "pnl_cents", "trading_mode", "is_paper", "model_version", "signal_p", "signal_rationale", "fill_type", "real_order_id"];
 				const rows = _tradesCache.map((t) => [
 					t.id, new Date(t.ts || 0).toISOString(), t.ticker, t.vertical, t.side, t.action,
-					t.price_cents, t.size, t.pnl_cents != null ? t.pnl_cents : "",
-					t.trading_mode, t.is_paper === 0 ? "real" : "paper",
+					t.price_cents, t.size, t.pnl_cents != null ? t.pnl_cents: "",
+					t.trading_mode, t.is_paper === 0 ? "real": "paper",
 					t.model_version, t.signal_p, t.signal_rationale, t.fill_type, t.real_order_id || "",
 				]);
-				const csv = [headers, ...rows].map((r) => r.map((c) => {
+				const csv = [headers,...rows].map((r) => r.map((c) => {
 					const s = String(c ?? "");
-					return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+					return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"`: s;
 				}).join(",")).join("\n");
 				const blob = new Blob([csv], { type: "text/csv" });
 				const url = URL.createObjectURL(blob);
@@ -772,10 +772,10 @@
 				const status = document.getElementById("trades-signal-stream-status");
 				if (status) status.textContent = `${_liveSignals.length} most recent`;
 				const card = document.createElement("div");
-				card.className = `trades-signal-card sig-${sig.side} ${sig.p >= 0.6 ? "high-conf" : "low-conf"}`;
-				const age = sig.ts ? fmtAgo(sig.ts) : "now";
+				card.className = `trades-signal-card sig-${sig.side} ${sig.p >= 0.6 ? "high-conf": "low-conf"}`;
+				const age = sig.ts ? fmtAgo(sig.ts): "now";
 				card.innerHTML = `
-					<span class="sig-side">${sig.side === "yes" ? "YES" : "NO"}</span>
+					<span class="sig-side">${sig.side === "yes" ? "YES": "NO"}</span>
 					<span class="sig-ticker">${escapeHtml(sig.ticker || "?")}</span>
 					<span class="sig-price">@ ${sig.price}¢</span>
 					<span class="sig-p">conf ${(sig.p * 100).toFixed(0)}%</span>

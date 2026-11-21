@@ -1,5 +1,5 @@
 /**
- * pm-bot — feature extraction (chunk 4).
+ * prediction-market-lab — feature extraction.
  *
  * Mirrors `Prediction Market Lab/.../features.py:extract_features`.
  *
@@ -20,13 +20,13 @@
  * have:
  *   - `time_to_resolution` (no `created_at_tick` / `ttl_seconds` on the live book)
  *   - `news_shock_magnitude` / `news_shock_age_hours` (no shock tracking in the WS feed)
- *   - `per-vertical fundamentals` (no live fundamentals source yet — chunk 6+)
+ *   - `per-vertical fundamentals` (no live fundamentals source yet — +)
  *
  * We default these to 0.0 (matching the Python trainer's
  * default for unmatched verticals). The model sees zeros for
  * features it wasn't trained to use (the live retrains in
- * chunk 8+ will produce a model that knows the inputs are
- * 0 and ignores them). For chunk 4 we ship the existing
+ * + will produce a model that knows the inputs are
+ * 0 and ignores them). For  we ship the existing
  * 20-dim model with the documented limitations — see the
  * changelog.
  *
@@ -202,7 +202,7 @@ export function extractFeatures(ctx: SignalContext): FeatureVector {
 	}
 
 	// 11-18. per-vertical fundamentals. Live path: no fundamentals
-	// (chunk 6+). Default 0 for all 8; the vertical one-hot lets
+	//. Default 0 for all 8; the vertical one-hot lets
 	// the model mask the irrelevant 6.
 	const fundamentalsArr = new Array(8).fill(0);
 	if (market?.fundamentals && vertical) {
@@ -263,12 +263,12 @@ function bestNoBidCents(ob: SignalOrderbook): number | null {
 
 function yesAskCents(ob: SignalOrderbook): number | null {
 	const no = bestNoBidCents(ob);
-	return no === null ? null : 100 - no;
+	return no === null ? null: 100 - no;
 }
 
 function noAskCents(ob: SignalOrderbook): number | null {
 	const yes = bestYesBidCents(ob);
-	return yes === null ? null : 100 - yes;
+	return yes === null ? null: 100 - yes;
 }
 
 function safeDivide(numerator: number, denominator: number): number {

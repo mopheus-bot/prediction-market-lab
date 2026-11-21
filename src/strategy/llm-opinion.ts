@@ -1,5 +1,5 @@
 /**
- * pm-bot — `LLMOpinionSignal` strategy (2026-08-10).
+ * prediction-market-lab — `LLMOpinionSignal` strategy (2026-08-10).
  *
  * The user asked: "use the LLM to leverage opinion or bias
  * to our advantage." This strategy emits a Signal based on
@@ -141,7 +141,7 @@ function computeMid(ob: {
 		ob.noLevels.length === 0
 			? null
 			: Math.max(...ob.noLevels.map((l) => l.priceCents));
-	const ya = nb === null ? null : 100 - nb;
+	const ya = nb === null ? null: 100 - nb;
 	if (yb !== null && ya !== null && yb > 0 && ya > 0 && ya > yb) {
 		return Math.round((yb + ya) / 2);
 	}

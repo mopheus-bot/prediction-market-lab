@@ -1,5 +1,5 @@
 /**
- * pm-bot — `NaiveSignal` strategy.
+ * prediction-market-lab — `NaiveSignal` strategy.
  *
  * Mirrors `Prediction Market Lab/.../strategy/naive.py:NaiveSignal`.
  *
@@ -34,7 +34,7 @@
  * (not proof) of a real reversal. Default 0 = off
  * (back-compat); the router sets it to 3 for live use.
  *
- * This is the chunk-3 placeholder strategy. Chunk 4 (ONNX models)
+ * This is the step-3 placeholder strategy.  (ONNX models)
  * adds ML-based strategies that handle real momentum vs noise
  * discrimination; the per-vertical router in `router.ts` dispatches
  * to the right strategy by `market.vertical`.
@@ -134,9 +134,9 @@ export class NaiveSignal implements SignalStrategy {
 		// the price move (not the signal side): "up" =
 		// price went up, we fade → side is no. "down" =
 		// price went down, we fade → side is yes.
-		const trigger = exceedsPct ? "fade" : "abs";
-		const direction = movePct > 0 ? "up" : "down";
-		const side: "yes" | "no" = movePct > 0 ? "no" : "yes";
+		const trigger = exceedsPct ? "fade": "abs";
+		const direction = movePct > 0 ? "up": "down";
+		const side: "yes" | "no" = movePct > 0 ? "no": "yes";
 
 		// Reversal confirmation gate. If the gate is on
 		// and the orderbook is too thin on the side we're
@@ -174,7 +174,7 @@ export class NaiveSignal implements SignalStrategy {
 	): number {
 		const ob = ctx.orderbook;
 		if (!ob) return 0;
-		const levels = side === "yes" ? ob.yesLevels : ob.noLevels;
+		const levels = side === "yes" ? ob.yesLevels: ob.noLevels;
 		if (levels.length === 0) return 0;
 		const top = Math.max(...levels.map((l) => l.priceCents));
 		let sum = 0;

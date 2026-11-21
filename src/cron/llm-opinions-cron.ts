@@ -1,5 +1,5 @@
 /**
- * pm-bot — LLM opinions cron (2026-08-10).
+ * prediction-market-lab — LLM opinions cron (2026-08-10).
  *
  * The user asked: "use the LLM to leverage opinion or bias
  * to our advantage." This cron refreshes per-ticker LLM
@@ -35,7 +35,7 @@
  * hasn't given us a news feed. The LLM's training data
  * covers most Kalshi event types (climate, sports,
  * economics) well enough for a baseline. Adding a news
- * feed is a future extension (chunk +1).
+ * feed is a future extension.
  */
 
 import { DEFAULT_PRODUCTION_BASE, KalshiClient } from "../kalshi/client.js";
@@ -60,7 +60,7 @@ function countByPrefix(skipped: string[]): Record<string, number> {
 	const out: Record<string, number> = {};
 	for (const s of skipped) {
 		const idx = s.indexOf(": ");
-		const key = idx >= 0 ? s.slice(idx + 2) : s;
+		const key = idx >= 0 ? s.slice(idx + 2): s;
 		out[key] = (out[key] ?? 0) + 1;
 	}
 	return out;
@@ -141,7 +141,7 @@ function parseLLMOpinion(raw: string): LLMParsedOpinion | null {
 		if (side !== "yes" && side !== "no" && side !== "hold") return null;
 		const confidence = Number(obj.confidence);
 		if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) return null;
-		const reasoning = typeof obj.reasoning === "string" ? obj.reasoning : "";
+		const reasoning = typeof obj.reasoning === "string" ? obj.reasoning: "";
 		return { side, confidence, reasoning: reasoning.slice(0, 500) };
 	} catch {
 		return null;
@@ -244,11 +244,11 @@ async function askLLMForOpinion(
 		.map((p) => {
 			const mid = p.yes_bid_cents > 0 && p.yes_ask_cents > p.yes_bid_cents
 				? Math.round((p.yes_bid_cents + p.yes_ask_cents) / 2)
-				: p.yes_bid_cents > 0 ? p.yes_bid_cents : p.yes_ask_cents;
+				: p.yes_bid_cents > 0 ? p.yes_bid_cents: p.yes_ask_cents;
 			return `${p.ts_minutes_ago}m ago: ${mid}¢ (bid ${p.yes_bid_cents} / ask ${p.yes_ask_cents})`;
 		})
 		.join("\n  ");
-	const trendBlock = trendLines ? `\nLast hour trend (oldest → newest):\n  ${trendLines}\n` : "";
+	const trendBlock = trendLines ? `\nLast hour trend (oldest → newest):\n  ${trendLines}\n`: "";
 
 	// 2026-08-11 (Phase 4, LLM-PIPELINE Bug A): build the
 	// event-context block. For single-event markets this
@@ -301,14 +301,14 @@ async function askLLMForOpinion(
 	const prompt = `Market: ${ctx.ticker}
 Title: ${ctx.title}
 Vertical: ${ctx.vertical}${eventContext}
-${ctx.noPrice ? "(no live price yet — evaluate on title + event context alone)\n" : ""}Current YES price: ${ctx.currentYesPriceCents}¢ (NO = ${100 - ctx.currentYesPriceCents}¢)
+${ctx.noPrice ? "(no live price yet — evaluate on title + event context alone)\n": ""}Current YES price: ${ctx.currentYesPriceCents}¢ (NO = ${100 - ctx.currentYesPriceCents}¢)
 Current orderbook: bid ${ctx.yesBidCents ?? "?"}¢ / ask ${ctx.yesAskCents ?? "?"}¢ / last trade ${ctx.lastPriceCents ?? "?"}¢
 24h volume: ${ctx.volume24h ?? "?"} contracts · open interest: ${ctx.openInterest ?? "?"}${trendBlock}
 What's your view? Reply JSON: {"side": "yes" | "no" | "hold", "confidence": 0.0-1.0, "reasoning": "..."}`;
 
 	const result = await chat(env, SYSTEM_PROMPT, prompt, { max_tokens: 600 });
 	return {
-		parsed: result.ok ? parseLLMOpinion(result.text) : null,
+		parsed: result.ok ? parseLLMOpinion(result.text): null,
 		raw: result.text,
 		ok: result.ok,
 		duration_ms: result.duration_ms,
@@ -415,8 +415,8 @@ async function fetchEventContextCached(
   } catch (e) {
     console.warn(
       `[llm-opinions] fetchEventContext(${eventTicker}) failed (non-fatal):`,
-      e instanceof Error ? e.message : String(e),
-    );
+      e instanceof Error ? e.message: String(e),
+);
     return null;
   }
 }
@@ -462,7 +462,7 @@ async function discoverFreshNewVerticalMarkets(
 		const pk = await loadPrivateKey(env.KALSHI_PROD_PRIVATE_KEY);
 		const creds = new KalshiCredentials(env.KALSHI_PROD_KEY_ID, pk);
 		const headers = await buildAuthHeaders(creds.privateKey, creds.keyId, "GET", `/trade-api/v2${queryPath}`);
-		const resp = await fetch(`${baseUrl}${queryPath}`, { method: "GET", headers: { ...headers } });
+		const resp = await fetch(`${baseUrl}${queryPath}`, { method: "GET", headers: {...headers } });
 		if (!resp.ok) {
 			console.warn(`[llm-opinions] fresh-discovery /events returned ${resp.status}`);
 			return [];
@@ -502,7 +502,7 @@ async function discoverFreshNewVerticalMarkets(
 	} catch (e) {
 		console.warn(
 			"[llm-opinions] fresh-market discovery failed (non-fatal):",
-			e instanceof Error ? e.message : String(e),
+			e instanceof Error ? e.message: String(e),
 		);
 		return [];
 	}
@@ -679,7 +679,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 			...others.filter((t) => !universe.has(t)),
 		].filter((t, i, arr) => arr.indexOf(t) === i); // dedupe
 		const universeFirst = allTickers.filter((t) => universe.has(t));
-		allTickers = [...freshFirst, ...universeFirst].slice(0, LLM_LOOP_CAP);
+		allTickers = [...freshFirst,...universeFirst].slice(0, LLM_LOOP_CAP);
 		// 2026-08-11 (Phase 4, followup #2): stash the
 		// fresh-discovery markets on the env so the
 		// per-ticker loop can find them in the snapshot
@@ -798,10 +798,10 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 					   WHERE user_id = ?1
 					     AND ticker IN (${placeholders})
 					     AND expires_at > ?2
-					 )
+					)
 					 WHERE rn = 1`,
 				)
-				.bind(userId, ...slice, now)
+				.bind(userId,...slice, now)
 				.all<{
 					ticker: string;
 					ts: number;
@@ -860,7 +860,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 					  WHERE user_id = ?1 AND ticker IN (${placeholders})
 					) WHERE rn = 1`,
 				)
-				.bind(userId, ...slice)
+				.bind(userId,...slice)
 				.all<{
 					ticker: string;
 					event_ticker: string | null;
@@ -902,7 +902,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 					   AND ts >= ?${slice.length + 2}
 					 ORDER BY ticker, ts ASC`,
 				)
-				.bind(userId, ...slice, now - 60 * 60 * 1000)
+				.bind(userId,...slice, now - 60 * 60 * 1000)
 				.all<{
 					ticker: string;
 					ts: number;
@@ -1153,8 +1153,8 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 				// confidence, add to universe, track when
 				// price appears").
 				noPrice,
-				yesBidCents: snap.yes_bid_cents > 0 ? snap.yes_bid_cents : null,
-				yesAskCents: snap.yes_ask_cents > 0 ? snap.yes_ask_cents : null,
+				yesBidCents: snap.yes_bid_cents > 0 ? snap.yes_bid_cents: null,
+				yesAskCents: snap.yes_ask_cents > 0 ? snap.yes_ask_cents: null,
 				lastPriceCents: snap.last_price_cents,
 				volume24h: (snap as { volume_24h?: number | null }).volume_24h ?? null,
 				openInterest: (snap as { open_interest?: number | null }).open_interest ?? null,
@@ -1190,7 +1190,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 					input_tokens_est: llm.input_tokens,
 					output_tokens_est: llm.output_tokens,
 					duration_ms: llm.duration_ms,
-					status: llm.ok ? "success" : "error",
+					status: llm.ok ? "success": "error",
 					error_message: llm.error_message,
 				})
 				.catch(() => undefined);
@@ -1265,7 +1265,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 				});
 			}
 		} catch (e) {
-			errors.push({ ticker, message: e instanceof Error ? e.message : String(e) });
+			errors.push({ ticker, message: e instanceof Error ? e.message: String(e) });
 		}
 	});
 
@@ -1369,7 +1369,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 				} catch (e) {
 					console.warn(
 						`[llm-opinions] auto-promote audit row failed for ${cand.ticker}:`,
-						e instanceof Error ? e.message : String(e),
+						e instanceof Error ? e.message: String(e),
 					);
 				}
 			} catch (e) {
@@ -1378,7 +1378,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 					vertical: cand.vertical,
 					confidence: cand.confidence,
 					ok: false,
-					error: e instanceof Error ? e.message : String(e),
+					error: e instanceof Error ? e.message: String(e),
 				});
 			}
 		}
@@ -1426,7 +1426,7 @@ export async function runLLMOpinionsCron(env: LLMOpinionsEnv): Promise<CronResul
 			status: cronStatus,
 			error_message: errorMessage,
 			artifacts_json:
-				errors.length > 0 ? JSON.stringify({ errors: errors.slice(0, 10) }) : null,
+				errors.length > 0 ? JSON.stringify({ errors: errors.slice(0, 10) }): null,
 		});
 	} catch (e) {
 		console.warn("[llm-opinions] failed to record cron run", e);

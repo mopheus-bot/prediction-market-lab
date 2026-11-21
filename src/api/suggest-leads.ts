@@ -1,5 +1,5 @@
 /**
- * pm-bot — LLM-powered lead generation endpoint (chunk 11+).
+ * prediction-market-lab — LLM-powered lead generation endpoint.
  *
  * Asks the LLM to suggest new Kalshi tickers the bot should
  * add to its universe, given the current state. The LLM picks
@@ -13,8 +13,8 @@
  *   curl -X POST api/pm/bot/suggest-leads -H "content-type: application/json" -d '{"count": 6}'
  *
  * Returns:
- *   { ok, tickers: ["KXWARMING-60", ...], reasoning: "...",
- *     excluded: [{ticker, reason}, ...],
+ *   { ok, tickers: ["KXWARMING-60",...], reasoning: "...",
+ *     excluded: [{ticker, reason},...],
  *     raw_text: "..." }
  *
  * **Why this exists:** the user wants the LLM to pick the
@@ -110,7 +110,7 @@ function buildUserPrompt(body: SuggestLeadsBody): string {
 		lines.push("- (no verticals configured)");
 	} else {
 		for (const v of verticals) {
-			lines.push(`- ${v.id}: strategy=${v.strategy}${v.strategy_label ? ` (${v.strategy_label})` : ""}, model=${v.model_version ?? "v1"}`);
+			lines.push(`- ${v.id}: strategy=${v.strategy}${v.strategy_label ? ` (${v.strategy_label})`: ""}, model=${v.model_version ?? "v1"}`);
 		}
 	}
 	lines.push("");
@@ -165,7 +165,7 @@ export function parseTickerList(rawText: string, requestedCount: number): {
 					const o = item as { ticker: string; reasoning?: unknown };
 					tickers.push({
 						ticker: o.ticker,
-						reasoning: typeof o.reasoning === "string" ? o.reasoning : "",
+						reasoning: typeof o.reasoning === "string" ? o.reasoning: "",
 					});
 				}
 			}
@@ -256,7 +256,7 @@ export async function handleSuggestLeads(
 	const count = Math.min(requested, HARD_MAX_COUNT);
 
 	// 1. Build the prompt.
-	const userPrompt = buildUserPrompt({ ...body, count });
+	const userPrompt = buildUserPrompt({...body, count });
 
 	// 2. Ask the LLM. M3 is a reasoning model that
 	// wraps its output in <think>...</think>, so we
@@ -289,7 +289,7 @@ export async function handleSuggestLeads(
 	const validation = validateTickerSuggestions(
 		parsed.tickers.map((t) => t.ticker),
 		{
-			exclude: [...(body.exclude ?? []), ...(body.current_tickers ?? [])],
+			exclude: [...(body.exclude ?? []),...(body.current_tickers ?? [])],
 			limit: count,
 		},
 	);

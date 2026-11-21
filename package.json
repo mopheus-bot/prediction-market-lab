@@ -1,24 +1,26 @@
 {
-  "name": "pm-bot",
+  "name": "prediction-market-lab",
   "version": "0.1.0",
-  "private": true,
-  "description": "Serverless Kalshi trading bot — Cloudflare Workers + DOs + D1 + R2.",
+  "license": "MIT",
+  "description": "Quant research platform for prediction-market trading — Cloudflare Workers + Durable Objects + D1 + R2, with a multi-vertical ML signal pipeline.",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "d1:migrate:local": "wrangler d1 migrations apply pm-bot-prod --local",
-    "d1:migrate:prod": "wrangler d1 migrations apply pm-bot-prod --remote",
-    "d1:shell:local": "wrangler d1 execute pm-bot-prod --local --command",
+    "d1:migrate:local": "wrangler d1 migrations apply prediction-market-lab --local",
+    "d1:migrate:prod": "wrangler d1 migrations apply prediction-market-lab --remote",
+    "d1:shell:local": "wrangler d1 execute prediction-market-lab --local --command",
     "types": "wrangler types",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:watch": "vitest",
-    "models:convert": "python3 scripts/convert-models-to-json.py",
-    "models:parity": "python3 scripts/verify-model-parity.py",
-    "models:upload": "for v in weather economic politics sports; do npx wrangler r2 object put pm-bot/models/reversion-${v}-v1.json --file models/reversion-${v}-v1.json; done"
+    "auth:vectors": "python3 scripts/gen-auth-vectors.py",
+    "models:upload": "for v in weather economic politics sports; do npx wrangler r2 object put prediction-market-lab/models/reversion-${v}-v1.json --file models/reversion-${v}-v1.json; done"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.20.3",

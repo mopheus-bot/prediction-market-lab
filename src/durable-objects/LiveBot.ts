@@ -1,5 +1,5 @@
 /**
- * pm-bot — LiveBot Durable Object (chunk 3).
+ * prediction-market-lab — LiveBot Durable Object.
  *
  * The 24/7 paper-trading engine. Owns:
  *   - An outgoing WebSocket connection to the Kalshi public WS feed
@@ -11,7 +11,7 @@
  *   - Persistent state in `ctx.storage` so the DO can be evicted and
  *     resume cleanly on the next request / alarm.
  *
- * Hibernation model (per docs/PLAN.md §"Decisions to honor"):
+ * Hibernation model (per docs/RESEARCH-PLAN.md §"Decisions to honor"):
  *   - The INCOMING control WS (clients connecting to the bot to issue
  *     commands like /start, /stop, /status) uses
  *     `state.acceptWebSocket()` so the DO can hibernate between
@@ -129,19 +129,19 @@ export interface LiveBotState {
 		exit_mode: "mtm" | "settlement";
 		profit_target_pct: number | null;
 		stop_loss_pct: number | null;
-		/** Chunk 4: model version for the reversion-quality models.
+		/**: model version for the reversion-quality models.
 		 * Defaults to "v1"; the DO looks up
 		 * `models/reversion-{weather,economic}-${model_version}.json`
 		 * in R2 on /start. */
 		model_version: string;
-		/** Chunk 9: trading mode. */
+		/**: trading mode. */
 		trading_mode: "paper" | "real" | "off";
-		/** Chunk 9: caps. */
+		/**: caps. */
 		max_notional_cents_per_trade: number;
 		daily_notional_cents_cap: number;
-		/** Chunk 9: kill switch. */
+		/**: kill switch. */
 		kill_switch: boolean;
-		/** Chunk 11b: per-vertical caps. Optional override
+		/**: per-vertical caps. Optional override
 		 *  of the global `max_notional_cents_per_trade` per
 		 *  vertical (weather / economic / politics / sports).
 		 *  When a vertical is in this map, that cap is used;
@@ -149,13 +149,13 @@ export interface LiveBotState {
 		 *  predictable than politics — you can cap politics at
 		 *  5¢/trade while keeping 25¢/trade on weather. */
 		per_vertical_max_notional_cents?: Record<string, number> | null;
-		/** Chunk 11b: per-ticker blocklist. The bot skips
+		/**: per-ticker blocklist. The bot skips
 		 *  trades on these tickers even when the global kill
 		 *  switch is OFF. Useful for "I don't want to trade
 		 *  KXTICKER because the model isn't reliable for it"
 		 *  without flipping the global kill switch. */
 		disabled_tickers?: string[] | null;
-	/** Chunk 10.8c: per-vertical blocklist. The bot skips
+	/**: per-vertical blocklist. The bot skips
 	 *  trades on any ticker whose vertical is in this list. */
 	disabled_verticals?: string[] | null;
 	/** 2026-08-10: per-vertical NaiveSignal fade threshold
@@ -207,50 +207,50 @@ export interface LiveBotConfig {
 	profit_target_pct?: number | null;
 	stop_loss_pct?: number | null;
 	risk_config?: RiskConfig;
-	/** Chunk 4: model version (e.g. "v1", "v2"). The DO loads
+	/**: model version (e.g. "v1", "v2"). The DO loads
 	 * `models/reversion-{weather,economic}-${model_version}.json`
 	 * from R2 on /start. */
 	model_version?: string;
-	/** Chunk 9: trading mode. "paper" = log only (default),
+	/**: trading mode. "paper" = log only (default),
 	 * "real" = also place live orders on Kalshi, "off" = log
 	 * nothing (bot is paused; the WS keeps running so we
 	 * still see state). */
 	trading_mode?: "paper" | "real" | "off";
-	/** Chunk 9: max cents per single trade. Default 100c
+	/**: max cents per single trade. Default 100c
 	 * ($1.00). When a signal wants to trade more than this,
 	 * it's rejected with `per_trade_cap_exceeded`. Conservative
 	 * default for safety; the user can override via /start. */
 	max_notional_cents_per_trade?: number;
-	/** Chunk 9: max cents deployed in the last 24h (sliding
+	/**: max cents deployed in the last 24h (sliding
 	 * window). Default 1000c ($10.00). When a new trade
 	 * would push the 24h total over this, it's rejected
 	 * with `daily_cap_exceeded`. The cap is tracked in the
 	 * bot's risk state (persisted to ctx.storage on every
 	 * trade). */
 	daily_notional_cents_cap?: number;
-	/** Chunk 9: kill switch. When true, the engine refuses
+	/**: kill switch. When true, the engine refuses
 	 * all new trades (paper + real) AND closes any open
 	 * positions at the next mark. Use this as the panic
 	 * button. */
 	kill_switch?: boolean;
-	/** Chunk 11b: per-vertical caps. Optional override of
+	/**: per-vertical caps. Optional override of
 	 * the global `max_notional_cents_per_trade` per vertical
 	 * (weather / economic / politics / sports). When a
 	 * vertical is in this map, that cap is used; else the
 	 * global cap. */
 	per_vertical_max_notional_cents?: Record<string, number> | null;
-	/** Chunk 11b: per-ticker blocklist. The bot skips trades
+	/**: per-ticker blocklist. The bot skips trades
 	 * on these tickers even when the global kill switch is
 	 * OFF. */
 	disabled_tickers?: string[] | null;
-	/** Chunk 10.8c: per-vertical blocklist. The bot skips
+	/**: per-vertical blocklist. The bot skips
 	 * trades on any ticker whose vertical is in this list.
 	 * Useful for "I want to disable politics while keeping
 	 * weather + economic" without touching the per-ticker
 	 * blocklist. Vertical is the `ticker_verticals[t]` value
 	 * (lowercased). */
 	disabled_verticals?: string[] | null;
-	/** Chunk 10.8c: when true, /start re-pulls bankroll_cents
+	/**: when true, /start re-pulls bankroll_cents
 	 * from Kalshi (only meaningful when trading_mode === "real").
 	 * Lets the operator add/withdraw money, hit /start, and
 	 * have position sizing adjust to the new balance. */
@@ -292,7 +292,7 @@ interface LiveBotEnv {
 	// Optional JSON-serialized RiskConfig override. Allows per-deployment
 	// risk tuning without redeploying the Worker.
 	RISK_CONFIG_OVERRIDE?: string;
-	// Telegram (chunk 11a). The bot sends a Telegram message on every
+	// Telegram. The bot sends a Telegram message on every
 	// REAL fill (when trading_mode === "real"). Paper + off don't post.
 	TELEGRAM_BOT_TOKEN?: string;
 	TELEGRAM_CHAT_ID?: string;
@@ -344,7 +344,7 @@ export class LiveBot implements DurableObject {
 	// See docs/EVENT-DRIVEN-UI.md for the full event vocabulary.
 	private _sseClients: Set<ReadableStreamDefaultController<Uint8Array>> = new Set();
 	private _sseKeepalive: ReturnType<typeof setInterval> | null = null;
-	// Model cache (chunk 4). Loaded from R2 on /start, reused
+	// Model cache. Loaded from R2 on /start, reused
 	// across every signal call. Re-loaded if the model_version
 	// changes via a subsequent /start call. We don't persist
 	// the loaded model in storage — it's a few hundred KB and
@@ -407,7 +407,7 @@ export class LiveBot implements DurableObject {
 	}
 
 	/**
-	 * Chunk 10.8c: write a denormalized subset of the bot
+	 *: write a denormalized subset of the bot
 	 * config to D1 so the Worker's read-only endpoints
 	 * (currently /api/pm/verticals) can serve fresh data
 	 * without instantiating the DO. The DO is the source of
@@ -443,7 +443,7 @@ export class LiveBot implements DurableObject {
 		} catch (e) {
 			console.warn(
 				"[live-bot] mirrorConfigToD1 failed (non-fatal):",
-				e instanceof Error ? e.message : String(e),
+				e instanceof Error ? e.message: String(e),
 			);
 		}
 	}
@@ -495,7 +495,7 @@ export class LiveBot implements DurableObject {
 				profit_target_pct: null,
 				stop_loss_pct: null,
 				model_version: "v1",
-				// Chunk 9.6 defaults (revised for a $9.73
+				//  defaults (revised for a $9.73
 				// account). 25c per trade = 2.5% of balance;
 				// 150c daily deployed notional = 15% of
 				// balance. Operators bump via /start when
@@ -515,7 +515,7 @@ export class LiveBot implements DurableObject {
 				max_notional_cents_per_trade: 20000, // $200
 				daily_notional_cents_cap: 1000000, // $10,000
 				kill_switch: false,
-				// Chunk 11b: per-vertical caps + per-ticker
+				//: per-vertical caps + per-ticker
 				// blocklist. Default to "no override" (null)
 				// which falls back to the global cap. Operators
 				// set these via /start to enforce tighter
@@ -573,13 +573,13 @@ export class LiveBot implements DurableObject {
 	 * load is non-fatal — the engine falls back to NaiveSignal for
 	 * the affected vertical.
 	 *
-	 * **Chunk 8 update:** the `models` D1 table is the source of
+	 * ** update:** the `models` D1 table is the source of
 	 * truth for "which model_version is active per vertical." When
 	 * `loadActiveFromRegistry` is true (the default), we query the
 	 * `models` table for the active row per vertical and use that
 	 * version. The `version` argument is then a fallback (used
 	 * when the registry is empty, e.g. before any model has been
-	 * registered). This keeps backward compat with the chunk-4
+	 * registered). This keeps backward compat with the step-4
 	 * `config.model_version` field while making the registry
 	 * the canonical source.
 	 */
@@ -590,7 +590,7 @@ export class LiveBot implements DurableObject {
 		const { loadActiveFromRegistry = true } = opts;
 		// Resolve the per-vertical version: registry first, then
 		// the fallback. If the registry is empty, every vertical
-		// uses the fallback (preserves chunk-4 behavior).
+		// uses the fallback (preserves  behavior).
 		let weatherVersion = version;
 		let economicVersion = version;
 		if (loadActiveFromRegistry && this.env.DB) {
@@ -852,7 +852,7 @@ export class LiveBot implements DurableObject {
 						consecutive_losses: state.risk_state.consecutive_losses,
 						drawdown_pause_until_tick: state.risk_state.drawdown_pause_until_tick,
 						cooldown_until_tick: state.risk_state.cooldown_until_tick,
-						// Chunk 9: 24h notional deployed.
+						//: 24h notional deployed.
 						daily_notional_cents: dailyNotionalCents(state.risk_state),
 						daily_notional_cap_cents: state.config.daily_notional_cents_cap,
 						daily_notional_history_len: state.risk_state.daily_notional_history.length,
@@ -954,7 +954,7 @@ export class LiveBot implements DurableObject {
 			}
 
 			case "/reload-models": {
-				// Chunk 8: re-read the active model_version from
+				//: re-read the active model_version from
 				// the models D1 table and reload from R2. The
 				// caller doesn't have to know the per-vertical
 				// version; the registry is the source of truth.
@@ -964,14 +964,14 @@ export class LiveBot implements DurableObject {
 					ok: true,
 					reloaded: true,
 					models: {
-						weather: this._models.weather ? "loaded" : "missing",
-						economic: this._models.economic ? "loaded" : "missing",
+						weather: this._models.weather ? "loaded": "missing",
+						economic: this._models.economic ? "loaded": "missing",
 					},
 				});
 			}
 
 			case "/trading-mode": {
-				// Chunk 9: set the trading mode. Body:
+				//: set the trading mode. Body:
 				// { "trading_mode": "paper" | "real" | "off" }
 				const body = (await request.json().catch(() => ({}))) as {
 					trading_mode?: "paper" | "real" | "off";
@@ -997,7 +997,7 @@ export class LiveBot implements DurableObject {
 					trading_mode: mode,
 					previous_mode: previous,
 				});
-				// Chunk 10.8c: when going to "real", re-pull
+				//: when going to "real", re-pull
 				// bankroll from Kalshi so position sizing matches
 				// the operator's actual balance. Failure to pull
 				// is non-fatal — keep the previous bankroll.
@@ -1036,7 +1036,7 @@ export class LiveBot implements DurableObject {
 			}
 
 			case "/kill-switch": {
-				// Chunk 9: toggle the kill switch. Body:
+				//: toggle the kill switch. Body:
 				// { "on": true | false } (default true = activate)
 				const body = (await request.json().catch(() => ({}))) as {
 					on?: boolean;
@@ -1065,7 +1065,7 @@ export class LiveBot implements DurableObject {
 				// "auto" part real.
 				//
 				// Body: { "ticker": "KX...", "vertical":
-				//   "weather" | ..., "confidence": 0.0-1.0,
+				//   "weather" |..., "confidence": 0.0-1.0,
 				//   "reasoning": "short string" }
 				//
 				// Safety:
@@ -1202,7 +1202,7 @@ export class LiveBot implements DurableObject {
 			}
 
 			case "/place-test-order": {
-				// Chunk 9: manual operator trigger to place a
+				//: manual operator trigger to place a
 				// real order. Use this to verify the real-money
 				// path end-to-end without waiting for a signal.
 				// Body: { "ticker": "KXWARMING-50", "side":
@@ -1217,7 +1217,7 @@ export class LiveBot implements DurableObject {
 					size?: number;
 				};
 				const ticker = String(body.ticker ?? "").trim();
-				const side: "yes" | "no" = body.side === "no" ? "no" : "yes";
+				const side: "yes" | "no" = body.side === "no" ? "no": "yes";
 				const priceCents = Number(body.price_cents ?? 1);
 				const size = Number(body.size ?? 1);
 				if (!ticker) {
@@ -1253,7 +1253,7 @@ export class LiveBot implements DurableObject {
 						{ status: 400 },
 					);
 				}
-				// Chunk 10.8c: per-ticker + per-vertical blocklist.
+				//: per-ticker + per-vertical blocklist.
 				// Blocked tickers (or tickers in blocked verticals)
 				// can't be traded even via /place-test-order.
 				if (
@@ -1289,12 +1289,12 @@ export class LiveBot implements DurableObject {
 						{ status: 400 },
 					);
 				}
-				// Enforce per-trade cap. Chunk 11b: prefer the
+				// Enforce per-trade cap.: prefer the
 				// per-vertical cap if the ticker's vertical is
 				// in the override map; else fall back to the
 				// global cap. (`tState` and `tv` were computed
 				// earlier for the per-vertical blocklist check.)
-				const notionalCents = side === "yes" ? priceCents * size : (100 - priceCents) * size;
+				const notionalCents = side === "yes" ? priceCents * size: (100 - priceCents) * size;
 				const verticalCap =
 					(s.config.per_vertical_max_notional_cents ?? {})[tv] ??
 					s.config.max_notional_cents_per_trade;
@@ -1401,7 +1401,7 @@ export class LiveBot implements DurableObject {
 				// payload shape.
 				this._sseEmitRisk(s);
 
-				// Chunk 10.8: Telegram on manual test orders too.
+				//: Telegram on manual test orders too.
 				// The Telegram send in maybeRecordTrade only
 				// fires for signal-driven trades; /place-test-order
 				// bypasses that path. Mirror the same alert so
@@ -1413,7 +1413,7 @@ export class LiveBot implements DurableObject {
 						`side=${side} size=${size} price=${priceCents}¢`,
 						`notional=${notionalCents}¢`,
 						`rationale=manual_test_order`,
-						orderResult.orderId ? `kalshi order: ${orderResult.orderId}` : null,
+						orderResult.orderId ? `kalshi order: ${orderResult.orderId}`: null,
 					]
 						.filter(Boolean)
 						.join("\n");
@@ -1431,7 +1431,7 @@ export class LiveBot implements DurableObject {
 				} catch (e) {
 					console.warn(
 						"[live-bot] /place-test-order telegram threw",
-						e instanceof Error ? e.message : String(e),
+						e instanceof Error ? e.message: String(e),
 					);
 				}
 
@@ -1447,7 +1447,7 @@ export class LiveBot implements DurableObject {
 			}
 
 			case "/close-position": {
-				// Chunk 10.9: manual operator exit. Body:
+				//: manual operator exit. Body:
 				// { "ticker": "KXWARMING-50" } — closes the open
 				// position at the current mark. Works for both
 				// paper + real positions. Returns the realized
@@ -1504,7 +1504,7 @@ export class LiveBot implements DurableObject {
 			}
 
 			case "/cancel-order": {
-				// Chunk 10.9: cancel a GTC order. Body:
+				//: cancel a GTC order. Body:
 				// { "order_id": "..." }. Returns the cancellation
 				// status from Kalshi. Only meaningful when
 				// trading_mode === "real" — paper orders are
@@ -1532,9 +1532,9 @@ export class LiveBot implements DurableObject {
 				}
 				const useDemo = s.config.url.includes("demo");
 				const keyId =
-					(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
+					(useDemo ? this.env.KALSHI_DEMO_KEY_ID: this.env.KALSHI_PROD_KEY_ID) ?? "";
 				const pem =
-					(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
+					(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY: this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
 				if (!keyId || !pem) {
 					return Response.json(
 						{ ok: false, error: "missing_credentials", message: "Kalshi creds not set" },
@@ -1549,7 +1549,7 @@ export class LiveBot implements DurableObject {
 					const client = new KalshiSdkClient({
 						creds: credentials,
 						privateKeyPem: pem,
-						env: useDemo ? "demo" : "prod",
+						env: useDemo ? "demo": "prod",
 						requestsPerSecond: 0,
 					});
 					const result = (await client.cancelOrderV2(orderId)) as Record<string, unknown>;
@@ -1559,7 +1559,7 @@ export class LiveBot implements DurableObject {
 						result,
 					});
 				} catch (e) {
-					const msg = e instanceof Error ? e.message : String(e);
+					const msg = e instanceof Error ? e.message: String(e);
 					return Response.json(
 						{
 							ok: false,
@@ -1581,10 +1581,10 @@ export class LiveBot implements DurableObject {
 						"POST /start  (json: LiveBotConfig)",
 						"POST /stop",
 						"POST /restart",
-						"POST /reload-models  (chunk 8: hot-swap from registry)",
-						"POST /trading-mode  (chunk 9: {trading_mode: paper|real|off})",
-						"POST /kill-switch  (chunk 9: {on: bool})",
-						"POST /place-test-order  (chunk 9: {ticker, side, price_cents, size})",
+						"POST /reload-models (hot-swap from registry)",
+						"POST /trading-mode ({trading_mode: paper|real|off})",
+						"POST /kill-switch ({on: bool})",
+						"POST /place-test-order ({ticker, side, price_cents, size})",
 						"WS   /  (Upgrade: websocket) — control channel",
 					],
 				});
@@ -1661,7 +1661,7 @@ export class LiveBot implements DurableObject {
 		// doing the next poll. `/stop` deletes the alarm,
 		// which is the only way to truly halt polling.
 		console.log(
-			`[live-bot] alarm fired (${alarmInfo?.isRetry ? "retry" : "scheduled"}); polling`,
+			`[live-bot] alarm fired (${alarmInfo?.isRetry ? "retry": "scheduled"}); polling`,
 		);
 		await this.pollTick();
 	}
@@ -1709,7 +1709,7 @@ export class LiveBot implements DurableObject {
 			profit_target_pct: config.profit_target_pct ?? state.config.profit_target_pct,
 			stop_loss_pct: config.stop_loss_pct ?? state.config.stop_loss_pct,
 			model_version: config.model_version ?? state.config.model_version,
-			// Chunk 9: trading mode + caps. Note: `kill_switch`
+			//: trading mode + caps. Note: `kill_switch`
 			// is intentionally NOT restored from `config` here —
 			// once the operator flips the kill switch, it stays
 			// on until they explicitly unset it. Toggling
@@ -1720,7 +1720,7 @@ export class LiveBot implements DurableObject {
 				state.config.max_notional_cents_per_trade,
 			daily_notional_cents_cap:
 				config.daily_notional_cents_cap ?? state.config.daily_notional_cents_cap,
-			// Chunk 11b: per-vertical caps + per-ticker blocklist.
+			//: per-vertical caps + per-ticker blocklist.
 			// null is an explicit value (operator cleared the
 			// override), undefined means "leave the current
 			// value alone" (don't accidentally wipe the
@@ -1733,7 +1733,7 @@ export class LiveBot implements DurableObject {
 				config.disabled_tickers !== undefined
 					? config.disabled_tickers
 					: state.config.disabled_tickers,
-			// Chunk 10.8c: per-vertical blocklist + bankroll
+			//: per-vertical blocklist + bankroll
 			// refresh flag.
 			disabled_verticals:
 				config.disabled_verticals !== undefined
@@ -1767,7 +1767,7 @@ export class LiveBot implements DurableObject {
 		if (config.user_id) state.user_id = config.user_id;
 		await this.saveState(state);
 
-		// Chunk 10.8c: optional bankroll refresh from Kalshi.
+		//: optional bankroll refresh from Kalshi.
 		// Lets the operator deposit/withdraw money, hit /start,
 		// and have position sizing match the new balance.
 		// Only fires when explicitly requested (or when
@@ -1805,7 +1805,7 @@ export class LiveBot implements DurableObject {
 		// on the normal cadence after.
 		await this.writeInitialSnapshots(state);
 
-		// Load the reversion models from R2 (chunk 4). Failure to
+		// Load the reversion models from R2. Failure to
 		// load is non-fatal — we fall back to NaiveSignal for the
 		// affected vertical. The model_version defaults to "v1" and
 		// can be overridden via /start config.
@@ -1834,7 +1834,7 @@ export class LiveBot implements DurableObject {
 				console.warn(
 					"[live-bot] initial snapshot failed for",
 					ticker,
-					e instanceof Error ? e.message : String(e),
+					e instanceof Error ? e.message: String(e),
 				);
 			}
 		}
@@ -1864,7 +1864,7 @@ export class LiveBot implements DurableObject {
 	// signal/auto-close logic is unchanged.
 	//
 	// Trade-off vs WS streaming: 1-2s data lag instead of
-	// sub-second. For pm-bot's paper-trading strategy this is
+	// sub-second. For prediction-market-lab's paper-trading strategy this is
 	// invisible — the bot's decisions don't depend on
 	// sub-second precision.
 
@@ -1898,7 +1898,7 @@ export class LiveBot implements DurableObject {
 		this._sdkClient = new KalshiSdkClient({
 			creds,
 			privateKeyPem: pem,
-			env: isProd ? "prod" : "demo",
+			env: isProd ? "prod": "demo",
 			requestsPerSecond: 2,
 		});
 		this._pollIndex = -1;
@@ -1913,7 +1913,7 @@ export class LiveBot implements DurableObject {
 		// call kicks off the first alarm.
 		await this.setPollingActive(true);
 		console.log(
-			`[live-bot:polling] starting; env=${isProd ? "prod" : "demo"} tickers=${state.config.tickers.length}`,
+			`[live-bot:polling] starting; env=${isProd ? "prod": "demo"} tickers=${state.config.tickers.length}`,
 		);
 		// Kick off the first poll in 100ms via the alarm. setAlarm
 		// is durable (survives DO evictions), unlike setTimeout
@@ -1974,14 +1974,14 @@ export class LiveBot implements DurableObject {
 				this._sdkClient = new KalshiSdkClient({
 					creds,
 					privateKeyPem: pem,
-					env: isProd ? "prod" : "demo",
+					env: isProd ? "prod": "demo",
 					requestsPerSecond: 2,
 				});
 				this._connected = true;
 				this._lastPollError = null;
 				console.log("[live-bot:polling] SDK client re-initialized after DO eviction");
 			} catch (e) {
-				const msg = e instanceof Error ? e.message : String(e);
+				const msg = e instanceof Error ? e.message: String(e);
 				this._lastPollError = {
 					ts_ms: Date.now(),
 					code: "sdk_init_failed",
@@ -1996,7 +1996,7 @@ export class LiveBot implements DurableObject {
 		try {
 			state = await this.ensureState();
 		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
+			const msg = e instanceof Error ? e.message: String(e);
 			console.error("[live-bot:polling] ensureState failed", msg);
 			this._lastPollError = {
 				ts_ms: Date.now(),
@@ -2128,7 +2128,7 @@ export class LiveBot implements DurableObject {
 				await this.saveState(state);
 			});
 		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
+			const msg = e instanceof Error ? e.message: String(e);
 			console.error("[live-bot:polling] poll failed for", ticker, msg);
 			this._lastPollError = {
 				ts_ms: Date.now(),
@@ -2200,7 +2200,7 @@ export class LiveBot implements DurableObject {
 		const ya = yesAskCents(ob);
 		const nb = bestNoBidCents(ob);
 		const na = noAskCents(ob);
-		const is_live = yb !== null && ya !== null && yb > 0 && ya > 0 && ya > yb ? 1 : 0;
+		const is_live = yb !== null && ya !== null && yb > 0 && ya > 0 && ya > yb ? 1: 0;
 
 		// Debounce check: skip if we wrote recently AND
 		// the price hasn't moved enough to force-write.
@@ -2228,7 +2228,7 @@ export class LiveBot implements DurableObject {
 				volume_24h: null,
 				open_interest: null,
 				is_live,
-				close_time: t?.book ? null : null,
+				close_time: t?.book ? null: null,
 			});
 			// Update the debounce metadata.
 			meta[ticker] = { last_ts_ms: now, last_mid: mid };
@@ -2238,7 +2238,7 @@ export class LiveBot implements DurableObject {
 			// never break the polling loop. Log and move on.
 			console.warn(
 				"[live-bot] snapshot write failed (non-fatal):",
-				e instanceof Error ? e.message : String(e),
+				e instanceof Error ? e.message: String(e),
 			);
 		}
 	}
@@ -2246,7 +2246,7 @@ export class LiveBot implements DurableObject {
 	// ─── Trade recording ────────────────────────────────────────
 
 	private async maybeSignalAll(state: LiveBotState): Promise<void> {
-		// Build the per-vertical router. Chunk 4 uses the loaded
+		// Build the per-vertical router.  uses the loaded
 		// reversion models for weather + economic; the router falls
 		// back to NaiveSignal for any vertical where the model is
 		// missing (e.g. R2 not provisioned yet).
@@ -2409,7 +2409,7 @@ export class LiveBot implements DurableObject {
 		if (!t) return;
 		const pos = t.position;
 
-		// Chunk 11b: per-ticker blocklist. Skip tickers the
+		//: per-ticker blocklist. Skip tickers the
 		// operator has explicitly disabled, even when the
 		// global kill switch is OFF. Useful for "I don't want
 		// to trade KXTICKER because the model isn't reliable
@@ -2428,7 +2428,7 @@ export class LiveBot implements DurableObject {
 			return;
 		}
 
-		// Chunk 10.8c: per-vertical blocklist. Skip tickers
+		//: per-vertical blocklist. Skip tickers
 		// whose vertical is on the blocklist, even when the
 		// ticker isn't. Useful for "I want to disable all
 		// politics while keeping weather + economic" without
@@ -2438,7 +2438,7 @@ export class LiveBot implements DurableObject {
 			state.config.disabled_verticals !== undefined &&
 			state.config.disabled_verticals.length > 0
 		) {
-			const tv = t.vertical ? String(t.vertical) : "unknown";
+			const tv = t.vertical ? String(t.vertical): "unknown";
 			if (state.config.disabled_verticals.includes(tv)) {
 				state.last_reject = {
 					ts_ms: Date.now(),
@@ -2450,7 +2450,7 @@ export class LiveBot implements DurableObject {
 			}
 		}
 
-		// Chunk 9: kill switch — refuse all new trades. The
+		//: kill switch — refuse all new trades. The
 		// open positions are NOT auto-closed here (that's a
 		// separate operator-driven path: /kill-switch with
 		// `{"action":"close_all"}` will be added in a follow-up).
@@ -2643,7 +2643,7 @@ export class LiveBot implements DurableObject {
 				if (newCostCents > state.config.max_notional_cents_per_trade) {
 					addSize = Math.floor(
 						state.config.max_notional_cents_per_trade /
-							(signal.side === "yes" ? signal.price : 100 - signal.price),
+							(signal.side === "yes" ? signal.price: 100 - signal.price),
 					);
 					if (addSize <= 0) {
 						state.last_reject = {
@@ -2808,7 +2808,7 @@ export class LiveBot implements DurableObject {
 		//
 		// 2026-08-11: feed the judge the REAL pnl_history. The
 		// previous code passed `Object.values(open_positions)
-		// .map(p => ({ pnl_cents: 0 }))` — every "trade" was a
+		//.map(p => ({ pnl_cents: 0 }))` — every "trade" was a
 		// zero, so recentWinRate was always 0, so the judge
 		// always shrunk the trade by 0.7 (the < 40% branch in
 		// engine.ts:judgeSize). That deterministic shrink is
@@ -2840,7 +2840,7 @@ export class LiveBot implements DurableObject {
 				: (100 - signal.price) * size;
 		const entryFeeCents = kalshiTakerFeeCents(signal.side, size, signal.price);
 
-		// Chunk 9: per-trade cap. Conservative default $1.00 =
+		//: per-trade cap. Conservative default $1.00 =
 		// 100 cents. The notional is `price * size` for YES
 		// positions and `(100 - price) * size` for NO. (Matches
 		// the cost formula above.) Operators can bump via
@@ -2857,7 +2857,7 @@ export class LiveBot implements DurableObject {
 			return;
 		}
 
-		// Chunk 9: daily cap (sliding 24h window). Compute the
+		//: daily cap (sliding 24h window). Compute the
 		// current deployed notional + this trade's notional; if
 		// it would exceed the cap, reject.
 		const nowMs = Date.now();
@@ -2875,7 +2875,7 @@ export class LiveBot implements DurableObject {
 			return;
 		}
 
-		// Chunk 9: real-mode order placement. When
+		//: real-mode order placement. When
 		// `trading_mode === "real"`, we place the order on
 		// Kalshi FIRST. If Kalshi rejects (insufficient
 		// balance, market closed, etc.), we abort the
@@ -2959,7 +2959,7 @@ export class LiveBot implements DurableObject {
 			});
 		}
 
-		// Chunk 11a: Telegram alert on every real fill. The user
+		//: Telegram alert on every real fill. The user
 		// wants to know the moment a real-money trade goes
 		// through. We post the trade details + (for closes)
 		// the PnL. Paper + off mode don't post (would be
@@ -2971,7 +2971,7 @@ export class LiveBot implements DurableObject {
 				`side=${signal.side} size=${size} price=${signal.price}¢`,
 				`p(model)=${(signal.p * 100).toFixed(1)}%`,
 				`rationale=${signal.rationale.slice(0, 200)}`,
-				realOrderId ? `kalshi order: ${realOrderId}` : null,
+				realOrderId ? `kalshi order: ${realOrderId}`: null,
 			]
 				.filter(Boolean)
 				.join("\n");
@@ -2982,7 +2982,7 @@ export class LiveBot implements DurableObject {
 		}
 	}
 
-	// Chunk 10.8c: re-pull bankroll from Kalshi. Called by
+	//: re-pull bankroll from Kalshi. Called by
 	// /trading-mode (when going to "real") and by /start when
 	// `refresh_bankroll: true`. Lets the operator add or
 	// withdraw money, hit /start, and have position sizing
@@ -2997,18 +2997,18 @@ export class LiveBot implements DurableObject {
 	> {
 		const useDemo = state.config.url.includes("demo");
 		const keyId =
-			(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
+			(useDemo ? this.env.KALSHI_DEMO_KEY_ID: this.env.KALSHI_PROD_KEY_ID) ?? "";
 		const pem =
-			(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
+			(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY: this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
 		if (!keyId || !pem) {
 			return {
 				ok: false,
 				reasonCode: "missing_credentials",
-				message: `Kalshi ${useDemo ? "demo" : "prod"} creds are not set on the Worker`,
+				message: `Kalshi ${useDemo ? "demo": "prod"} creds are not set on the Worker`,
 			};
 		}
 		try {
-			// Chunk 10.8c: use the kalshi-typescript SDK
+			//: use the kalshi-typescript SDK
 			// adapter (axios + Node crypto + retries) instead
 			// of the hand-rolled client. Same auth, same
 			// response shape, built-in 5xx/429 retry.
@@ -3019,7 +3019,7 @@ export class LiveBot implements DurableObject {
 			const client = new KalshiSdkClient({
 				creds: credentials,
 				privateKeyPem: pem,
-				env: useDemo ? "demo" : "prod",
+				env: useDemo ? "demo": "prod",
 				requestsPerSecond: 0, // one-shot — no throttle
 			});
 			const data = (await client.getBalance()) as {
@@ -3034,7 +3034,7 @@ export class LiveBot implements DurableObject {
 			);
 			return { ok: true, bankrollCents, cash, portfolio, source: "kalshi" };
 		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
+			const msg = e instanceof Error ? e.message: String(e);
 			return {
 				ok: false,
 				reasonCode: "kalshi_balance_failed",
@@ -3043,7 +3043,7 @@ export class LiveBot implements DurableObject {
 		}
 	}
 
-	// Chunk 9: place a real order on Kalshi. Returns the order id
+	//: place a real order on Kalshi. Returns the order id
 	// on success; on failure returns an error reason. NEVER throws
 	// — the caller needs to log + skip without breaking the loop.
 	private async placeKalshiOrder(
@@ -3057,19 +3057,19 @@ export class LiveBot implements DurableObject {
 	> {
 		const useDemo = state.config.url.includes("demo");
 		const keyId =
-			(useDemo ? this.env.KALSHI_DEMO_KEY_ID : this.env.KALSHI_PROD_KEY_ID) ?? "";
+			(useDemo ? this.env.KALSHI_DEMO_KEY_ID: this.env.KALSHI_PROD_KEY_ID) ?? "";
 		const pem =
-			(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY : this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
+			(useDemo ? this.env.KALSHI_DEMO_PRIVATE_KEY: this.env.KALSHI_PROD_PRIVATE_KEY) ?? "";
 		if (!keyId || !pem) {
 			return {
 				ok: false,
 				reasonCode: "missing_credentials",
 				message:
-					`trading_mode=real but Kalshi ${useDemo ? "demo" : "prod"} creds are not set in env`,
+					`trading_mode=real but Kalshi ${useDemo ? "demo": "prod"} creds are not set in env`,
 			};
 		}
 		try {
-			// Chunk 10.8c: migrate to the kalshi-typescript
+			//: migrate to the kalshi-typescript
 			// SDK adapter. The SDK is the OpenAPI-generated
 			// client (axios + Node crypto) wrapped with our
 			// 2 req/s throttle + exponential-backoff retries
@@ -3085,7 +3085,7 @@ export class LiveBot implements DurableObject {
 			const client = new KalshiSdkClient({
 				creds,
 				privateKeyPem: pemContent,
-				env: useDemo ? "demo" : "prod",
+				env: useDemo ? "demo": "prod",
 				requestsPerSecond: 0, // one-shot — no throttle
 				maxRetries: 3,
 				initialBackoffMs: 500,
@@ -3100,7 +3100,7 @@ export class LiveBot implements DurableObject {
 			//   - count: fixed-point string with 2 decimals.
 			//   - time_in_force + self_trade_prevention_type are
 			//     required by the V2 spec; we use safe defaults.
-			const v2Side = signal.side === "yes" ? "bid" : "ask";
+			const v2Side = signal.side === "yes" ? "bid": "ask";
 			const priceDollars = (signal.price / 100).toFixed(4);
 			const countStr = size.toFixed(2);
 			const resp = (await client.createOrderV2({
@@ -3124,7 +3124,7 @@ export class LiveBot implements DurableObject {
 			}
 			return { ok: true, orderId };
 		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
+			const msg = e instanceof Error ? e.message: String(e);
 			return {
 				ok: false,
 				reasonCode: "kalshi_place_order_failed",
@@ -3220,13 +3220,13 @@ export class LiveBot implements DurableObject {
 	): Promise<void> {
 		const db = this.env.DB;
 		if (!db) return; // test env / no D1 binding
-		// Chunk 9: trading_mode + real_order_id land in D1 so
+		//: trading_mode + real_order_id land in D1 so
 		// the dashboard can split paper vs real PnL and link
-		// back to Kalshi orders. Defaults preserve chunk-1-8
+		// back to Kalshi orders. Defaults preserve -8
 		// behavior (every legacy row is "paper" + null order).
 		const tradingMode = row.trading_mode ?? "paper";
 		const realOrderId = row.real_order_id ?? null;
-		const isPaper = tradingMode === "paper" ? 1 : 0;
+		const isPaper = tradingMode === "paper" ? 1: 0;
 		await db
 			.prepare(
 				`INSERT INTO trades
@@ -3247,9 +3247,9 @@ export class LiveBot implements DurableObject {
 				row.size,
 				row.signal_p,
 				row.rationale,
-				"v0-naive", // chunk 4 swaps in real model version
+				"v0-naive", //  swaps in real model version
 				row.pnl_cents ?? null,
-				"limit", // fill_type: chunk 9 distinguishes paper vs real
+				"limit", // fill_type:  distinguishes paper vs real
 				isPaper,
 				tradingMode,
 				realOrderId,

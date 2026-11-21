@@ -1,5 +1,5 @@
 /**
- * pm-bot — cron job dispatcher (chunk 5).
+ * prediction-market-lab — cron job dispatcher.
  *
  * Maps a Cloudflare scheduled event to a specific job by
  * inspecting `event.cron` (the cron expression that fired).
@@ -11,16 +11,16 @@
  *                  (fetch markets, rank by vol, write top N
  *                  to the `scans` table).
  *   - `news`     — every 6 hours, for each open position
- *                  checks news via LLM. Stub in chunk 5;
- *                  full implementation lands in chunk 6.
+ *                  checks news via LLM. Stub in;
+ *                  full implementation lands in.
  *   - `daily`    — once a day at 06:00 UTC, aggregates
  *                  today's trades + PnL, writes a summary
  *                  to R2.
  *   - `train`    — once a week on Sunday 00:00 UTC, kicks
  *                  the Python retrain pipeline. Stub in
- *                  chunk 5; the Python retrain is a separate
+ *; the Python retrain is a separate
  *                  process (CF Workflow or external job in
- *                  chunk 8).
+ *).
  *
  * **Why a single Worker with one scheduled handler:**
  * CF allows one Worker per "service" — a separate Worker
@@ -53,7 +53,7 @@ import type { TelegramEnv } from "../telegram/index.js";
 
 export const CRON_TABLE = {
 	scan: "*/15 * * * *",     // every 15 min (0,15,30,45)
-	research: "5,20,35,50 * * * *", // every 15 min, offset 5 min from scan (5,20,35,50). 2026-08-10: chunk 14.1, polls Kalshi live markets. Unique expression so jobForCron dispatch works.
+	research: "5,20,35,50 * * * *", // every 15 min, offset 5 min from scan (5,20,35,50). 2026-08-10:, polls Kalshi live markets. Unique expression so jobForCron dispatch works.
 	news: "0 */6 * * *",      // every 6 hours (00/06/12/18 UTC)
 	daily: "0 6 * * *",       // 06:00 UTC daily
 	auto_pilot: "30 5 * * *", // 05:30 UTC daily (before daily recap)
@@ -148,9 +148,9 @@ export async function recordRun(
 		cron_name: run.cron_name,
 		ts: Date.now(),
 		duration_ms: run.duration_ms,
-		status: run.ok ? "success" : "error",
+		status: run.ok ? "success": "error",
 		error_message: run.error_message ?? null,
-		artifacts_json: run.artifacts ? JSON.stringify(run.artifacts) : null,
+		artifacts_json: run.artifacts ? JSON.stringify(run.artifacts): null,
 	};
 	try {
 		await cronRunsDb.insert(env.DB, row);
@@ -219,12 +219,12 @@ export async function dispatchScheduledEvent(
 			ok: innerOk,
 			cron_name: name,
 			duration_ms: durationMs,
-			error_message: innerOk ? undefined : inner?.error_message,
+			error_message: innerOk ? undefined: inner?.error_message,
 			artifacts: inner?.artifacts,
 		};
 		await recordRun(env, result);
 		console.log(
-			`[cron] ${name} ${innerOk ? "ok" : "err"} in ${durationMs}ms; ` +
+			`[cron] ${name} ${innerOk ? "ok": "err"} in ${durationMs}ms; ` +
 				`artifacts=${JSON.stringify(result.artifacts ?? {})}`,
 		);
 		return result;
@@ -234,7 +234,7 @@ export async function dispatchScheduledEvent(
 			ok: false,
 			cron_name: name,
 			duration_ms: durationMs,
-			error_message: e instanceof Error ? e.message : String(e),
+			error_message: e instanceof Error ? e.message: String(e),
 		};
 		await recordRun(env, result);
 		console.error(`[cron] ${name} failed in ${durationMs}ms: ${result.error_message}`);

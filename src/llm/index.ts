@@ -1,5 +1,5 @@
 /**
- * pm-bot — LLM client (chunk 6).
+ * prediction-market-lab — LLM client.
  *
  * The Python `advisor.py` uses the `mmx` CLI to call the
  * MiniMax Messages API. In Workers we can't shell out, so
@@ -125,7 +125,7 @@ export async function chat(
 		// no-ops and the full text passes through.
 		const raw = json.choices[0].message.content;
 		const thinkMatch = raw.match(/<think>[\s\S]*?<\/think>([\s\S]*)/);
-		const text = (thinkMatch ? thinkMatch[1] : raw).trim();
+		const text = (thinkMatch ? thinkMatch[1]: raw).trim();
 		return {
 			ok: true,
 			text,
@@ -139,7 +139,7 @@ export async function chat(
 			ok: false,
 			text: "",
 			duration_ms: Date.now() - started,
-			error_message: e instanceof Error ? e.message : String(e),
+			error_message: e instanceof Error ? e.message: String(e),
 			stub: false,
 		};
 	}

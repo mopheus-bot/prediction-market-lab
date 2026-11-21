@@ -1,10 +1,10 @@
 /**
- * pm-bot — status API handlers (chunk 6).
+ * prediction-market-lab — status API handlers.
  *
- * Read-only JSON endpoints for the dashboard (chunk 7) +
+ * Read-only JSON endpoints for the dashboard +
  * the Telegram bot's daily summary. All endpoints scope to
  * the default user; the multi-tenant refactor lives in a
- * later chunk.
+ * later release.
  *
  * **Endpoints:**
  *   - `GET /api/pm/status`       — overall state (bot + risk + counts)
@@ -14,7 +14,7 @@
  *   - `GET /api/pm/scans`        — latest scan candidates
  *   - `GET /api/pm/cron-runs`    — recent cron runs (filters: ?cron= ?limit=)
  *
- * **Response shape:** every endpoint returns `{ ok: true, ... }`
+ * **Response shape:** every endpoint returns `{ ok: true,... }`
  * on success and `{ ok: false, error: string }` on failure
  * (DB binding missing, bad input, etc.).
  *
@@ -72,7 +72,7 @@ export async function handleStatus(env: StatusEnv): Promise<Response> {
 				            AND c.ticker = t.ticker
 				            AND c.action = 'close'
 				            AND c.id > t.id
-				        )) as n_open_positions`,
+				)) as n_open_positions`,
 			)
 			.bind(DEFAULT_USER_ID)
 			.first<{ n_trades: number; n_signals: number; n_open_positions: number }>();
@@ -110,7 +110,7 @@ export async function handleStatus(env: StatusEnv): Promise<Response> {
 				: null,
 		});
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }
 
@@ -146,7 +146,7 @@ export async function handleSummary(
 			)
 			.bind(DEFAULT_USER_ID, since)
 			.first<{ n_trades: number; pnl_cents: number }>();
-		// Per-vertical breakdown (chunk 10.8). Drives the
+		// Per-vertical breakdown. Drives the
 		// "Per-vertical breakdown" card in the dashboard.
 		// 2026-08-09: now includes lifetime PnL alongside the
 		// 24h window. Always includes the 4 standard verticals
@@ -233,7 +233,7 @@ export async function handleSummary(
 				       AND c.ticker = t.ticker
 				       AND c.action = 'close'
 				       AND c.id > t.id
-				   )
+				)
 				 GROUP BY t.vertical`,
 			)
 			.bind(DEFAULT_USER_ID)
@@ -315,7 +315,7 @@ export async function handleSummary(
 			},
 		});
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }
 
@@ -330,16 +330,16 @@ export async function handleTrades(
 		const ticker = url.searchParams.get("ticker") ?? undefined;
 		const sinceStr = url.searchParams.get("since");
 		const limitStr = url.searchParams.get("limit");
-		const since = sinceStr ? parseInt(sinceStr, 10) : undefined;
-		const limit = limitStr ? parseInt(limitStr, 10) : undefined;
+		const since = sinceStr ? parseInt(sinceStr, 10): undefined;
+		const limit = limitStr ? parseInt(limitStr, 10): undefined;
 		const rows = await tradesDb.list(env.DB, DEFAULT_USER_ID, {
 			ticker,
-			since_ts: Number.isFinite(since) ? since : undefined,
-			limit: Number.isFinite(limit) ? limit : undefined,
+			since_ts: Number.isFinite(since) ? since: undefined,
+			limit: Number.isFinite(limit) ? limit: undefined,
 		});
 		return json({ ok: true, n: rows.length, trades: rows });
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }
 
@@ -358,15 +358,15 @@ export async function handleSignals(
 			| "backtest"
 			| undefined;
 		const limitStr = url.searchParams.get("limit");
-		const limit = limitStr ? parseInt(limitStr, 10) : undefined;
+		const limit = limitStr ? parseInt(limitStr, 10): undefined;
 		const rows = await signalsDb.list(env.DB, DEFAULT_USER_ID, {
 			ticker,
 			source: source ?? undefined,
-			limit: Number.isFinite(limit) ? limit : undefined,
+			limit: Number.isFinite(limit) ? limit: undefined,
 		});
 		return json({ ok: true, n: rows.length, signals: rows });
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }
 
@@ -384,7 +384,7 @@ export async function handleScans(env: StatusEnv): Promise<Response> {
 			candidates: latest.candidates,
 		});
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }
 
@@ -398,7 +398,7 @@ export async function handleCronRuns(
 	try {
 		const cron = url.searchParams.get("cron") ?? undefined;
 		const limitStr = url.searchParams.get("limit");
-		const limit = limitStr ? parseInt(limitStr, 10) : 20;
+		const limit = limitStr ? parseInt(limitStr, 10): 20;
 		// No "list by cron_name" helper in db.ts; do an inline
 		// query. Keeps the SQL near the handler for readability.
 		const where: string[] = ["user_id = ?1"];
@@ -408,13 +408,13 @@ export async function handleCronRuns(
 			params.push(cron);
 		}
 		const sql = `SELECT * FROM cron_runs WHERE ${where.join(" AND ")} ORDER BY ts DESC LIMIT ?`;
-		params.push(Number.isFinite(limit) ? limit : 20);
+		params.push(Number.isFinite(limit) ? limit: 20);
 		const res = await env.DB
 			.prepare(sql)
 			.bind(...params)
 			.all();
 		return json({ ok: true, n: (res.results ?? []).length, runs: res.results });
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }

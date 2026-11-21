@@ -1,5 +1,5 @@
 /**
- * pm-bot — Kalshi wire-format types.
+ * prediction-market-lab — Kalshi wire-format types.
  *
  * Mirrors the Pydantic models in
  * live/models.py
@@ -91,9 +91,9 @@ export function parseMarket(wire: KalshiMarketWire | Record<string, unknown>): K
 		volume: toInt(w.volume),
 		volume_24h: toNum(w.volume_24h),
 		liquidity_cents: toCents(w.liquidity_dollars),
-		close_time: w.close_time ? String(w.close_time) : null,
-		open_time: w.open_time ? String(w.open_time) : null,
-		expiration_time: w.expiration_time ? String(w.expiration_time) : null,
+		close_time: w.close_time ? String(w.close_time): null,
+		open_time: w.open_time ? String(w.open_time): null,
+		expiration_time: w.expiration_time ? String(w.expiration_time): null,
 		// 2026-08-11 (Phase 4, LLM-PIPELINE Bug A):
 		// mve_selected_legs is the bundle spec for
 		// parlay markets. Each leg has the
@@ -108,7 +108,7 @@ export function parseMarket(wire: KalshiMarketWire | Record<string, unknown>): K
 				(leg) => ({
 					event_ticker: String(leg.event_ticker ?? ""),
 					market_ticker: String(leg.market_ticker ?? ""),
-					side: (leg.side === "no" ? "no" : "yes") as "yes" | "no",
+					side: (leg.side === "no" ? "no": "yes") as "yes" | "no",
 				}),
 			)
 			: undefined,
@@ -200,12 +200,12 @@ export function bestNoBidCents(ob: KalshiOrderbook): number | null {
 
 export function yesAskCents(ob: KalshiOrderbook): number | null {
 	const no = bestNoBidCents(ob);
-	return no === null ? null : 100 - no;
+	return no === null ? null: 100 - no;
 }
 
 export function noAskCents(ob: KalshiOrderbook): number | null {
 	const yes = bestYesBidCents(ob);
-	return yes === null ? null : 100 - yes;
+	return yes === null ? null: 100 - yes;
 }
 
 export function orderbookMidCents(ob: KalshiOrderbook): number | null {
@@ -311,7 +311,7 @@ export function parseEvent(wire: KalshiEventWire | Record<string, unknown>): Kal
 		title: String(w.title ?? ""),
 		category: String(w.category ?? ""),
 		sub_title: String(w.sub_title ?? ""),
-		series_ticker: w.series_ticker ? String(w.series_ticker) : null,
+		series_ticker: w.series_ticker ? String(w.series_ticker): null,
 		status: String(w.status ?? "open"),
 		markets,
 	};
@@ -321,21 +321,21 @@ export function parseEvent(wire: KalshiEventWire | Record<string, unknown>): Kal
 
 function toCents(v: unknown): number {
 	if (v === null || v === undefined || v === "") return 0;
-	const n = typeof v === "number" ? v : parseFloat(String(v));
+	const n = typeof v === "number" ? v: parseFloat(String(v));
 	if (Number.isNaN(n)) return 0;
 	return Math.round(n * 100);
 }
 
 function toNum(v: unknown): number {
 	if (v === null || v === undefined || v === "") return 0;
-	const n = typeof v === "number" ? v : parseFloat(String(v));
+	const n = typeof v === "number" ? v: parseFloat(String(v));
 	if (Number.isNaN(n)) return 0;
 	return n;
 }
 
 function toInt(v: unknown): number {
 	if (v === null || v === undefined || v === "") return 0;
-	const n = typeof v === "number" ? v : parseInt(String(v), 10);
+	const n = typeof v === "number" ? v: parseInt(String(v), 10);
 	if (Number.isNaN(n)) return 0;
 	return n;
 }
@@ -343,14 +343,14 @@ function toInt(v: unknown): number {
 /**
  * Parse an RFC 3339 timestamp to unix milliseconds.
  * Handles the "Z" suffix and variable-precision fractional seconds
- * (Kalshi's live API uses 5-digit fractional seconds, e.g. .87086).
+ * (Kalshi's live API uses 5-digit fractional seconds, e.g..87086).
  */
 export function parseRfc3339ToUnixMs(s: string): number {
 	if (!s) return 0;
 	// Normalize "Z" to "+00:00" for Date constructor compatibility
-	const normalized = s.endsWith("Z") ? s.slice(0, -1) + "+00:00" : s;
+	const normalized = s.endsWith("Z") ? s.slice(0, -1) + "+00:00": s;
 	const ms = Date.parse(normalized);
-	return Number.isNaN(ms) ? 0 : ms;
+	return Number.isNaN(ms) ? 0: ms;
 }
 
 // ─── Orderbook mutation helpers (used by the live bot DO) ─────────────
@@ -379,14 +379,14 @@ export function applyOrderbookDelta(
 	const rawDelta = m.delta ?? m.delta_fp ?? 0;
 	let deltaNum: number;
 	try {
-		deltaNum = typeof rawDelta === "string" ? parseFloat(rawDelta) : Number(rawDelta);
+		deltaNum = typeof rawDelta === "string" ? parseFloat(rawDelta): Number(rawDelta);
 	} catch {
 		deltaNum = 0;
 	}
 	if (!Number.isFinite(deltaNum)) deltaNum = 0;
 	const newYes = [...ob.yes_levels];
 	const newNo = [...ob.no_levels];
-	const target = side === "yes" ? newYes : newNo;
+	const target = side === "yes" ? newYes: newNo;
 	const idx = target.findIndex((l) => l.price_cents === priceCents);
 	if (idx >= 0) {
 		const newCount = target[idx].count + deltaNum;

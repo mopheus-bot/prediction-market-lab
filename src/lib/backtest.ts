@@ -1,5 +1,5 @@
 /**
- * pm-bot — backtest model retrospective (chunk 11a).
+ * prediction-market-lab — backtest model retrospective.
  *
  * The "backtest" here is a model retrospective, not a full
  * historical simulation. It looks at the trades the bot
@@ -15,7 +15,7 @@
  *   - A retrospective gives the same signal — "is the
  *     model good?" — without requiring a full simulation
  *     infra.
- *   - When chunk 11+ adds more historical data, this can
+ *   - When + adds more historical data, this can
  *     evolve into a full replay.
  *
  * **Why it matters:** the user said "back testing stands
@@ -117,10 +117,10 @@ export function computeBacktestMetrics(
 		}
 	}
 
-	const win_rate = closed_count > 0 ? wins / closed_count : NaN;
-	const avg_pnl_cents = closed_count > 0 ? total_pnl_cents / closed_count : 0;
+	const win_rate = closed_count > 0 ? wins / closed_count: NaN;
+	const avg_pnl_cents = closed_count > 0 ? total_pnl_cents / closed_count: 0;
 	const model_agreement_rate =
-		closed_count > 0 ? agreement_count / closed_count : NaN;
+		closed_count > 0 ? agreement_count / closed_count: NaN;
 
 	return {
 		period: { since_ts, until_ts, days: windowDays },
@@ -156,7 +156,7 @@ export async function runBacktest(
  *  cron_runs.notes field. */
 export function metricsSummary(m: BacktestMetrics): string {
 	if (m.trade_count === 0) return "no trades in window";
-	const winStr = Number.isNaN(m.win_rate) ? "n/a" : `${(m.win_rate * 100).toFixed(0)}%`;
+	const winStr = Number.isNaN(m.win_rate) ? "n/a": `${(m.win_rate * 100).toFixed(0)}%`;
 	const agrStr = Number.isNaN(m.model_agreement_rate)
 		? "n/a"
 		: `${(m.model_agreement_rate * 100).toFixed(0)}%`;

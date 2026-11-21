@@ -66,7 +66,7 @@
 			// little technical ("weekly on Sunday 00:00 UTC"). For
 			// the schedule list we want a tight, user-friendly
 			// "when" — like "every 15 min" or "daily at 06:00 UTC".
-			// The full description is the .details string from the
+			// The full description is the.details string from the
 			// API which is already operator-friendly.
 			function shortInterval(s) {
 				const lbl = s.interval_label || "";
@@ -104,7 +104,7 @@
 									<span class="cadence-item-status" data-status="${esc(s.status)}">${esc(s.status)}</span>
 								</div>
 								<div class="cadence-item-details">${esc(s.description || "")}</div>
-								<div class="schedule-item-time">${esc(s.details || "")}${s.next_in_ms !== null ? ` <span aria-hidden="true">·</span> next: <strong>${esc(s.next_label || "")}</strong>` : ""}</div>
+								<div class="schedule-item-time">${esc(s.details || "")}${s.next_in_ms !== null ? ` <span aria-hidden="true">·</span> next: <strong>${esc(s.next_label || "")}</strong>`: ""}</div>
 							</div>
 						</div>
 					</div>

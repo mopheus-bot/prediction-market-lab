@@ -1,5 +1,5 @@
 /**
- * pm-bot — Kalshi integration entry point.
+ * prediction-market-lab — Kalshi integration entry point.
  * Re-exports auth, client, and models for convenient import:
  *   import { KalshiClient, KalshiCredentials } from "./kalshi.js";
  *

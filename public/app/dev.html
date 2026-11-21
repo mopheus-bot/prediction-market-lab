@@ -615,7 +615,7 @@
 					try {
 						const r = await fetch(path, { credentials: "same-origin" });
 						const text = await r.text();
-						el.textContent = (r.ok ? JSON.stringify(JSON.parse(text), null, 2) : `HTTP ${r.status}\n${text}`);
+						el.textContent = (r.ok ? JSON.stringify(JSON.parse(text), null, 2): `HTTP ${r.status}\n${text}`);
 					} catch (e) {
 						el.textContent = `fetch failed: ${e.message}`;
 					}
@@ -630,11 +630,11 @@
 				document.getElementById("dev-tabs").addEventListener("click", (e) => {
 					const btn = e.target.closest("[data-target]");
 					if (!btn) return;
-					for (const t of document.querySelectorAll("#dev-tabs .btn")) t.classList.remove("active");
+					for (const t of document.querySelectorAll("#dev-tabs.btn")) t.classList.remove("active");
 					btn.classList.add("active");
 					for (const id of Object.keys(targets)) {
 						const el = document.getElementById(id);
-						if (el) el.style.display = id === btn.dataset.target ? "" : "none";
+						if (el) el.style.display = id === btn.dataset.target ? "": "none";
 					}
 				});
 				// Refresh button
@@ -649,7 +649,7 @@
 						try {
 							const r = await fetch(path, { method: "POST", credentials: "same-origin" });
 							const text = await r.text();
-							toast(`${path} ${r.ok ? "✓" : "✗"}: ${text.slice(0, 200)}`, r.ok);
+							toast(`${path} ${r.ok ? "✓": "✗"}: ${text.slice(0, 200)}`, r.ok);
 						} catch (e) {
 							toast(`${path} failed: ${e.message}`, false);
 						} finally {
@@ -669,9 +669,9 @@
 						try {
 							const r = await fetch(path, { method: "POST", credentials: "same-origin" });
 							const data = await r.json();
-							const dur = data.duration_ms ? ` (${data.duration_ms}ms)` : "";
+							const dur = data.duration_ms ? ` (${data.duration_ms}ms)`: "";
 							const detail = data.error_message || JSON.stringify(data.artifacts || {}).slice(0, 120);
-							toast(`cron:${name} ${data.ok ? "✓" : "✗"}${dur}: ${detail}`, data.ok);
+							toast(`cron:${name} ${data.ok ? "✓": "✗"}${dur}: ${detail}`, data.ok);
 						} catch (e) {
 							toast(`cron:${name} failed: ${e.message}`, false);
 						} finally {
@@ -719,7 +719,7 @@
 								tbody.innerHTML = `<tr><td colspan="5" class="empty">no runs yet</td></tr>`;
 							} else {
 								tbody.innerHTML = runs.map((r) => {
-									const statusCls = r.status === "success" ? "pos" : r.status === "error" ? "neg" : "muted";
+									const statusCls = r.status === "success" ? "pos": r.status === "error" ? "neg": "muted";
 									const detail = r.error_message
 										? esc(r.error_message.slice(0, 80))
 										: (() => {
@@ -739,7 +739,7 @@
 							}
 						}
 						const cc = $("dev-cron-count");
-						if (cc) cc.textContent = `${runs.length} run${runs.length === 1 ? "" : "s"}`;
+						if (cc) cc.textContent = `${runs.length} run${runs.length === 1 ? "": "s"}`;
 					}
 
 					// 2. CF analytics — use the same data shape as
@@ -750,21 +750,21 @@
 						$("dev-cf-requests").textContent = fmtNum(cf.totals.requests);
 						$("dev-cf-errors").textContent = fmtNum(cf.totals.errors);
 						const successEl = $("dev-cf-success");
-						const successPct = cf.totals.success_rate_pct ?? (cf.totals.requests > 0 ? (1 - cf.totals.errors / cf.totals.requests) * 100 : 0);
+						const successPct = cf.totals.success_rate_pct ?? (cf.totals.requests > 0 ? (1 - cf.totals.errors / cf.totals.requests) * 100: 0);
 						successEl.textContent = `${successPct.toFixed(2)}%`;
 						$("dev-cf-subrequests").textContent = fmtNum(cf.totals.subrequests);
 						$("dev-cf-dashboard-link").href = cf.dashboard_url || "#";
-						// Bar chart — reuses .cf-chart + .cf-bar CSS.
+						// Bar chart — reuses.cf-chart +.cf-bar CSS.
 						const chart = $("dev-cf-chart");
 						if (chart) {
 							chart.innerHTML = "";
 							if (!cf.hourly || cf.hourly.length === 0) {
 								chart.innerHTML = '<div class="empty">no requests in the last 24h</div>';
 							} else {
-								const max = Math.max(1, ...cf.hourly.map((b) => b.requests));
+								const max = Math.max(1,...cf.hourly.map((b) => b.requests));
 								for (const b of cf.hourly) {
 									const bar = document.createElement("div");
-									bar.className = "cf-bar" + (b.errors > 0 ? " err" : "");
+									bar.className = "cf-bar" + (b.errors > 0 ? " err": "");
 									const h = Math.max(1, Math.round((b.requests / max) * 72));
 									bar.style.height = `${h}px`;
 									const ts = (b.datetime || "").replace("T", " ").replace("Z", "Z").slice(0, 16);
@@ -807,17 +807,17 @@
 						if (cfFoot) {
 							const notesHtml = (cost.notes || []).map((n) => `<li>${esc(n)}</li>`).join("");
 							cfFoot.innerHTML = `<strong>assumptions:</strong>` +
-								(notesHtml ? `<ul>${notesHtml}</ul>` : " no notes") +
+								(notesHtml ? `<ul>${notesHtml}</ul>`: " no notes") +
 								`<div style="margin-top:6px; opacity:0.7;">estimates, not invoiced.</div>`;
 						}
 						// Monthly limits — reuse the existing
-						// .monthly-limits structure (.monthly-section
+						//.monthly-limits structure (.monthly-section
 						// etc., already in app.css).
 						const ml = $("dev-monthly-limits");
 						if (ml && cost.cf_monthly) {
 							const cm = cost.cf_monthly;
-							const cfPctClass = (pct) => pct >= 90 ? "pct-err" : pct >= 70 ? "pct-warn" : "pct-ok";
-							const barCls = (pct) => pct >= 90 ? "bar-err" : pct >= 70 ? "bar-warn" : "bar-ok";
+							const cfPctClass = (pct) => pct >= 90 ? "pct-err": pct >= 70 ? "pct-warn": "pct-ok";
+							const barCls = (pct) => pct >= 90 ? "bar-err": pct >= 70 ? "bar-warn": "bar-ok";
 							const bar = (label, current, limit, pct, suffix = "") => `
 								<div class="monthly-bar">
 									<div class="monthly-bar-head">
@@ -831,7 +831,7 @@
 								<div class="monthly-section">
 									<div class="monthly-section-head">
 										<span class="monthly-section-title">Cloudflare (Workers Paid)</span>
-										<span class="monthly-reset">resets in <strong>${cm.days_until_reset ?? "—"}</strong> day${cm.days_until_reset === 1 ? "" : "s"} · on <strong>${esc(cm.resets_on ?? "—")}</strong></span>
+										<span class="monthly-reset">resets in <strong>${cm.days_until_reset ?? "—"}</strong> day${cm.days_until_reset === 1 ? "": "s"} · on <strong>${esc(cm.resets_on ?? "—")}</strong></span>
 									</div>
 									<div class="monthly-bars">
 										${bar("Requests", cm.requests.current, cm.requests.limit, cm.requests.pct)}
@@ -888,24 +888,24 @@
 						result: r.status,
 					}));
 					// Filter by active tab
-					const filterBtn = document.querySelector("#dev-activity-filters .activity-filter.active");
-					const filter = filterBtn ? filterBtn.dataset.filter : "all";
+					const filterBtn = document.querySelector("#dev-activity-filters.activity-filter.active");
+					const filter = filterBtn ? filterBtn.dataset.filter: "all";
 					const filtered = (filter === "all"
-						? [...cronEntries, ...manualEntries]
-						: [...cronEntries, ...manualEntries].filter((e) => e.source === filter)
+						? [...cronEntries,...manualEntries]
+						: [...cronEntries,...manualEntries].filter((e) => e.source === filter)
 					).sort((a, b) => (b.ts || 0) - (a.ts || 0));
 					if (filtered.length === 0) {
 						tbody.innerHTML = `<tr><td colspan="6" class="empty">no activity yet</td></tr>`;
 						return;
 					}
 					tbody.innerHTML = filtered.slice(0, 50).map((e) => {
-						const resultCls = e.result === "success" ? "pos" : e.result === "error" ? "neg" : "muted";
+						const resultCls = e.result === "success" ? "pos": e.result === "error" ? "neg": "muted";
 						return `<tr>
 							<td class="mono" style="font-size: 11px;">${esc(fmtTime(e.ts))}</td>
 							<td><span class="pill muted" style="font-size: 10px;">${esc(e.source)}</span></td>
 							<td>${esc(e.action)}</td>
 							<td style="font-size: 11px; color: var(--ink-muted);">${esc(e.detail || "—")}</td>
-							<td class="num mono">${e.duration_ms != null ? fmtNum(e.duration_ms) : "—"}</td>
+							<td class="num mono">${e.duration_ms != null ? fmtNum(e.duration_ms): "—"}</td>
 							<td><span class="${resultCls}">${esc(e.result || "—")}</span></td>
 						</tr>`;
 					}).join("");
@@ -919,17 +919,17 @@
 					if (summary) {
 						summary.textContent = poll.connected
 							? `connected · ${fmtNum(poll.n_polls ?? 0)} polls`
-							: (poll.last_error ? `error · ${(typeof poll.last_error === "string" ? poll.last_error : (poll.last_error.message || JSON.stringify(poll.last_error))).slice(0, 30)}` : "disconnected");
+							: (poll.last_error ? `error · ${(typeof poll.last_error === "string" ? poll.last_error: (poll.last_error.message || JSON.stringify(poll.last_error))).slice(0, 30)}`: "disconnected");
 					}
-					$("dev-health-poll-active").textContent = poll.active ? "active" : "off";
-					$("dev-health-poll-active").className = `health-tile-val ${poll.active ? "ok" : "bad"}`;
-					$("dev-health-poll-connected").textContent = poll.connected ? "yes" : "no";
-					$("dev-health-poll-connected").className = `health-tile-val ${poll.connected ? "ok" : "bad"}`;
+					$("dev-health-poll-active").textContent = poll.active ? "active": "off";
+					$("dev-health-poll-active").className = `health-tile-val ${poll.active ? "ok": "bad"}`;
+					$("dev-health-poll-connected").textContent = poll.connected ? "yes": "no";
+					$("dev-health-poll-connected").className = `health-tile-val ${poll.connected ? "ok": "bad"}`;
 					$("dev-health-poll-count").textContent = fmtNum(poll.n_polls ?? 0);
 					$("dev-health-poll-errors").textContent = fmtNum(poll.n_errors ?? 0);
-					$("dev-health-poll-last").textContent = poll.last_poll_ms != null ? `${poll.last_poll_ms}ms` : "—";
+					$("dev-health-poll-last").textContent = poll.last_poll_ms != null ? `${poll.last_poll_ms}ms`: "—";
 					$("dev-health-poll-last-error").textContent = poll.last_error
-						? (typeof poll.last_error === "string" ? poll.last_error.slice(0, 60) : (poll.last_error.message || JSON.stringify(poll.last_error)).slice(0, 60))
+						? (typeof poll.last_error === "string" ? poll.last_error.slice(0, 60): (poll.last_error.message || JSON.stringify(poll.last_error)).slice(0, 60))
 						: "—";
 				}
 
@@ -940,34 +940,34 @@
 					const modeEl = $("dev-models-config-mode");
 					if (modeEl) {
 						modeEl.textContent = cfg.trading_mode ?? "—";
-						modeEl.setAttribute("data-color", cfg.trading_mode === "real" ? "warn" : "muted");
+						modeEl.setAttribute("data-color", cfg.trading_mode === "real" ? "warn": "muted");
 					}
 					$("dev-models-config-bankroll").textContent = fmtCentsPct(cfg.bankroll_cents);
 					$("dev-models-config-trading-mode").textContent = cfg.trading_mode ?? "—";
 					$("dev-models-config-model-version").textContent = cfg.model_version ?? "—";
-					$("dev-models-config-max-notional").textContent = cfg.max_notional_cents_per_trade != null ? fmtCentsPct(cfg.max_notional_cents_per_trade) : "—";
-					$("dev-models-config-daily-cap").textContent = cfg.daily_notional_cents_cap != null ? fmtCentsPct(cfg.daily_notional_cents_cap) : "—";
+					$("dev-models-config-max-notional").textContent = cfg.max_notional_cents_per_trade != null ? fmtCentsPct(cfg.max_notional_cents_per_trade): "—";
+					$("dev-models-config-daily-cap").textContent = cfg.daily_notional_cents_cap != null ? fmtCentsPct(cfg.daily_notional_cents_cap): "—";
 					const dailyUsed = risk.daily_notional_cents ?? cfg.daily_notional_cents ?? 0;
 					const dailyCap = cfg.daily_notional_cents_cap ?? 0;
-					const pct = dailyCap > 0 ? Math.round((dailyUsed / dailyCap) * 100) : 0;
+					const pct = dailyCap > 0 ? Math.round((dailyUsed / dailyCap) * 100): 0;
 					const usedEl = $("dev-models-config-daily-used");
 					if (usedEl) {
 						usedEl.textContent = `${fmtCentsPct(dailyUsed)} · ${pct}% of cap`;
-						usedEl.setAttribute("data-color", pct >= 90 ? "bad" : pct >= 70 ? "warn" : "ok");
+						usedEl.setAttribute("data-color", pct >= 90 ? "bad": pct >= 70 ? "warn": "ok");
 					}
-					$("dev-models-config-lookback").textContent = cfg.lookback != null ? `${cfg.lookback} frames` : "—";
+					$("dev-models-config-lookback").textContent = cfg.lookback != null ? `${cfg.lookback} frames`: "—";
 					$("dev-models-config-exit-mode").textContent = cfg.exit_mode ?? "—";
-					$("dev-models-config-min-entry-p").textContent = cfg.min_entry_p != null ? `${(cfg.min_entry_p * 100).toFixed(0)}%` : "—";
-					$("dev-models-config-disable-flips").innerHTML = cfg.disable_flips ? "yes" : `<span class="muted">no</span>`;
-					$("dev-models-config-profit-target").innerHTML = cfg.profit_target_pct != null ? `${(cfg.profit_target_pct * 100).toFixed(0)}%` : `<span class="muted">off</span>`;
-					$("dev-models-config-stop-loss").innerHTML = cfg.stop_loss_pct != null ? `${(cfg.stop_loss_pct * 100).toFixed(0)}%` : `<span class="muted">off</span>`;
+					$("dev-models-config-min-entry-p").textContent = cfg.min_entry_p != null ? `${(cfg.min_entry_p * 100).toFixed(0)}%`: "—";
+					$("dev-models-config-disable-flips").innerHTML = cfg.disable_flips ? "yes": `<span class="muted">no</span>`;
+					$("dev-models-config-profit-target").innerHTML = cfg.profit_target_pct != null ? `${(cfg.profit_target_pct * 100).toFixed(0)}%`: `<span class="muted">off</span>`;
+					$("dev-models-config-stop-loss").innerHTML = cfg.stop_loss_pct != null ? `${(cfg.stop_loss_pct * 100).toFixed(0)}%`: `<span class="muted">off</span>`;
 				}
 
 				// Activity log filter tabs
 				document.getElementById("dev-activity-filters")?.addEventListener("click", (e) => {
 					const btn = e.target.closest("[data-filter]");
 					if (!btn) return;
-					for (const t of document.querySelectorAll("#dev-activity-filters .activity-filter")) {
+					for (const t of document.querySelectorAll("#dev-activity-filters.activity-filter")) {
 						t.classList.remove("active");
 						t.setAttribute("aria-selected", "false");
 					}
@@ -981,8 +981,8 @@
 					if (!body) return;
 					const hidden = body.hidden;
 					body.hidden = !hidden;
-					e.target.textContent = hidden ? "Hide details" : "Show details";
-					e.target.setAttribute("aria-expanded", hidden ? "true" : "false");
+					e.target.textContent = hidden ? "Hide details": "Show details";
+					e.target.setAttribute("aria-expanded", hidden ? "true": "false");
 				});
 
 				// ─── Lead suggestions panel: render + actions
@@ -998,17 +998,17 @@
 				const leadsLastRunEl = $("dev-leads-last-run");
 
 				function renderLeadsCard(s) {
-					const kindClass = s.kind === "add" ? "pos" : "neg";
-					const kindLabel = s.kind === "add" ? "➕ add" : "➖ drop";
-					const vertical = s.vertical ? `<span class="pill muted" style="font-size: 10px;">${esc(s.vertical)}</span>` : "";
+					const kindClass = s.kind === "add" ? "pos": "neg";
+					const kindLabel = s.kind === "add" ? "➕ add": "➖ drop";
+					const vertical = s.vertical ? `<span class="pill muted" style="font-size: 10px;">${esc(s.vertical)}</span>`: "";
 					const ageMs = Date.now() - s.created_at;
-					const age = ageMs < 60_000 ? "just now" :
-						ageMs < 60 * 60_000 ? `${Math.floor(ageMs / 60_000)}m ago` :
-						ageMs < 24 * 60 * 60_000 ? `${Math.floor(ageMs / (60 * 60_000))}h ago` :
+					const age = ageMs < 60_000 ? "just now":
+						ageMs < 60 * 60_000 ? `${Math.floor(ageMs / 60_000)}m ago`:
+						ageMs < 24 * 60 * 60_000 ? `${Math.floor(ageMs / (60 * 60_000))}h ago`:
 						`${Math.floor(ageMs / (24 * 60 * 60_000))}d ago`;
 					const ttlMs = s.expires_at - Date.now();
-					const ttl = ttlMs <= 0 ? "expired" :
-						ttlMs < 60 * 60_000 ? `expires in ${Math.floor(ttlMs / 60_000)}m` :
+					const ttl = ttlMs <= 0 ? "expired":
+						ttlMs < 60 * 60_000 ? `expires in ${Math.floor(ttlMs / 60_000)}m`:
 						`expires in ${Math.floor(ttlMs / (60 * 60_000))}h`;
 					return `<div class="lead-card-item" data-id="${s.id}" data-kind="${s.kind}">
 						<div class="lead-card-row1">
@@ -1026,9 +1026,9 @@
 				}
 
 				function renderHistoryCard(s) {
-					const statusCls = s.status === "approved" ? "pos" : s.status === "rejected" ? "neg" : "muted";
-					const kindLabel = s.kind === "add" ? "add" : "drop";
-					const decided = s.decided_at ? new Date(s.decided_at).toLocaleString() : "—";
+					const statusCls = s.status === "approved" ? "pos": s.status === "rejected" ? "neg": "muted";
+					const kindLabel = s.kind === "add" ? "add": "drop";
+					const decided = s.decided_at ? new Date(s.decided_at).toLocaleString(): "—";
 					return `<div class="lead-card-item history" data-id="${s.id}">
 						<div class="lead-card-row1">
 							<span class="pill ${statusCls}" style="font-size: 10px;">${esc(s.status)}</span>
@@ -1050,12 +1050,12 @@
 					if (leadsLastRunEl) {
 						if (lr && lr.ts) {
 							const ago = Date.now() - lr.ts;
-							const label = ago < 60_000 ? "just now" :
-								ago < 60 * 60_000 ? `${Math.floor(ago / 60_000)}m ago` :
-								ago < 24 * 60 * 60_000 ? `${Math.floor(ago / (60 * 60_000))}h ago` :
+							const label = ago < 60_000 ? "just now":
+								ago < 60 * 60_000 ? `${Math.floor(ago / 60_000)}m ago`:
+								ago < 24 * 60 * 60_000 ? `${Math.floor(ago / (60 * 60_000))}h ago`:
 								`${Math.floor(ago / (24 * 60 * 60_000))}d ago`;
-							const status = lr.ok ? "ok" : "err";
-							leadsLastRunEl.innerHTML = `<span class="${status === "ok" ? "pos" : "neg"}">●</span> last run ${label} · +${lr.n_add ?? 0} / -${lr.n_drop ?? 0} · ${lr.duration_ms ?? 0}ms`;
+							const status = lr.ok ? "ok": "err";
+							leadsLastRunEl.innerHTML = `<span class="${status === "ok" ? "pos": "neg"}">●</span> last run ${label} · +${lr.n_add ?? 0} / -${lr.n_drop ?? 0} · ${lr.duration_ms ?? 0}ms`;
 						} else {
 							leadsLastRunEl.textContent = "never run";
 						}
@@ -1099,7 +1099,7 @@
 						const r = await fetch(`/api/pm/leads/${id}/${action}`, { method: "POST", credentials: "same-origin" });
 						const data = await r.json();
 						if (r.ok && data.ok) {
-							const verb = action === "approve" ? "approved" : "rejected";
+							const verb = action === "approve" ? "approved": "rejected";
 							toast(`${verb}: ${data.ticker} (${data.kind})`, true);
 							// Refresh the leads panel + the universe
 							// (approve may have changed the bot's
@@ -1127,12 +1127,12 @@
 					try {
 						const r = await fetch("/api/pm/cron/leads/run", { method: "POST", credentials: "same-origin" });
 						const data = await r.json();
-						const dur = data.duration_ms ? ` (${data.duration_ms}ms)` : "";
+						const dur = data.duration_ms ? ` (${data.duration_ms}ms)`: "";
 						const a = data.artifacts || {};
 						const detail = data.ok
 							? `+${a.n_add ?? 0} / -${a.n_drop ?? 0} (${a.n_excluded ?? 0} excluded, ${a.n_superseded ?? 0} superseded)${dur}`
 							: (data.error_message || "failed");
-						toast(`leads: ${data.ok ? "✓" : "✗"} ${detail}`, data.ok);
+						toast(`leads: ${data.ok ? "✓": "✗"} ${detail}`, data.ok);
 						await refreshLeadsPanel();
 					} catch (e) {
 						toast(`leads failed: ${e.message}`, false);
@@ -1146,8 +1146,8 @@
 				$("dev-leads-history-toggle")?.addEventListener("click", (e) => {
 					const hidden = leadsHistoryEl.hidden;
 					leadsHistoryEl.hidden = !hidden;
-					e.target.textContent = hidden ? "Hide history" : "History";
-					e.target.setAttribute("aria-expanded", hidden ? "true" : "false");
+					e.target.textContent = hidden ? "Hide history": "History";
+					e.target.setAttribute("aria-expanded", hidden ? "true": "false");
 				});
 
 				async function refreshLeadsPanel() {

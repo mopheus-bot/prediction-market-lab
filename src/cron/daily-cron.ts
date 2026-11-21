@@ -1,5 +1,5 @@
 /**
- * pm-bot — daily recap cron (chunk 5).
+ * prediction-market-lab — daily recap cron.
  *
  * Runs once a day at 06:00 UTC. Aggregates the last 24h
  * of trades, signals, and PnL; writes a summary JSON to
@@ -18,7 +18,7 @@
  *     per vertical.
  *
  * **Output:** a JSON file in R2. The dashboard reads it
- * in chunk 7 to render the daily recap card.
+ * in  to render the daily recap card.
  *
  * **Why R2 and not D1:** the daily recap is a one-shot
  * per-day artifact, not queryable data. Storing in R2
@@ -118,7 +118,7 @@ export async function runDailyCron(env: CronEnv): Promise<CronResult> {
 				       AND c.ticker = t.ticker
 				       AND c.action = 'close'
 				       AND c.id > t.id
-				   )`,
+				)`,
 			)
 			.bind(DEFAULT_USER_ID)
 			.first<{ n_open_positions: number }>();
@@ -185,7 +185,7 @@ export async function runDailyCron(env: CronEnv): Promise<CronResult> {
 				n_trades: recap.trades.n_total,
 				realized_pnl_cents: recap.trades.realized_pnl_cents,
 				n_open_positions: recap.open_positions,
-				r2_key: env.BUCKET ? `daily-recap/${recap.date}.json` : null,
+				r2_key: env.BUCKET ? `daily-recap/${recap.date}.json`: null,
 				n_telegram_sent: nTelegramSent,
 			},
 		};
@@ -194,7 +194,7 @@ export async function runDailyCron(env: CronEnv): Promise<CronResult> {
 			ok: false,
 			cron_name: "daily",
 			duration_ms: 0,
-			error_message: e instanceof Error ? e.message : String(e),
+			error_message: e instanceof Error ? e.message: String(e),
 		};
 	}
 }

@@ -1,12 +1,12 @@
 /**
- * pm-bot — per-vertical strategy router (chunk 4).
+ * prediction-market-lab — per-vertical strategy router.
  *
  * Mirrors `Prediction Market Lab/.../strategy/router.py:VerticalStrategyRouter`.
  *
  * Dispatches on `ctx.market.vertical` to per-vertical profiles.
  * Single-strategy verticals bypass the meta-stacker.
  *
- * **Default profiles (per the 2026-08-04 sweep + chunk 4):**
+ * **Default profiles (per the 2026-08-04 sweep +):**
  *   - weather:  ReversionQualitySignal (reversion wins on weather)
  *   - economic: ReversionQualitySignal (reversion wins on economic, even with naive)
  *   - politics: NaiveSignal (reversion loses on politics)
@@ -221,7 +221,7 @@ export class VerticalStrategyRouter implements SignalStrategy {
 			opts.min_absolute_move_cents,
 			opts.min_support_contracts,
 		);
-		const merged: Record<string, VerticalProfile> = { ...defaults };
+		const merged: Record<string, VerticalProfile> = {...defaults };
 		if (opts.profiles) {
 			for (const [vertical, profile] of Object.entries(opts.profiles)) {
 				if (profile === null) continue; // use default
@@ -245,9 +245,9 @@ export class VerticalStrategyRouter implements SignalStrategy {
 		// Iterate the profile in order; the first strategy
 		// that emits a non-null Signal wins. The default
 		// profile is [naive, llm_opinion] — naive fires
-		// on price moves (the original chunk-3 strategy),
+		// on price moves (the original  strategy),
 		// llm_opinion fires when the LLM has a fresh +
-		// confident verdict (the chunk-15 addition). With
+		// confident verdict (the step-15 addition). With
 		// the old agreement-stacker semantics, the bot
 		// never traded because naive won't fire on stable
 		// markets and the LLM verdict alone wasn't enough

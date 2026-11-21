@@ -250,7 +250,7 @@
 			// Rendered as an inline SVG polyline scaled to
 			// 100×24 (the cell is 100px wide × 24px tall).
 			const SPARK_MAX = 60;
-			const _priceBuffers = {}; // ticker → [mid, mid, ...]
+			const _priceBuffers = {}; // ticker → [mid, mid,...]
 			function pushSparkPoint(ticker, mid) {
 				if (mid === null || mid === undefined) return;
 				if (!_priceBuffers[ticker]) _priceBuffers[ticker] = [];
@@ -278,7 +278,7 @@
 				// Color: green if last > first, red if last < first
 				const last = buf[buf.length - 1];
 				const first = buf[0];
-				const color = last > first ? "#34d399" : last < first ? "#fca5a5" : "var(--ink-faint)";
+				const color = last > first ? "#34d399": last < first ? "#fca5a5": "var(--ink-faint)";
 				svg.innerHTML = `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" />`;
 			}
 			function renderAllSparklines() {
@@ -360,7 +360,7 @@
 								entry_cents: t.price_cents,
 								size: t.size,
 								opened_at: t.ts,
-								opened_at_iso: t.ts ? new Date(t.ts).toISOString() : null,
+								opened_at_iso: t.ts ? new Date(t.ts).toISOString(): null,
 								is_paper: t.is_paper,
 								trading_mode: t.trading_mode,
 								signal_p: t.signal_p,
@@ -371,9 +371,9 @@
 								...open,
 								exit_cents: t.price_cents,
 								closed_at: t.ts,
-								closed_at_iso: t.ts ? new Date(t.ts).toISOString() : null,
+								closed_at_iso: t.ts ? new Date(t.ts).toISOString(): null,
 								hold_ms: (t.ts || 0) - (open.opened_at || 0),
-								pnl_cents: t.pnl_cents != null ? t.pnl_cents : ((t.price_cents - open.entry_cents) * open.size),
+								pnl_cents: t.pnl_cents != null ? t.pnl_cents: ((t.price_cents - open.entry_cents) * open.size),
 								still_open: false,
 							});
 							open = null;
@@ -383,7 +383,7 @@
 					}
 					// If open remains, it's still open
 					if (open) {
-						closed.push({ ...open, still_open: true });
+						closed.push({...open, still_open: true });
 					}
 				}
 				// Sort by closed_at desc (or opened_at desc for still_open)
@@ -415,22 +415,22 @@
 				const verticals = new Set();
 				for (const p of openPositions) {
 					totalPnlCents += p.unrealized_pnl_cents || 0;
-					const valueCents = (p.mark_cents != null ? p.mark_cents : p.entry_cents) * (p.size || 1);
+					const valueCents = (p.mark_cents != null ? p.mark_cents: p.entry_cents) * (p.size || 1);
 					totalExposureCents += valueCents;
 					if (valueCents > largestCents) largestCents = valueCents;
 					if (p.vertical) verticals.add(p.vertical);
 				}
 				const bankrollCents = (window._lastBotStatus?.risk?.bankroll_cents) || 0;
-				const largestPct = bankrollCents > 0 ? (largestCents / bankrollCents * 100) : 0;
+				const largestPct = bankrollCents > 0 ? (largestCents / bankrollCents * 100): 0;
 
 				// Color
-				const pnlCls = totalPnlCents > 0 ? "ok" : totalPnlCents < 0 ? "bad" : "muted";
-				heroEl.setAttribute("data-color", openPositions.length > 0 ? (pnlCls === "muted" ? "warn" : pnlCls) : "ok");
+				const pnlCls = totalPnlCents > 0 ? "ok": totalPnlCents < 0 ? "bad": "muted";
+				heroEl.setAttribute("data-color", openPositions.length > 0 ? (pnlCls === "muted" ? "warn": pnlCls): "ok");
 				totalPnlEl.textContent = fmtCentsPct(totalPnlCents);
 				totalPnlEl.className = `pos-hero-num mono ${pnlCls}`;
 				totalPnlSub.textContent = openPositions.length === 0
 					? "no open positions"
-					: `across ${openPositions.length} ${openPositions.length === 1 ? "position" : "positions"}`;
+					: `across ${openPositions.length} ${openPositions.length === 1 ? "position": "positions"}`;
 
 				totalExposureEl.textContent = fmtCentsPct(totalExposureCents);
 				totalExposureSub.textContent = openPositions.length === 0
@@ -439,7 +439,7 @@
 
 				countEl.textContent = String(openPositions.length);
 				countSub.textContent = verticals.size > 0
-					? `across ${verticals.size} ${verticals.size === 1 ? "vertical" : "verticals"}`
+					? `across ${verticals.size} ${verticals.size === 1 ? "vertical": "verticals"}`
 					: "—";
 
 				largestEl.textContent = fmtCentsPct(largestCents);
@@ -471,7 +471,7 @@
 				for (const p of openPositions) {
 					const v = p.vertical || "?";
 					if (!byVert.has(v)) byVert.set(v, { exposure: 0, count: 0 });
-					const valueCents = (p.mark_cents != null ? p.mark_cents : p.entry_cents) * (p.size || 1);
+					const valueCents = (p.mark_cents != null ? p.mark_cents: p.entry_cents) * (p.size || 1);
 					byVert.get(v).exposure += valueCents;
 					byVert.get(v).count += 1;
 				}
@@ -498,11 +498,11 @@
 				bars.innerHTML = [...byVert.entries()]
 					.sort((a, b) => b[1].exposure - a[1].exposure)
 					.map(([v, d]) => {
-						const pct = maxExposure > 0 ? (d.exposure / maxExposure * 100) : 0;
-						const bankrollPct = bankrollCents > 0 ? (d.exposure / bankrollCents * 100) : 0;
+						const pct = maxExposure > 0 ? (d.exposure / maxExposure * 100): 0;
+						const bankrollPct = bankrollCents > 0 ? (d.exposure / bankrollCents * 100): 0;
 						const color = VERTICAL_COLORS[v] || "muted";
 						return `<div class="exposure-row">
-							<div class="exposure-label">${VERTICAL_EMOJI[v] || ""} ${v} <span class="exposure-count">${d.count} ${d.count === 1 ? "pos" : "poses"}</span></div>
+							<div class="exposure-label">${VERTICAL_EMOJI[v] || ""} ${v} <span class="exposure-count">${d.count} ${d.count === 1 ? "pos": "poses"}</span></div>
 							<div class="exposure-bar-wrap">
 								<div class="exposure-bar exposure-bar-${color}" style="width: ${pct.toFixed(1)}%"></div>
 							</div>
@@ -526,11 +526,11 @@
 					(b.unrealized_pnl_cents || 0) - (a.unrealized_pnl_cents || 0));
 				const bankrollCents = (window._lastBotStatus?.risk?.bankroll_cents) || 0;
 				tbody.innerHTML = sorted.map((p) => {
-					const pnlCls = (p.unrealized_pnl_cents || 0) > 0 ? "ok" : (p.unrealized_pnl_cents || 0) < 0 ? "bad" : "muted";
-					const ageSec = p.opened_at_ms ? (Date.now() - p.opened_at_ms) / 1000 : null;
-					const valueCents = (p.mark_cents != null ? p.mark_cents : p.entry_cents) * (p.size || 1);
-					const pnlPct = p.entry_cents && p.size ? ((p.unrealized_pnl_cents || 0) / (p.entry_cents * p.size) * 100) : 0;
-					const bankrollPct = bankrollCents > 0 ? (valueCents / bankrollCents * 100) : 0;
+					const pnlCls = (p.unrealized_pnl_cents || 0) > 0 ? "ok": (p.unrealized_pnl_cents || 0) < 0 ? "bad": "muted";
+					const ageSec = p.opened_at_ms ? (Date.now() - p.opened_at_ms) / 1000: null;
+					const valueCents = (p.mark_cents != null ? p.mark_cents: p.entry_cents) * (p.size || 1);
+					const pnlPct = p.entry_cents && p.size ? ((p.unrealized_pnl_cents || 0) / (p.entry_cents * p.size) * 100): 0;
+					const bankrollPct = bankrollCents > 0 ? (valueCents / bankrollCents * 100): 0;
 					return `<tr>
 						<td class="mono"><strong>${p.ticker || "—"}</strong></td>
 						<td>${p.vertical || "—"}</td>
@@ -540,7 +540,7 @@
 						<td class="num mono">${p.size || "—"}</td>
 						<td class="num mono">${fmtCentsPct(valueCents)}</td>
 						<td class="num mono ${pnlCls}"><strong>${fmtCentsPct(p.unrealized_pnl_cents)}</strong></td>
-						<td class="num mono ${pnlCls}">${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%</td>
+						<td class="num mono ${pnlCls}">${pnlPct >= 0 ? "+": ""}${pnlPct.toFixed(1)}%</td>
 						<td class="num mono">${fmtAge(ageSec)}</td>
 						<td class="spark-cell" id="spark-cell-${p.ticker || "?"}"><svg class="sparkline" id="spark-${p.ticker || "?"}" viewBox="0 0 100 24" preserveAspectRatio="none" aria-label="price trend"></svg></td>
 						<td><button class="btn small danger pos-close-btn" data-ticker="${p.ticker || ""}">Close</button></td>
@@ -588,9 +588,9 @@
 				// Last 15 closes
 				const last15 = closedOnly.slice(0, 15);
 				tbody.innerHTML = last15.map((c) => {
-					const pnlCls = c.pnl_cents > 0 ? "ok" : c.pnl_cents < 0 ? "bad" : "muted";
-					const when = c.closed_at_iso ? new Date(c.closed_at_iso).toLocaleString() : "—";
-					const holdStr = c.hold_ms != null ? fmtAge(c.hold_ms / 1000) : "—";
+					const pnlCls = c.pnl_cents > 0 ? "ok": c.pnl_cents < 0 ? "bad": "muted";
+					const when = c.closed_at_iso ? new Date(c.closed_at_iso).toLocaleString(): "—";
+					const holdStr = c.hold_ms != null ? fmtAge(c.hold_ms / 1000): "—";
 					const modePill = c.is_paper === 0
 						? `<span class="pill ok" style="font-size: 10px;">real</span>`
 						: `<span class="pill muted" style="font-size: 10px;">paper</span>`;
@@ -640,7 +640,7 @@
 				const totalPnl = closedOnly.reduce((a, c) => a + c.pnl_cents, 0);
 				const avgPnl = totalPnl / closedOnly.length;
 				avgPnlEl.textContent = fmtCentsPct(avgPnl);
-				avgPnlEl.className = `kpi-num mono ${avgPnl > 0 ? "ok" : avgPnl < 0 ? "bad" : ""}`;
+				avgPnlEl.className = `kpi-num mono ${avgPnl > 0 ? "ok": avgPnl < 0 ? "bad": ""}`;
 				avgPnlSub.textContent = `total: ${fmtCentsPct(totalPnl)}`;
 
 				// Avg hold time
@@ -684,7 +684,7 @@
 							? Math.min(100, (data.daily_notional_cents / data.daily_notional_cap_cents) * 100)
 							: 0;
 						dnBar.style.width = `${pct}%`;
-						dnBar.setAttribute("data-fill", pct > 80 ? "warn" : pct > 50 ? "ok" : "ok");
+						dnBar.setAttribute("data-fill", pct > 80 ? "warn": pct > 50 ? "ok": "ok");
 					}
 				}
 
@@ -695,7 +695,7 @@
 					ddEl.textContent = `${data.drawdown_pct.toFixed(2)}%`;
 					if (ddBar) {
 						ddBar.style.width = `${Math.min(100, data.drawdown_pct * 10)}%`; // 10% drawdown = full bar
-						ddBar.setAttribute("data-fill", data.drawdown_pct > 5 ? "warn" : data.drawdown_pct > 2 ? "ok" : "ok");
+						ddBar.setAttribute("data-fill", data.drawdown_pct > 5 ? "warn": data.drawdown_pct > 2 ? "ok": "ok");
 					}
 				}
 
@@ -724,12 +724,12 @@
 				// Concentration: largest as % of bankroll
 				let largestCents = 0;
 				for (const p of openPositions) {
-					const v = (p.mark_cents != null ? p.mark_cents : p.entry_cents) * (p.size || 1);
+					const v = (p.mark_cents != null ? p.mark_cents: p.entry_cents) * (p.size || 1);
 					if (v > largestCents) largestCents = v;
 				}
-				const concPct = bankrollCents > 0 ? (largestCents / bankrollCents * 100) : 0;
+				const concPct = bankrollCents > 0 ? (largestCents / bankrollCents * 100): 0;
 				document.getElementById("risk-concentration").textContent = `${concPct.toFixed(0)}%`;
-				document.getElementById("risk-concentration").className = `health-tile-val mono ${concPct > 50 ? "bad" : concPct > 25 ? "warn" : "ok"}`;
+				document.getElementById("risk-concentration").className = `health-tile-val mono ${concPct > 50 ? "bad": concPct > 25 ? "warn": "ok"}`;
 				// Days in drawdown (since last positive unrealized PnL)
 				const totalUnrealized = openPositions.reduce((a, p) => a + (p.unrealized_pnl_cents || 0), 0);
 				const inDrawdown = totalUnrealized < 0;
@@ -740,13 +740,13 @@
 				// Consec losses (from bot status)
 				const consec = (window._lastBotStatus?.risk?.consecutive_losses) ?? 0;
 				document.getElementById("risk-consec-losses").textContent = String(consec);
-				document.getElementById("risk-consec-losses").className = `health-tile-val mono ${consec >= 3 ? "bad" : consec >= 1 ? "warn" : "ok"}`;
+				document.getElementById("risk-consec-losses").className = `health-tile-val mono ${consec >= 3 ? "bad": consec >= 1 ? "warn": "ok"}`;
 				// Per-vertical exposure
 				const byVert = new Map();
 				for (const p of openPositions) {
 					const v = p.vertical || "?";
 					if (!byVert.has(v)) byVert.set(v, 0);
-					byVert.set(v, byVert.get(v) + (p.mark_cents != null ? p.mark_cents : p.entry_cents) * (p.size || 1));
+					byVert.set(v, byVert.get(v) + (p.mark_cents != null ? p.mark_cents: p.entry_cents) * (p.size || 1));
 				}
 				const totalExposure = [...byVert.values()].reduce((a, b) => a + b, 0);
 				const verticalsEl = document.getElementById("risk-verticals");
@@ -762,9 +762,9 @@
 						</thead>
 						<tbody>
 							${[...byVert.entries()].sort((a, b) => b[1] - a[1]).map(([v, e]) => {
-								const pctOfTotal = totalExposure > 0 ? (e / totalExposure * 100) : 0;
-								const pctOfBankroll = bankrollCents > 0 ? (e / bankrollCents * 100) : 0;
-								const concFlag = pctOfBankroll > 50 ? "bad" : pctOfBankroll > 25 ? "warn" : "";
+								const pctOfTotal = totalExposure > 0 ? (e / totalExposure * 100): 0;
+								const pctOfBankroll = bankrollCents > 0 ? (e / bankrollCents * 100): 0;
+								const concFlag = pctOfBankroll > 50 ? "bad": pctOfBankroll > 25 ? "warn": "";
 								return `<tr>
 									<td>${v}</td>
 									<td class="num mono">${fmtCentsPct(e)}</td>
@@ -782,9 +782,9 @@
 			function setRiskOpen(open) {
 				if (!riskToggle || !riskBody) return;
 				riskBody.hidden = !open;
-				riskToggle.textContent = open ? "Hide details" : "Show details";
-				riskToggle.setAttribute("aria-expanded", open ? "true" : "false");
-				try { localStorage.setItem(RISK_OPEN_KEY, open ? "1" : "0"); } catch (_e) {}
+				riskToggle.textContent = open ? "Hide details": "Show details";
+				riskToggle.setAttribute("aria-expanded", open ? "true": "false");
+				try { localStorage.setItem(RISK_OPEN_KEY, open ? "1": "0"); } catch (_e) {}
 			}
 			riskToggle?.addEventListener("click", () => setRiskOpen(riskBody.hidden));
 			try {

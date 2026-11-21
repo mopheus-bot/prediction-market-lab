@@ -1,5 +1,5 @@
 /**
- * pm-bot — manual cron trigger endpoint (chunk 11+).
+ * prediction-market-lab — manual cron trigger endpoint.
  *
  * The crons run on a CF schedule (every 15min / 6h / daily /
  * weekly). For testing the full pipeline end-to-end without
@@ -68,7 +68,7 @@ export async function handleCronTrigger(
 			ok: innerOk,
 			cron_name: jobName,
 			duration_ms: Date.now() - started,
-			error_message: innerOk ? undefined : inner?.error_message,
+			error_message: innerOk ? undefined: inner?.error_message,
 			artifacts: inner?.artifacts,
 		};
 	} catch (e) {
@@ -76,7 +76,7 @@ export async function handleCronTrigger(
 			ok: false,
 			cron_name: jobName,
 			duration_ms: Date.now() - started,
-			error_message: e instanceof Error ? e.message : String(e),
+			error_message: e instanceof Error ? e.message: String(e),
 		};
 	}
 	// Record the run so it shows up in /api/pm/cron-runs

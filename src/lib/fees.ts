@@ -1,5 +1,5 @@
 /**
- * pm-bot — Kalshi taker fee math.
+ * prediction-market-lab — Kalshi taker fee math.
  *
  * Mirrors `Prediction Market Lab/.../live/paper_engine.py:kalshi_taker_fee_cents`.
  *

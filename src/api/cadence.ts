@@ -1,5 +1,5 @@
 /**
- * pm-bot — Cadence API (chunk 10).
+ * prediction-market-lab — Cadence API.
  *
  * The single source of truth for the dashboard's "Cadence"
  * panel. Lists every auto-running service with:
@@ -168,7 +168,7 @@ function nextLabelFromNow(next_in_ms: number | null): string {
 
 function detailsFromCron(row: CronRunRow | null): string {
 	if (!row) return "never run";
-	const dur = row.duration_ms != null ? ` in ${row.duration_ms}ms` : "";
+	const dur = row.duration_ms != null ? ` in ${row.duration_ms}ms`: "";
 	if (row.status === "success") return `last ok${dur}`;
 	if (row.status === "error") return `error: ${row.error_message ?? "unknown"}${dur}`;
 	return `last status: ${row.status}${dur}`;
@@ -188,7 +188,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 	const cronJobs = ["scan", "research", "news", "daily", "heartbeat", "leads", "train"] as const;
 	const cronRows = await Promise.all(
 		cronJobs.map((name) =>
-			env.DB ? cronRunsDb.lastRun(env.DB, name, user_id).catch(() => null) : Promise.resolve(null),
+			env.DB ? cronRunsDb.lastRun(env.DB, name, user_id).catch(() => null): Promise.resolve(null),
 		),
 	);
 	// Build cronByName dynamically so adding a new cron
@@ -209,7 +209,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 		: null;
 
 	// Pull latest model.
-	const modelRows = env.DB ? await modelsDb.list(env.DB, user_id).catch(() => []) : [];
+	const modelRows = env.DB ? await modelsDb.list(env.DB, user_id).catch(() => []): [];
 
 	// Pull bot status (for the WS stream).
 	let wsConnected = false;
@@ -221,7 +221,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 			const stub = env.LIVE_BOT.get(id);
 			// The DO's status path is `/status` (not `/api/pm/bot/status`).
 			// The host is irrelevant for DO stub fetches — only the path
-			// matters. (chunk 10.7: previous code used the Worker's
+			// matters. (previous code used the Worker's
 			// /api/pm/bot/status path, which the DO doesn't recognize —
 			// cadence always showed WS as "not connected" even when the
 			// Worker-level /status said connected: true.)
@@ -241,13 +241,13 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 
 	// WS stream — derived from bot status, not from cron_runs.
 	{
-		const last_ran_ms = wsConnected ? ts_ms : wsLastError?.ts_ms ?? null;
+		const last_ran_ms = wsConnected ? ts_ms: wsLastError?.ts_ms ?? null;
 		const status: ServiceEntry["status"] = wsConnected
 			? "ok"
 			: wsLastError
 				? "error"
 				: "starting";
-		const errSummary = wsLastError ? ` (${wsLastError.code})` : "";
+		const errSummary = wsLastError ? ` (${wsLastError.code})`: "";
 		services.push({
 			id: "ws",
 			name: "Live WebSocket",
@@ -255,7 +255,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 			category: "stream",
 			status,
 			last_ran_ms,
-			last_ran_label: last_ran_ms ? relativeLabel(ts_ms - last_ran_ms) : "never connected",
+			last_ran_label: last_ran_ms ? relativeLabel(ts_ms - last_ran_ms): "never connected",
 			next_in_ms: null,
 			next_label: "—",
 			interval_label: "continuous",
@@ -303,7 +303,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 			category: meta.category,
 			status,
 			last_ran_ms,
-			last_ran_label: last_ran_ms ? relativeLabel(ts_ms - last_ran_ms) : "never run",
+			last_ran_label: last_ran_ms ? relativeLabel(ts_ms - last_ran_ms): "never run",
 			next_in_ms,
 			next_label: nextLabelFromNow(next_in_ms),
 			interval_label: meta.interval_label,
@@ -323,15 +323,15 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 					.first<LlmCallRow>()
 			: Promise.resolve(null));
 		const last_ran_ms = lastLlm?.ts ?? null;
-		const status: ServiceEntry["status"] = !lastLlm ? "off" : lastLlm.status === "error" ? "error" : "ok";
+		const status: ServiceEntry["status"] = !lastLlm ? "off": lastLlm.status === "error" ? "error": "ok";
 		services.push({
 			id: "llm",
 			name: "LLM calls",
-			description: "Daily recap, news verdicts, and (in chunk 11) backtest summaries.",
+			description: "Daily recap, news verdicts, and (in) backtest summaries.",
 			category: "llm",
 			status,
 			last_ran_ms,
-			last_ran_label: last_ran_ms ? relativeLabel(ts_ms - last_ran_ms) : "never called",
+			last_ran_label: last_ran_ms ? relativeLabel(ts_ms - last_ran_ms): "never called",
 			next_in_ms: null,
 			next_label: "on cron",
 			interval_label: "on demand + cron",
@@ -346,7 +346,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 	{
 		const lastModel = modelRows[0];
 		const last_ran_ms = lastModel?.deployed_at ?? lastModel?.retired_at ?? null;
-		const status: ServiceEntry["status"] = modelRows.length === 0 ? "starting" : "ok";
+		const status: ServiceEntry["status"] = modelRows.length === 0 ? "starting": "ok";
 		services.push({
 			id: "model_registry",
 			name: "Model registry",
@@ -354,7 +354,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 			category: "model",
 			status,
 			last_ran_ms,
-			last_ran_label: last_ran_ms ? relativeLabel(ts_ms - last_ran_ms) : "no models yet",
+			last_ran_label: last_ran_ms ? relativeLabel(ts_ms - last_ran_ms): "no models yet",
 			next_in_ms: null,
 			next_label: "on train cron",
 			interval_label: "managed by train cron",

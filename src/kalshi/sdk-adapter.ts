@@ -1,10 +1,10 @@
 /**
- * pm-bot — kalshi-typescript SDK adapter (chunk 10.8).
+ * prediction-market-lab — kalshi-typescript SDK adapter.
  *
  * Thin wrapper around the OpenAPI-generated `kalshi-typescript`
  * SDK (v3.26.0, axios-based). The hand-rolled `client.ts` in
  * this directory predates the SDK; this adapter is the path
- * to "promote" the SDK for REST calls in pm-bot.
+ * to "promote" the SDK for REST calls in prediction-market-lab.
  *
  * **What this adapter does:**
  *  - Initializes the SDK with our `apiKey` + `privateKeyPem`
@@ -27,14 +27,14 @@
  *
  * **Why not replace `client.ts` entirely:**
  *  The SDK's generated types are a near-perfect 1:1 of the
- *  Kalshi v2 spec, but the call sites in pm-bot use the
+ *  Kalshi v2 spec, but the call sites in prediction-market-lab use the
  *  `parse*` functions in `./models.ts` (lightweight,
  *  CF-Workers-friendly DTOs) for type narrowing. Swapping
  *  to the SDK's full-fat DTOs would touch every call site.
  *  This adapter keeps the parse layer untouched while
  *  delegating HTTP + auth + retry to the SDK.
  *
- * **Auth spec (chunk 10.6):**
+ * **Auth spec:**
  *  RSA-PSS with `saltLength = RSA_PSS_SALTLEN_DIGEST`. The
  *  SDK gets this right (matches our hand-rolled `auth.ts`).
  */
@@ -81,7 +81,7 @@ export class KalshiSdkClient {
 	private lastRequestAt = 0;
 
 	constructor(opts: SdkClientOptions) {
-		const base = opts.env === "prod" ? PROD_BASE : DEMO_BASE;
+		const base = opts.env === "prod" ? PROD_BASE: DEMO_BASE;
 		this.cfg = new Configuration({
 			apiKey: opts.creds.keyId,
 			privateKeyPem: opts.privateKeyPem,
@@ -91,7 +91,7 @@ export class KalshiSdkClient {
 		this.orders = new OrdersApi(this.cfg);
 		this.market = new MarketApi(this.cfg);
 		const rps = opts.requestsPerSecond ?? 2.0;
-		this.minIntervalMs = rps > 0 ? 1000 / rps : 0;
+		this.minIntervalMs = rps > 0 ? 1000 / rps: 0;
 		this.maxRetries = opts.maxRetries ?? 3;
 		this.initialBackoffMs = opts.initialBackoffMs ?? 500;
 	}
@@ -231,10 +231,10 @@ function extractBody(e: unknown): string {
 	if (typeof e === "object" && e !== null) {
 		const r = (e as { response?: { data?: unknown } }).response;
 		if (r?.data !== undefined) {
-			return typeof r.data === "string" ? r.data : JSON.stringify(r.data);
+			return typeof r.data === "string" ? r.data: JSON.stringify(r.data);
 		}
 	}
-	return e instanceof Error ? e.message : String(e);
+	return e instanceof Error ? e.message: String(e);
 }
 
 function extractUrl(e: unknown): string {

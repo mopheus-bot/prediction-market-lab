@@ -1,5 +1,5 @@
 /**
- * pm-bot — research cron (chunk 14.1, 2026-08-10).
+ * prediction-market-lab — research cron (, 2026-08-10).
  *
  * Runs every 15 minutes. Polls Kalshi's open-market list, filters
  * to markets that LOOK active (last_price > 0 OR OI > 0), and
@@ -39,7 +39,7 @@
  * limit.
  *
  * **What this is NOT:** this cron doesn't make any trading
- * decisions. It just observes. The lead-cron (chunk 13)
+ * decisions. It just observes. The lead-cron
  * uses the scout to filter verticals. The future parlay
  * strategy (Phase 2) will use this snapshot as the source
  * of truth for which markets to consider.
@@ -163,13 +163,13 @@ export function sortAndCapSnapshots<
 >(markets: T[], cap: number): T[] {
 	const sorted = [...markets].sort((a, b) => {
 		if (a.source !== b.source) {
-			return a.source === "bot_universe" ? -1 : 1;
+			return a.source === "bot_universe" ? -1: 1;
 		}
 		const liqDiff = liquidityScore(b) - liquidityScore(a);
 		if (liqDiff !== 0) return liqDiff;
 		return a.ticker.localeCompare(b.ticker);
 	});
-	return sorted.length > cap ? sorted.slice(0, cap) : sorted;
+	return sorted.length > cap ? sorted.slice(0, cap): sorted;
 }
 
 /** A snapshot is "live" (Kalshi is quoting this market) if EITHER
@@ -383,7 +383,7 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 			} catch (e) {
 				console.warn(
 					"[research] failed to read bot universe (non-fatal):",
-					e instanceof Error ? e.message : String(e),
+					e instanceof Error ? e.message: String(e),
 				);
 			}
 		}
@@ -443,12 +443,12 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 			} catch (e) {
 				errors.push({
 					ticker: candidate.ticker,
-					message: e instanceof Error ? e.message : String(e),
+					message: e instanceof Error ? e.message: String(e),
 				});
 			}
 		}
 	} catch (e) {
-		const errMsg = e instanceof Error ? e.message : String(e);
+		const errMsg = e instanceof Error ? e.message: String(e);
 		console.error(`[research] failed: ${errMsg}`);
 		return {
 			ok: false,
@@ -473,7 +473,7 @@ export async function runResearchCron(env: CronEnv): Promise<CronResult> {
 			cron_name: "research",
 			ts: now,
 			duration_ms: Date.now() - startMs,
-			status: errors.length > 0 ? "error" : "success",
+			status: errors.length > 0 ? "error": "success",
 			error_message:
 				errors.length > 0
 					? `${errors.length} ticker errors (first: ${errors[0].message})`

@@ -1,5 +1,5 @@
 /**
- * pm-bot — cron entry point.
+ * prediction-market-lab — cron entry point.
  * Re-exports the dispatcher + the 4 job modules.
  */
 

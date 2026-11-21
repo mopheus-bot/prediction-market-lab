@@ -1,5 +1,5 @@
 /**
- * pm-bot — news cron (chunk 6).
+ * prediction-market-lab — news cron.
  *
  * Runs every 6 hours. For each open position, calls the
  * LLM (mmx) with the position + recent news, and posts the
@@ -75,7 +75,7 @@ export async function runNewsCron(env: CronEnv): Promise<CronResult> {
 				   WHERE user_id = ?1
 				   GROUP BY ticker
 				   HAVING SUM(CASE WHEN action = 'close' THEN 1 ELSE 0 END) = 0
-				 ) latest ON latest.ticker = t.ticker AND latest.max_id = t.id
+				) latest ON latest.ticker = t.ticker AND latest.max_id = t.id
 				 WHERE t.user_id = ?1 AND t.action = 'open'`,
 			)
 			.bind(DEFAULT_USER_ID)
@@ -99,10 +99,10 @@ export async function runNewsCron(env: CronEnv): Promise<CronResult> {
 			const vertical = vertRow?.vertical ?? "unknown";
 			const hint = NEWS_QUERY_HINTS[vertical] ?? "";
 			const query = `${p.ticker} ${hint}`.trim();
-			// In chunk 6 we don't have a real news search;
+			// In  we don't have a real news search;
 			// pass the query into the LLM context as a "what
 			// news to consider" hint. A real news API
-			// integration lands in chunk 6+ if the LLM's
+			// integration lands in + if the LLM's
 			// general knowledge is insufficient.
 			const userPrompt =
 				`# Position\n` +
@@ -129,7 +129,7 @@ export async function runNewsCron(env: CronEnv): Promise<CronResult> {
 					input_tokens_est: result.input_tokens ?? 0,
 					output_tokens_est: result.output_tokens ?? 0,
 					duration_ms: result.duration_ms,
-					status: result.ok ? "success" : "error",
+					status: result.ok ? "success": "error",
 					error_message: result.error_message ?? null,
 				});
 			} catch (e) {
@@ -147,7 +147,7 @@ export async function runNewsCron(env: CronEnv): Promise<CronResult> {
 					`*${p.ticker}* (${vertical})\n` +
 					`Side: ${p.side} @ ${p.price_cents}c · size ${p.size}\n` +
 					`\n${verdict}` +
-					`\n\n_Stub: ${result.stub ? "yes" : "no"}_`;
+					`\n\n_Stub: ${result.stub ? "yes": "no"}_`;
 				const tg = await sendMarkdown(env, msg);
 				if (tg.ok) nTelegramSent += 1;
 				else console.error(`[cron:news] telegram failed for ${p.ticker}`, tg.error_message);
@@ -171,7 +171,7 @@ export async function runNewsCron(env: CronEnv): Promise<CronResult> {
 			ok: false,
 			cron_name: "news",
 			duration_ms: 0,
-			error_message: e instanceof Error ? e.message : String(e),
+			error_message: e instanceof Error ? e.message: String(e),
 		};
 	}
 }

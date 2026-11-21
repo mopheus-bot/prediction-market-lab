@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pm-bot — live bot DO smoke test (chunk 3).
+ * prediction-market-lab — live bot DO smoke test.
  *
  * Run after `npm run deploy` to verify the bot DO is wired correctly
  * end-to-end against the deployed Worker. Hits the public endpoints
@@ -60,7 +60,7 @@ function check(label, cond, detail) {
 	if (cond) {
 		console.log(`  ✓ ${label}`);
 	} else {
-		console.error(`  ✘ ${label}${detail ? `: ${JSON.stringify(detail)}` : ""}`);
+		console.error(`  ✘ ${label}${detail ? `: ${JSON.stringify(detail)}`: ""}`);
 		failures += 1;
 	}
 }

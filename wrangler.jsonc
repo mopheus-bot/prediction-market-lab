@@ -1,10 +1,17 @@
 /**
- * For more details on how to configure Wrangler, refer to:
+ * Wrangler configuration for the Prediction Market Lab Worker.
+ *
+ * For the full reference:
  * https://developers.cloudflare.com/workers/wrangler/configuration/
+ *
+ * Before deploying, fill in your own resource identifiers:
+ *   - `database_id` under `d1_databases`  → `wrangler d1 create prediction-market-lab`
+ *   - `zone_name` under `routes`           → a domain you control, or delete
+ *                                            `routes` entirely to use workers.dev
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "pm-bot",
+	"name": "prediction-market-lab",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-08-08",
 	"compatibility_flags": [
@@ -21,51 +28,49 @@
 	"upload_source_maps": true,
 	"vars": {
 		"ENVIRONMENT": "production",
-		"SERVICE_NAME": "pm-bot",
-		// Default paper-trading universe (comma-separated tickers). The
-		// LiveBot DO can be reconfigured via POST /start with a different
-		// set; this is the bootstrap default before any /start call.
-		// 2026-08-09: LLM-generated lead set. The bot's verticals are
-		// weather (reversion), economic (reversion), politics (naive),
-		// sports (naive). Each ticker maps to a vertical — see
-		// ticker_verticals in the LiveBot config.
+		"SERVICE_NAME": "prediction-market-lab",
+		// Bootstrap ticker universe. The LiveBot Durable Object can be
+		// reconfigured at runtime via POST /api/pm/bot/start with a
+		// different set; this is the default before any /start call.
+		//
+		// The verticals are weather (reversion), economic (reversion),
+		// politics (naive) and sports (naive). Each ticker maps to a
+		// vertical — see `ticker_verticals` in the LiveBot config.
 		"DEFAULT_TICKERS": "KXWARMING-50,KXWARMING-60,KXGDP-Q3,KXPRES-26,KXNFL-CHAMP",
-		// 2026-08-09: WS→polling migration. The data feed
-		// is now a 1.5s alarm-driven round-robin REST poll
-		// via the kalshi-typescript SDK. DEFAULT_URL is now
-		// a placeholder — the LiveBot no longer reads it.
-		// Kept as a hint for /start callers.
+		// The data feed is a 1.5s alarm-driven round-robin REST poll via
+		// the kalshi-typescript SDK. DEFAULT_URL is a placeholder — the
+		// LiveBot no longer reads it. Kept as a hint for /start callers.
 		"DEFAULT_URL": "polling://kalshi-rest",
-		// CF Workers Paid plan billing cycle (chunk 10.5).
-		// User signed up 2026-08-08. Resets monthly on this date.
-		// Used by /api/pm/cost to compute "resets in N days".
+		// Cloudflare Workers Paid plan billing cycle. Resets monthly on
+		// this date. Used by /api/pm/cost to compute "resets in N days".
 		"CF_BILLING_CYCLE_START": "2026-08-08"
 	},
 	// D1 database — bound at runtime as `env.DB`.
-	// database_id filled in after `wrangler d1 create pm-bot-prod`.
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "pm-bot-prod",
-			"database_id": "cd54a509-f2e2-4f6f-97a5-a53afa6c0a36",
+			"database_name": "prediction-market-lab",
+			"database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
 			"migrations_dir": "migrations"
 		}
 	],
-	// R2 bucket — bound at runtime as `env.BUCKET`.
-	// Created via `wrangler r2 bucket create pm-bot`.
+	// R2 bucket — bound at runtime as `env.BUCKET`. Holds model
+	// artifacts, the market-data archive and generated reports.
 	"r2_buckets": [
 		{
 			"binding": "BUCKET",
-			"bucket_name": "pm-bot"
+			"bucket_name": "prediction-market-lab"
 		}
 	],
-	// Durable Object — the live bot. Chunk 3 introduces this. There is
-	// ONE live-bot DO per user, addressed by `idFromName('user:${userId}')`.
-	// The class lives in `src/durable-objects/LiveBot.ts`.
+	// Durable Objects.
 	//
-	// Chunk 8 adds the shadow bot, addressed by
-	// `idFromName('user:${userId}:shadow:${modelVersion}')`. Each
-	// candidate model gets its own shadow DO.
+	// LIVE_BOT — the trading bot. One instance per user, addressed by
+	// `idFromName('user:${userId}')`. The class lives in
+	// `src/durable-objects/LiveBot.ts`.
+	//
+	// SHADOW_BOT — the paper-trading shadow. One instance per user and
+	// candidate model version, addressed by
+	// `idFromName('user:${userId}:shadow:${modelVersion}')`.
 	"durable_objects": {
 		"bindings": [
 			{
@@ -86,29 +91,30 @@
 			"new_sqlite_classes": ["LiveBot", "ShadowBot"]
 		}
 	],
-	// Custom-domain routes —  is a CF-proxied subdomain
-	// under the  zone. CF auto-creates the DNS records on deploy.
-	// Single catch-all so /, /health, /pm/*, /api/pm/* all reach the Worker
-	// (the Worker routes internally).
+	// Custom-domain routes. A single catch-all so /, /health, /pm/* and
+	// /api/pm/* all reach the Worker (the Worker routes internally).
+	// Cloudflare auto-creates the DNS records on deploy.
+	//
+	// Replace the zone name with a domain you control, or remove this
+	// block entirely to serve from workers.dev.
 	"routes": [
-		{ "pattern": "/*", "zone_name": "" }
+		{ "pattern": "/*", "zone_name": "example.com" }
 	],
-	// Cron Triggers (chunk 5). Each expression fires a scheduled
-	// event; the Worker's `scheduled` handler dispatches by the
-	// expression to one of the 4 jobs (scan / news / daily / train).
+	// Cron Triggers. Each expression fires a scheduled event; the
+	// Worker's `scheduled` handler dispatches by expression to a job.
 	// The expressions must match CRON_TABLE in src/cron/dispatcher.ts.
 	"triggers": {
 		"crons": [
-			"*/15 * * * *",  // scan       — every 15 min
-			"5,20,35,50 * * * *",  // research   — every 15 min offset 5min. Polls Kalshi live markets; snapshots is_live markets to D1. 2026-08-10: chunk 14.1.
-			"0 */6 * * *",   // news       — every 6 hours (00/06/12/18 UTC)
-			"0 6 * * *",     // daily      — 06:00 UTC daily
-			"30 5 * * *",    // auto_pilot — 05:30 UTC daily (chunk 11b; default off)
-			"0 7 * * *",     // heartbeat  — 07:00 UTC daily (passive health check; alerts on failure)
-			"30 */6 * * *",  // leads      — every 6 hours +30min (00:30/06:30/12:30/18:30 UTC). LLM-driven ticker universe add+drop. 2026-08-09: tightened from daily 02:00 UTC to 6h; offset by 30min from news so the LLM has fresh news data to weigh against. Unique expression (different from news) so jobForCron can dispatch correctly.
-			"0 * * * *", // llm_opinions — every hour. 2026-08-12: backed way off from every 2 min. LLM cost was ~$13/day (10,266 calls, 8.3M input / 4.0M output tokens over 3.7 days = $48.50) for an 89% hold rate. Cadence reduced to once per hour; the in-cron staleness filter (skip if price hasn't moved since last verdict) and two-sided-quote filter (skip one-sided parlays) further reduce calls by ~80%. Target: ~$1-2/day. The LLMOpinionSignal strategy still works with hourly refreshes because verdicts have a 1h soft TTL — a fresh verdict on every bot poll-cycle is the design assumption, but the bot's polling feed has 60 polls of history, so signal quality is unchanged.
-			"0 0 * * SUN",   // train      — 00:00 UTC Sunday
-			"0 1 * * SUN"    // backtest   — 01:00 UTC Sunday (chunk 11a)
+			"*/15 * * * *",  // scan        — every 15 min
+			"5,20,35,50 * * * *",  // research  — every 15 min, offset 5 min. Polls Kalshi live markets and snapshots is_live markets to D1.
+			"0 */6 * * *",   // news        — every 6 hours (00/06/12/18 UTC)
+			"0 6 * * *",     // daily       — 06:00 UTC daily
+			"30 5 * * *",    // auto_pilot  — 05:30 UTC daily (default off)
+			"0 7 * * *",     // heartbeat   — 07:00 UTC daily (passive health check; alerts on failure)
+			"30 */6 * * *",  // leads       — every 6 hours, offset 30 min. LLM-driven ticker universe add+drop. Offset by 30 min from news so the LLM has fresh news data to weigh against. The expression is deliberately distinct from `news` so jobForCron can dispatch correctly.
+			"0 * * * *", // llm_opinions — every hour. Originally every 2 min, which cost ~$13/day (10,266 calls, 8.3M input / 4.0M output tokens over 3.7 days) for an 89% hold rate. Cadence reduced to once per hour; the in-cron staleness filter (skip if the price has not moved since the last verdict) and the two-sided-quote filter (skip one-sided parlays) cut calls by a further ~80%. Verdicts have a 1h soft TTL, so hourly refreshes match the bot's poll-cycle design.
+			"0 0 * * SUN",   // train       — 00:00 UTC Sunday
+			"0 1 * * SUN"    // backtest    — 01:00 UTC Sunday
 		]
 	}
 }

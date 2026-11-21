@@ -1,5 +1,5 @@
 /**
- * pm-bot — Kalshi account balance endpoint.
+ * prediction-market-lab — Kalshi account balance endpoint.
  *
  * Returns the live Kalshi account balance (in cents +
  * formatted dollars) so the dashboard can show "Account
@@ -13,7 +13,7 @@
  * second-to-second, so a 30s cache keeps the dashboard
  * snappy without burning the Kalshi rate limit.
  *
- * Chunk 10.8c: uses the kalshi-typescript SDK adapter
+ *: uses the kalshi-typescript SDK adapter
  * (axios + Node crypto + retries) instead of the
  * hand-rolled client. Same auth, same response shape,
  * built-in 5xx/429 retry with exponential backoff.
@@ -72,7 +72,7 @@ export async function handleBotBalance(
 		const client = new KalshiSdkClient({
 			creds: credentials,
 			privateKeyPem: pem,
-			env: useDemo ? "demo" : "prod",
+			env: useDemo ? "demo": "prod",
 			requestsPerSecond: 0, // one-shot — no throttle
 		});
 		const data = (await client.getBalance()) as {
@@ -106,7 +106,7 @@ export async function handleBotBalance(
 			},
 		});
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
+		const msg = e instanceof Error ? e.message: String(e);
 		return Response.json(
 			{
 				ok: false,

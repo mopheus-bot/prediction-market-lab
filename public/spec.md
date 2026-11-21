@@ -1,4 +1,4 @@
-# pm-bot Dashboard — Design Spec (chunk 7)
+# prediction-market-lab Dashboard — Design Spec
 
 A live trading dashboard for the Kalshi paper-trading bot.
 Served at `/pm/*` (CF Access protected, single user).
@@ -51,7 +51,7 @@ Card padding: 24px. Card border-radius: 12px.
 ## Sections (top to bottom)
 
 1. **Header / hero bar** — Prediction Market Lab monogram + wordmark
-   in top-left, "pm-bot" title, live status indicator
+   in top-left, "prediction-market-lab" title, live status indicator
    (green dot = WS connected, amber = cycling, red =
    stopped), model version badge, current bankroll.
 
@@ -77,7 +77,7 @@ Card padding: 24px. Card border-radius: 12px.
 
 7. **Daily recap** — the most recent `daily-recap/*.json`
    from R2. Shown as a collapsible card with a "Generate
-   today" button (manual trigger; chunk 8 will move this
+   today" button (manual trigger;  will move this
    to a CF Workflow).
 
 8. **Cron runs** — list of the latest cron runs (last 10).
@@ -88,7 +88,7 @@ Card padding: 24px. Card border-radius: 12px.
    `/api/pm/bot/*` endpoints. Confirmation dialog before
    Restart/Stop (those are state-mutating).
 
-**Footer:** "pm-bot · Prediction Market Lab · chunk 7" in muted text.
+**Footer:** "prediction-market-lab · Prediction Market Lab · " in muted text.
 
 ## Tech
 

@@ -1,5 +1,5 @@
 /**
- * pm-bot — scan cron (chunk 5).
+ * prediction-market-lab — scan cron.
  *
  * Runs every 15 minutes. Pulls the open Kalshi markets + recent
  * trades, ranks them by realized vol × sqrt(n_trades) +
@@ -19,14 +19,14 @@
  * `KalshiClient` signs automatically if creds are
  * provided via env.
  *
- * **Why hand-rolled client, not the SDK (chunk 10.8c):**
+ * **Why hand-rolled client, not the SDK (.8c):**
  * the SDK's getEvents/getMarkets/getTrades return raw
  * axios responses; the hand-rolled client's parse layer
  * (parseMarket/parseTrade/parseEvent) gives us typed
  * KalshiMarket/KalshiTrade/KalshiEvent values that the
  * scan logic depends on. Migrating would require
  * re-implementing the parse layer + the async iterator
- * pattern. The hand-rolled client has chunk 10.8 retries
+ * pattern. The hand-rolled client has  retries
  * on 5xx/429, so the reliability benefit is already
  * captured.
  *
@@ -94,14 +94,14 @@ const DEFAULT_SCAN_429_BACKOFF_SEC = 14400; // 4h base unit for exponential cool
 const SCAN_429_BACKOFF_MAX_SEC = 43200; // 12h absolute cap
 // Multiplier ladder for consecutive 429s: 1×, 2×, 4×,
 // 8×, capped at SCAN_429_BACKOFF_MAX_SEC. So with
-// base=4h: 4h, 8h, 12h cap, 12h cap, ...
+// base=4h: 4h, 8h, 12h cap, 12h cap,...
 const SCAN_429_BACKOFF_MULTIPLIERS = [1, 2, 4, 8] as const;
 
 function envInt(env: CronEnv, key: keyof CronEnv, fallback: number): number {
 	const v = env[key];
 	if (typeof v !== "string" || v === "") return fallback;
 	const n = parseInt(v, 10);
-	return Number.isFinite(n) ? n : fallback;
+	return Number.isFinite(n) ? n: fallback;
 }
 
 /**
@@ -196,7 +196,7 @@ export async function runScanCron(env: CronEnv): Promise<CronResult> {
 	// within the TTL, or if a 429 was hit very recently.
 	const cached = await checkScanCache(env, cacheTtlSec, backoffSec);
 	if (cached) {
-		const n = Array.isArray(cached.candidates) ? cached.candidates.length : 0;
+		const n = Array.isArray(cached.candidates) ? cached.candidates.length: 0;
 		console.log(
 			`[cron:scan] skipped (${cached.reason}) — using ${n} cached candidates`,
 		);
@@ -351,7 +351,7 @@ export async function runScanCron(env: CronEnv): Promise<CronResult> {
 			await scansDb.insert(env.DB, {
 				user_id: "default",
 				ts: Date.now(),
-				source: seriesList.length > 0 ? "series-anchored" : "full-market",
+				source: seriesList.length > 0 ? "series-anchored": "full-market",
 				lookback_hours: lookbackHours,
 				min_trades: minTrades,
 				top_n: topN,
@@ -376,7 +376,7 @@ export async function runScanCron(env: CronEnv): Promise<CronResult> {
 			ok: false,
 			cron_name: "scan",
 			duration_ms: 0,
-			error_message: e instanceof Error ? e.message : String(e),
+			error_message: e instanceof Error ? e.message: String(e),
 		};
 	}
 }

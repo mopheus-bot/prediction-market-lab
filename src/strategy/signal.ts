@@ -1,5 +1,5 @@
 /**
- * pm-bot — signal + signal-context types.
+ * prediction-market-lab — signal + signal-context types.
  *
  * Mirrors `Prediction Market Lab/.../sim/signal.py` and
  * `Prediction Market Lab/.../sim/backtester.py:SignalContext`.
@@ -8,7 +8,7 @@
  * engine decides whether to actually place the trade (after risk
  * checks). A `SignalContext` bundles everything a strategy might want
  * to look at — price history, orderbook, market, tick. The naive
- * signal only uses `priceHistory`; future ML signals (chunk 4) use
+ * signal only uses `priceHistory`; future ML signals use
  * the full context to extract features.
  */
 

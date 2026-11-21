@@ -1,17 +1,17 @@
 /**
- * pm-bot — Cloudflare Workers entry point.
+ * prediction-market-lab — Cloudflare Workers entry point.
  *
- * Routing (chunk 0 → 5):
+ * Routing ( → 5):
  *   /health, /healthz                     — Worker health endpoint (200 JSON)
  *   /pm, /pm/, /pm/*                      — dashboard, served from public/ via env.ASSETS
- *   /api/pm/*                             — bot API (chunk 1+)
+ *   /api/pm/*                             — bot API
  *   /api/pm/bot/start                     — POST: start the live bot DO
  *   /api/pm/bot/stop                      — POST: stop the live bot DO
  *   /api/pm/bot/restart                   — POST: restart the live bot DO
  *   /api/pm/bot/status                    — GET: live bot DO state
  *   /                                     — root landing (200 JSON)
  *
- * Scheduled (chunk 5):
+ * Scheduled:
  *   CF Cron Triggers fire the `scheduled` handler; we dispatch
  *   to the 4 jobs (scan / news / daily / train) by inspecting
  *   `event.cron`. See src/cron/dispatcher.ts for the table.
@@ -19,7 +19,7 @@
  * The static-asset binding `env.ASSETS` is auto-created from the
  * `assets.directory` config in wrangler.jsonc.
  *
- * The Durable Object `LIVE_BOT` (chunk 3) is addressed by
+ * The Durable Object `LIVE_BOT` is addressed by
  * `idFromName(`user:${userId}`)` so multi-tenancy is just a name change.
  */
 
@@ -66,12 +66,12 @@ export interface Env extends CronEnv {
 	ASSETS: Fetcher;
 	// Durable Object binding — populated from wrangler.jsonc `durable_objects`.
 	LIVE_BOT?: DurableObjectNamespace;
-	// ShadowBot DO (chunk 8). Optional; if the binding is
+	// ShadowBot DO. Optional; if the binding is
 	// missing (e.g. the deployment hasn't migrated yet), the
 	// /api/pm/shadow/* routes return 503.
 	SHADOW_BOT?: DurableObjectNamespace;
 	// Kalshi demo credentials (paper trading). Production creds land in
-	// chunk 9 with the real-trading toggle.
+	//  with the real-trading toggle.
 	KALSHI_DEMO_KEY_ID?: string;
 	KALSHI_DEMO_PRIVATE_KEY?: string;
 	// Bot defaults (overridable per-/start call).
@@ -83,10 +83,10 @@ export interface Env extends CronEnv {
 	// `wrangler secret put CF_API_TOKEN`.
 	CF_API_TOKEN?: string;
 	// Optional overrides for the cf-analytics endpoint.
-	// Default values are the pm-bot account + script name.
+	// Default values are the prediction-market-lab account + script name.
 	CF_ACCOUNT_TAG?: string;
 	CF_SCRIPT_NAME?: string;
-	// Chunk 10.5: cost tracking.
+	//: cost tracking.
 	// CF Workers Paid plan billing cycle start date (ISO YYYY-MM-DD).
 	// The cost endpoint computes "resets in N days" from this.
 	CF_BILLING_CYCLE_START?: string;
@@ -121,7 +121,7 @@ export default {
 			});
 		}
 
-		// ─── Public marketing: / → landing page (chunk 11 SaaS refactor) ─
+		// ─── Public marketing: / → landing page ( SaaS refactor) ─
 		// The root is now a public marketing site (was: a JSON service
 		// banner). The dashboard moved to /app/*.
 		if (path === "/") {
@@ -136,7 +136,7 @@ export default {
 			return env.ASSETS.fetch(new URL("/login.html", url));
 		}
 
-		// ─── App: /app/* → 7 focused sub-pages (chunk 11 SaaS refactor) ─
+		// ─── App: /app/* → 7 focused sub-pages ( SaaS refactor) ─
 		// Replaces the old single-page /pm/ dashboard. The shell
 		// injects a top nav with 7 page links (Dashboard, Bot, Positions,
 		// Trades, Models, Cadence, Dev) and the active page is
@@ -149,7 +149,7 @@ export default {
 			} else {
 				// /app/bot → /app/bot.html
 				const tail = path.replace(/^\/app\/?/, "") || "index";
-				assetPath = `/app/${tail}${tail.endsWith(".html") ? "" : ".html"}`;
+				assetPath = `/app/${tail}${tail.endsWith(".html") ? "": ".html"}`;
 			}
 			const assetResp = await env.ASSETS.fetch(new URL(assetPath, url));
 			if (assetResp.status === 404) {
@@ -180,8 +180,8 @@ export default {
 			return Response.redirect("/app/schedule", 301);
 		}
 
-		// ─── Old static-asset fallback (chunk 0): direct file paths ────
-		// Pre-chunk-11 deployments served any file from public/ at
+		// ─── Old static-asset fallback: direct file paths ────
+		// Pre- deployments served any file from public/ at
 		// `/<filename>`. The dashboard used to be at /index.html; now
 		// it's the landing page. Keep this fallback for any other
 		// static asset requests (favicons, robots.txt, etc.) — but
@@ -191,7 +191,7 @@ export default {
 			if (assetResp.status !== 404) return assetResp;
 		}
 
-		// ─── API: /api/pm/bot/* → live bot DO (chunk 3) ─────────────────
+		// ─── API: /api/pm/bot/* → live bot DO ─────────────────
 		// 2026-08-10: SSE stream. Live push of bot events
 		// (poll, signal, trade_open, trade_close, mode_change,
 		// kill_switch, auto_promote). See docs/EVENT-DRIVEN-UI.md
@@ -213,14 +213,14 @@ export default {
 		if (path === "/api/pm/bot/restart" && request.method === "POST") {
 			return forwardToBot(env, request, "/restart");
 		}
-		// Reload models from R2 (chunk 8). After promoting a
+		// Reload models from R2. After promoting a
 		// new model version via /api/pm/models/promote, hit this
 		// endpoint to load the new version without restarting
 		// the bot's WS.
 		if (path === "/api/pm/bot/reload-models" && request.method === "POST") {
 			return forwardToBot(env, request, "/reload-models");
 		}
-		// ─── API: /api/pm/bot/* (chunk 9: real trading toggle) ─────
+		// ─── API: /api/pm/bot/* (real trading toggle) ─────
 		// Set the trading mode (paper | real | off). Operators
 		// flip this to "real" once they're ready to deploy
 		// real capital; "off" pauses new trades without
@@ -240,13 +240,13 @@ export default {
 		if (path === "/api/pm/bot/place-test-order" && request.method === "POST") {
 			return forwardToBot(env, request, "/place-test-order");
 		}
-		// Manual close-position (chunk 10.9). Body: { ticker }.
+		// Manual close-position. Body: { ticker }.
 		// Closes the open position at the current mark. Works
 		// for paper + real positions.
 		if (path === "/api/pm/bot/close-position" && request.method === "POST") {
 			return forwardToBot(env, request, "/close-position");
 		}
-		// Manual cancel-order (chunk 10.9). Body: { order_id }.
+		// Manual cancel-order. Body: { order_id }.
 		// Cancels a GTC order on Kalshi. Only meaningful in
 		// real mode (paper orders are local-only).
 		if (path === "/api/pm/bot/cancel-order" && request.method === "POST") {
@@ -315,7 +315,7 @@ export default {
 			}
 			return handleRejectLead(env, id);
 		}
-		// 2026-08-10: Research API (chunk 14.1).
+		// 2026-08-10: Research API.
 		// GET /api/pm/research/live-markets — current "live" view.
 		// GET /api/pm/research/live-markets/:ticker — history for one ticker.
 		if (path === "/api/pm/research/live-markets" && request.method === "GET") {
@@ -346,7 +346,7 @@ export default {
 		if (path === "/api/pm/cron" && request.method === "GET") {
 			return Response.json({ ok: true, crons: TRIGGERABLE_CRONS });
 		}
-		// Auto-start (chunk 9.8): idempotent bot start. If
+		// Auto-start: idempotent bot start. If
 		// already running, returns current state. Otherwise
 		// starts with default config. The dashboard calls
 		// this on every page load so the user never has
@@ -355,7 +355,7 @@ export default {
 			return forwardToBot(env, request, "/auto-start");
 		}
 
-		// ─── API: /api/pm/{status,summary,trades,signals,scans,cron-runs} (chunk 6) ──
+		// ─── API: /api/pm/{status,summary,trades,signals,scans,cron-runs} ──
 		if (path === "/api/pm/status" && request.method === "GET") {
 			return handleStatus(env);
 		}
@@ -374,7 +374,7 @@ export default {
 		if (path === "/api/pm/cron-runs" && request.method === "GET") {
 			return handleCronRuns(env, url);
 		}
-		// ─── API: /api/pm/cf-analytics (chunk 9.5: Cloudflare inline analytics) ──
+		// ─── API: /api/pm/cf-analytics (Cloudflare inline analytics) ──
 		// Proxies the CF GraphQL Analytics API. Reads the
 		// same metrics the dash.cloudflare.com Workers
 		// dashboard shows (requests, errors, subrequests)
@@ -383,7 +383,7 @@ export default {
 		if (path === "/api/pm/cf-analytics" && request.method === "GET") {
 			return handleCfAnalytics(env, url);
 		}
-		// ─── API: /api/pm/bot/balance (chunk 9.6: Kalshi account balance) ──
+		// ─── API: /api/pm/bot/balance (Kalshi account balance) ──
 		// Returns the live account balance + portfolio
 		// value so the dashboard can show "Account: $X.XX"
 		// in the trading-mode panel. Requires
@@ -391,7 +391,7 @@ export default {
 		if (path === "/api/pm/bot/balance" && request.method === "GET") {
 			return handleBotBalance(env, url);
 		}
-		// ─── API: /api/pm/cost (chunk 9.7: cost estimate) ──
+		// ─── API: /api/pm/cost (cost estimate) ──
 		// Combines CF Analytics (Workers requests) +
 		// D1 (llm_calls + cron_runs + trades) + MMX
 		// pricing into a single "what's this costing me"
@@ -400,21 +400,21 @@ export default {
 		if (path === "/api/pm/cost" && request.method === "GET") {
 			return handleCost(env, url);
 		}
-		// ─── API: /api/pm/cadence (chunk 10) ──
+		// ─── API: /api/pm/cadence ──
 		// Every auto-running service + last-ran +
 		// next-scheduled + status. The single source
 		// of truth for the cadence panel.
 		if (path === "/api/pm/cadence" && request.method === "GET") {
 			return handleCadence(env, url);
 		}
-		// ─── API: /api/pm/bot/stage (chunk 10) ──
+		// ─── API: /api/pm/bot/stage ──
 		// Single badge in the brand bar — what is the
 		// bot doing right now? ELI5 description included.
 		if (path === "/api/pm/bot/stage" && request.method === "GET") {
 			return handleStage(env, url);
 		}
 
-		// ─── API: /api/pm/kalshi-sdk-test (chunk 10.8) ──
+		// ─── API: /api/pm/kalshi-sdk-test ──
 		// Smoke test the kalshi-typescript SDK adapter. Calls
 		// getBalance + getPositions on the demo endpoint and
 		// returns the raw response. Used to verify the SDK
@@ -422,14 +422,14 @@ export default {
 		if (path === "/api/pm/kalshi-sdk-test" && request.method === "GET") {
 			return handleKalshiSdkTest(env);
 		}
-		// ─── API: /api/pm/verticals (chunk 10.8c) ──
+		// ─── API: /api/pm/verticals (.8c) ──
 		// Per-vertical state for the dashboard's Verticals
 		// panel: active, model version, strategy, 24h + all-time
 		// stats, per-vertical cap, tickers in the vertical.
 		if (path === "/api/pm/verticals" && request.method === "GET") {
 			return handleVerticals(env, url);
 		}
-		// ─── API: /api/pm/backtest/run (chunk 10.8c) ──
+		// ─── API: /api/pm/backtest/run (.8c) ──
 		// Manual trigger of the backtest retrospective. The
 		// Sunday cron auto-runs this; the endpoint lets the
 		// operator (and the smoke test) verify the code
@@ -439,7 +439,7 @@ export default {
 			return handleBacktestRun(env, request);
 		}
 
-		// ─── API: /api/pm/models/* (chunk 8) ───────────────────
+		// ─── API: /api/pm/models/* ───────────────────
 		if (path === "/api/pm/models" && request.method === "GET") {
 			return handleListModels(env, url);
 		}
@@ -471,13 +471,13 @@ export default {
 			return forwardUpgradeToBot(env, request);
 		}
 
-		// ─── API: /api/pm/* — placeholder for chunks 4-7 endpoints ──────
+		// ─── API: /api/pm/* — bot, status and research endpoints ──────
 		if (path.startsWith("/api/pm/")) {
 			return jsonResponse({
 				ok: true,
-				message: "pm-bot API",
+				message: "prediction-market-lab API",
 				path,
-				note: "Endpoints land in chunks 4-7. /api/pm/bot/* (chunk 3) is live.",
+				note: "Bot control lives under /api/pm/bot/*.",
 			});
 		}
 
@@ -488,7 +488,7 @@ export default {
 				service: env.SERVICE_NAME,
 				environment: env.ENVIRONMENT,
 				message:
-					"pm-bot is live. visit /pm/ for the dashboard (CF Access protected). " +
+					"prediction-market-lab is live. visit /pm/ for the dashboard (CF Access protected). " +
 					"bot control: /api/pm/bot/{start,stop,restart,status,ws}.",
 				deployed_at: new Date().toISOString(),
 			});
@@ -497,7 +497,7 @@ export default {
 		return jsonResponse({ ok: false, error: "not found", path }, 404);
 	},
 
-	// ─── Scheduled handler (chunk 5) ─────────────────────────────────
+	// ─── Scheduled handler ─────────────────────────────────
 	// CF Cron Triggers fire this method. The dispatcher maps
 	// `event.cron` to a job name. We schedule the dispatch in
 	// `ctx.waitUntil` so the response returns immediately and

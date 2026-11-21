@@ -1,5 +1,5 @@
 /**
- * pm-bot — leads-cron (chunk 11+).
+ * prediction-market-lab — leads-cron.
  *
  * Runs every 6 hours +30min (00:30 / 06:30 / 12:30 / 18:30 UTC). Asks
  * the LLM which Kalshi tickers to ADD to the bot's universe and
@@ -265,7 +265,7 @@ async function readTickerStats(
 			n_trades_30d: trades.length,
 			pnl_cents_30d: pnl,
 			last_signal_ms: lastSignal,
-			days_since_last_signal: lastSignal ? Math.round((now - lastSignal) / (24 * 60 * 60 * 1000)) : null,
+			days_since_last_signal: lastSignal ? Math.round((now - lastSignal) / (24 * 60 * 60 * 1000)): null,
 		});
 	}
 	return out;
@@ -335,8 +335,8 @@ function buildPromptInner(
 			const v = state.ticker_verticals[t] ?? "unknown";
 			const s = stats.get(t);
 			if (s) {
-				const days = s.days_since_last_signal == null ? "never" : `${s.days_since_last_signal}d`;
-				const pnl = s.pnl_cents_30d === 0 ? "$0.00" : `$${(s.pnl_cents_30d / 100).toFixed(2)}`;
+				const days = s.days_since_last_signal == null ? "never": `${s.days_since_last_signal}d`;
+				const pnl = s.pnl_cents_30d === 0 ? "$0.00": `$${(s.pnl_cents_30d / 100).toFixed(2)}`;
 				lines.push(`- ${t} — ${v} — ${s.n_signals_30d} / ${s.n_trades_30d} / ${pnl} / ${days}`);
 			} else {
 				lines.push(`- ${t} — ${v} — 0 / 0 / $0.00 / never`);
@@ -402,9 +402,9 @@ export function parseLlmResponse(rawText: string): ParsedLeads | null {
 			? obj.add
 					.filter((x): x is Record<string, unknown> => typeof x === "object" && x !== null)
 					.map((x) => ({
-						ticker: typeof x.ticker === "string" ? x.ticker : "",
-						vertical: typeof x.vertical === "string" ? x.vertical : "",
-						reasoning: typeof x.reasoning === "string" ? x.reasoning : "",
+						ticker: typeof x.ticker === "string" ? x.ticker: "",
+						vertical: typeof x.vertical === "string" ? x.vertical: "",
+						reasoning: typeof x.reasoning === "string" ? x.reasoning: "",
 					}))
 					.filter((x) => x.ticker && x.vertical && x.reasoning)
 			: [];
@@ -412,12 +412,12 @@ export function parseLlmResponse(rawText: string): ParsedLeads | null {
 			? obj.drop
 					.filter((x): x is Record<string, unknown> => typeof x === "object" && x !== null)
 					.map((x) => ({
-						ticker: typeof x.ticker === "string" ? x.ticker : "",
-						reasoning: typeof x.reasoning === "string" ? x.reasoning : "",
+						ticker: typeof x.ticker === "string" ? x.ticker: "",
+						reasoning: typeof x.reasoning === "string" ? x.reasoning: "",
 					}))
 					.filter((x) => x.ticker && x.reasoning)
 			: [];
-		const overall_reasoning = typeof obj.overall_reasoning === "string" ? obj.overall_reasoning : "";
+		const overall_reasoning = typeof obj.overall_reasoning === "string" ? obj.overall_reasoning: "";
 		return { add, drop, overall_reasoning };
 	} catch {
 		return null;
@@ -628,7 +628,7 @@ export async function runLeadsCron(env: LeadsCronEnv): Promise<CronResult> {
 
 	// 1. Read state.
 	const state = await readBotState(env, userId);
-	const stats = state ? await readTickerStats(env, userId, state.tickers) : new Map();
+	const stats = state ? await readTickerStats(env, userId, state.tickers): new Map();
 	const rejected = await readRecentlyRejected(env, userId);
 
 	// 2. Scout: fetch the real Kalshi market list and
@@ -756,7 +756,7 @@ export async function runLeadsCron(env: LeadsCronEnv): Promise<CronResult> {
 				input_tokens_est: result.input_tokens ?? null,
 				output_tokens_est: result.output_tokens ?? null,
 				duration_ms: result.duration_ms,
-				status: result.ok ? "success" : "error",
+				status: result.ok ? "success": "error",
 				error_message: result.error_message ?? null,
 			})
 			.catch((e) => console.error("[leads] failed to record llm_call", e));
@@ -845,11 +845,11 @@ export async function runLeadsCron(env: LeadsCronEnv): Promise<CronResult> {
 
 	// 7. Insert the new suggestions. Combine LLM drops
 	// + auto-flagged expired drops into a single batch.
-	const allDrops = [...drop, ...expiredDrops];
+	const allDrops = [...drop,...expiredDrops];
 	let insertedIds: number[] = [];
 	if (env.DB && (add.length > 0 || allDrops.length > 0)) {
 		insertedIds = await leadSuggestionsDb
-			.insertMany(env.DB, userId, [...add, ...allDrops])
+			.insertMany(env.DB, userId, [...add,...allDrops])
 			.catch((e) => {
 				console.error("[leads] failed to insert suggestions", e);
 				return [];
@@ -876,7 +876,7 @@ export async function runLeadsCron(env: LeadsCronEnv): Promise<CronResult> {
 			scout_source: scoutSource, // "snapshots" | "kalshi" | "none"
 			scout_total_scanned: scout?.total_scanned ?? 0,
 			scout_filtered: scout?.markets.length ?? 0,
-			scout_error: scout && !scout.ok ? scout.error : null,
+			scout_error: scout && !scout.ok ? scout.error: null,
 			llm_input_tokens: result.input_tokens,
 			llm_output_tokens: result.output_tokens,
 			llm_duration_ms: result.duration_ms,

@@ -1,5 +1,5 @@
 /**
- * pm-bot — risk engine.
+ * prediction-market-lab — risk engine.
  *
  * Mirrors `Prediction Market Lab/.../risk/engine.py:RiskEngine` (commit 7 of the
  * Python implementation plan).
@@ -16,8 +16,8 @@
  *   3. 5% per-market cap.
  *   4. 10% drawdown pause (configurable ticks).
  *   5. 3-loss cooldown (configurable ticks).
- *   6. Cancel-on-shock — not implemented in chunk 3 (cancel-on-shock
- *      lives in the execution manager, which lands in chunk 7 or later).
+ *   6. Cancel-on-shock — not implemented in  (cancel-on-shock
+ *      lives in the execution manager, which lands in  or later).
  *
  * The engine is stateful (mutates `RiskState`) but the rules themselves
  * are pure functions of (state, signal, current_tick).
@@ -313,7 +313,7 @@ export class RiskEngine {
 		currentTick: number,
 	): Position {
 		const costCents =
-			side === "yes" ? entryPrice * size : (100 - entryPrice) * size;
+			side === "yes" ? entryPrice * size: (100 - entryPrice) * size;
 		const pos: Position = {
 			ticker,
 			vertical,

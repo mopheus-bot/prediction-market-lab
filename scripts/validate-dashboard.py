@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-pm-bot — dashboard validation (chunk 7).
+prediction-market-lab — dashboard validation.
 
 Loads `public/index.html` in headless Chromium and checks:
 - Page loads without console errors
@@ -72,21 +72,21 @@ def main() -> int:
                 lambda msg: console_errors.append(msg.text)
                 if msg.type == "error"
                 else None,
-            )
+)
             page.on(
                 "requestfailed",
                 lambda req: failed_requests.append(
                     f"{req.url}: {req.failure}"
-                ),
-            )
+),
+)
             page.on(
                 "response",
                 lambda r: failed_requests.append(
                     f"{r.url}: HTTP {r.status}"
-                )
+)
                 if r.status >= 400
                 else None,
-            )
+)
             # POSTs to /api/pm/* return 501 from the static
             # server (it doesn't run the Worker). Track
             # them separately so we can filter both
@@ -103,7 +103,7 @@ def main() -> int:
             required_text = [
                 "Prediction Market Lab",
                 "finance",
-                "pm-bot",
+                "prediction-market-lab",
                 "Account balance",
                 "Total PnL",
                 "Cadence",
@@ -142,7 +142,7 @@ def main() -> int:
             # Accessibility: focus-visible style rule must be present
             # in the page (it's the primary a11y pattern).
             if "focus-visible" not in html:
-                failures.append("missing :focus-visible styles")
+                failures.append("missing:focus-visible styles")
 
             # Accessibility: prefers-reduced-motion respected.
             if "prefers-reduced-motion" not in html:
@@ -166,7 +166,7 @@ def main() -> int:
                     f"[validate-dashboard] (expected) {len(api_404s)} /api/pm/* "
                     f"404s — the static server doesn't run the Worker. "
                     f"Deploy to verify the API calls."
-                )
+)
 
             # No console errors (warning + log are OK). The
             # /api/pm/* 404s + 501s (POSTs) surface as console
@@ -181,7 +181,7 @@ def main() -> int:
                     ("404" not in e and "501" not in e and "405" not in e)
                     or "api/pm" in e.lower()
                     or "/api/pm" in e
-                )
+)
             ]
             # Above is too coarse — any 404 console error is
             # almost certainly an /api/pm/* miss. Skip ALL 404
@@ -199,8 +199,8 @@ def main() -> int:
 
             # The page title
             title = page.title()
-            if "pm-bot" not in title:
-                failures.append(f"title missing 'pm-bot': {title!r}")
+            if "prediction-market-lab" not in title:
+                failures.append(f"title missing 'prediction-market-lab': {title!r}")
 
             # Snapshot
             screenshot = public / "_validate-screenshot.png"

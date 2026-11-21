@@ -1,5 +1,5 @@
 /**
- * pm-bot — API entry point.
+ * prediction-market-lab — API entry point.
  * Re-exports the status handlers for the Worker to import.
  */
 

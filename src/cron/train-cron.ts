@@ -1,5 +1,5 @@
 /**
- * pm-bot — train cron (chunk 8).
+ * prediction-market-lab — train cron.
  *
  * Runs weekly on Sunday 00:00 UTC. The full Python retrain
  * pipeline (via the `train_reversion_quality_model_from_trades`
@@ -18,7 +18,7 @@
  *       since the last run and auto-registers them. The
  *       `train.cron` script does this every Sunday.
  *
- * **What this DOES do in chunk 8:**
+ * **What this DOES do in:**
  *   - Polls R2 for `models/reversion-{vertical}-*.json`
  *     objects not yet in the D1 registry.
  *   - Registers each new model with status=candidate.
@@ -29,9 +29,9 @@
  *     OFF by default — we want the operator to look at the
  *     model first).
  *
- * **Why auto-promote is OFF by default:** the chunk-4
+ * **Why auto-promote is OFF by default:** the step-4
  * models are trained on synthetic data; live retrains
- * (chunk 8+) are trained on real trade data which is
+ * are trained on real trade data which is
  * smaller and noisier. Auto-promote would let a poorly
  * trained model go live without review. Keep the
  * `promote` endpoint as the manual gate.
@@ -204,7 +204,7 @@ export async function runTrainCron(env: CronEnv): Promise<CronResult> {
 			ok: false,
 			cron_name: "train",
 			duration_ms: Date.now() - started,
-			error_message: e instanceof Error ? e.message : String(e),
+			error_message: e instanceof Error ? e.message: String(e),
 		};
 	}
 }

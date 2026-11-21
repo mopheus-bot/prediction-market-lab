@@ -1,5 +1,5 @@
 /**
- * pm-bot — `ReversionQualitySignal` (chunk 4).
+ * prediction-market-lab — `ReversionQualitySignal`.
  *
  * Mirrors `Prediction Market Lab/.../model/reversion.py:ReversionQualitySignal`.
  *
@@ -144,7 +144,7 @@ function bestNoBidCents(ob: { noLevels: ReadonlyArray<{ priceCents: number }> })
 
 function yesAskCents(ob: { noLevels: ReadonlyArray<{ priceCents: number }> }): number | null {
 	const no = bestNoBidCents(ob);
-	return no === null ? null : 100 - no;
+	return no === null ? null: 100 - no;
 }
 
 function clamp(v: number, lo: number, hi: number): number {

@@ -364,7 +364,7 @@
 				if (!el) return;
 				const s = window._lastBotStatus;
 				if (!s) { el.textContent = "—"; el.className = "lifecycle-status-val muted"; return; }
-				const run = s.connected ? "running" : "stopped";
+				const run = s.connected ? "running": "stopped";
 				const err = s.last_reject || s.poll?.last_error;
 				if (err && !s.connected) {
 					el.textContent = `${run} · error`;
@@ -374,7 +374,7 @@
 					el.className = "lifecycle-status-val warn";
 				} else {
 					el.textContent = run;
-					el.className = "lifecycle-status-val " + (s.connected ? "ok" : "muted");
+					el.className = "lifecycle-status-val " + (s.connected ? "ok": "muted");
 				}
 			}
 
@@ -467,12 +467,12 @@
 				const capC = window._lastBotStatus?.risk?.daily_notional_cap_cents || 0;
 				const capStr = `of ${fmtCentsPct(capC)} cap`;
 				const nTrades = window._lastBotStatus?.counts?.n_trades || 0;
-				const tradesSub = nTrades ? `${nTrades} trade${nTrades === 1 ? "" : "s"}` : "no trades yet";
+				const tradesSub = nTrades ? `${nTrades} trade${nTrades === 1 ? "": "s"}`: "no trades yet";
 
 				const set = (key, sub) => {
 					const labelEl = document.querySelector(`[data-kpi="${key}-label"]`);
 					const subEl = key === "deployed" || key === "signals"
-						? document.getElementById(`bot-${key === "deployed" ? "deployed" : "signals"}-sub`)
+						? document.getElementById(`bot-${key === "deployed" ? "deployed": "signals"}-sub`)
 						: document.querySelector(`[data-kpi="${key}-sub"]`);
 					const copy = KPI_COPY[key][mode];
 					if (labelEl) labelEl.textContent = copy.label;
@@ -558,8 +558,8 @@
 				if (pnlSub) {
 					if (mode === "off") pnlSub.textContent = "paused";
 					else {
-						const rPart = todayRealized === 0 ? "—" : fmtCentsPct(todayRealized);
-						const uPart = unrealized === 0 ? "—" : fmtCentsPct(unrealized);
+						const rPart = todayRealized === 0 ? "—": fmtCentsPct(todayRealized);
+						const uPart = unrealized === 0 ? "—": fmtCentsPct(unrealized);
 						pnlSub.textContent = `realized ${rPart} · unreal ${uPart}`;
 					}
 				}
@@ -585,8 +585,8 @@
 						ts_ms: run.ts,
 						source: "cron",
 						action: run.cron_name,
-						detail: run.error_message || (run.artifacts_json && safeJson(run.artifacts_json, "skipped") ? "skipped" : "ok"),
-						result: run.status === "success" ? "ok" : "error",
+						detail: run.error_message || (run.artifacts_json && safeJson(run.artifacts_json, "skipped") ? "skipped": "ok"),
+						result: run.status === "success" ? "ok": "error",
 						duration_ms: run.duration_ms,
 					}));
 				} catch (_e) { return []; }
@@ -599,15 +599,15 @@
 					return (d.trades || []).map((t) => ({
 						ts_ms: t.ts || t.ts_ms || t.created_at,
 						source: "fill",
-						action: t.side ? `${t.side}@${t.price_cents}c` : "fill",
+						action: t.side ? `${t.side}@${t.price_cents}c`: "fill",
 						detail: `${t.ticker || "?"} · ${t.rationale || t.signal_rationale || ""}`.slice(0, 60),
-						result: t.is_paper === 0 ? "real" : "paper",
+						result: t.is_paper === 0 ? "real": "paper",
 						duration_ms: null,
 					}));
 				} catch (_e) { return []; }
 			}
 			function safeJson(s, hint) {
-				try { const j = JSON.parse(s); return hint ? !!j[hint] : true; }
+				try { const j = JSON.parse(s); return hint ? !!j[hint]: true; }
 				catch (_e) { return false; }
 			}
 
@@ -617,7 +617,7 @@
 				const [cron, fills] = await Promise.all([fetchCronRuns(), fetchRecentTrades()]);
 				_activityCache = { cron, fills };
 				const local = loadActivityLog();
-				const merged = [...local, ...cron, ...fills]
+				const merged = [...local,...cron,...fills]
 					.sort((a, b) => b.ts_ms - a.ts_ms)
 					.slice(0, 50);
 				renderActivityLog(merged);
@@ -634,16 +634,16 @@
 					return;
 				}
 				tbody.innerHTML = filtered.map((e) => {
-					const when = e.ts_ms ? new Date(e.ts_ms).toLocaleString() : "—";
+					const when = e.ts_ms ? new Date(e.ts_ms).toLocaleString(): "—";
 					const resultCls = e.result === "ok" || e.result === "paper"
-						? "ok" : e.result === "real"
-							? "ok" : e.result === "error" ? "bad" : "muted";
+						? "ok": e.result === "real"
+							? "ok": e.result === "error" ? "bad": "muted";
 					return `<tr>
 						<td class="mono" style="font-size: 12px;">${when}</td>
-						<td><span class="pill ${e.source === "cron" ? "" : e.source === "fill" ? "ok" : "muted"}" style="font-size: 10px;">${e.source}</span></td>
+						<td><span class="pill ${e.source === "cron" ? "": e.source === "fill" ? "ok": "muted"}" style="font-size: 10px;">${e.source}</span></td>
 						<td class="mono">${e.action || "—"}</td>
 						<td style="font-size: 12px; color: var(--ink-muted);">${e.detail || "—"}</td>
-						<td class="mono num">${e.duration_ms != null ? fmtMs(e.duration_ms) : "—"}</td>
+						<td class="mono num">${e.duration_ms != null ? fmtMs(e.duration_ms): "—"}</td>
 						<td><span class="pill ${resultCls}" style="font-size: 10px;">${e.result || "—"}</span></td>
 					</tr>`;
 				}).join("");
@@ -655,7 +655,7 @@
 				_activityFilter.current = btn.dataset.filter;
 				for (const t of document.querySelectorAll(".activity-filter")) {
 					t.classList.toggle("active", t.dataset.filter === _activityFilter.current);
-					t.setAttribute("aria-selected", t.dataset.filter === _activityFilter.current ? "true" : "false");
+					t.setAttribute("aria-selected", t.dataset.filter === _activityFilter.current ? "true": "false");
 				}
 				refreshActivityLog();
 			});
@@ -677,13 +677,13 @@
 					x.textContent = txt;
 					if (cls) x.className = `health-tile-val mono ${cls}`;
 				};
-				set("health-poll-active", poll.active ? "active" : "inactive", poll.active ? "ok" : "muted");
-				set("health-poll-connected", poll.connected ? "yes" : "no", poll.connected ? "ok" : "bad");
+				set("health-poll-active", poll.active ? "active": "inactive", poll.active ? "ok": "muted");
+				set("health-poll-connected", poll.connected ? "yes": "no", poll.connected ? "ok": "bad");
 				set("health-poll-count", fmtCount(poll.n_polls));
-				set("health-poll-errors", fmtCount(poll.n_errors), poll.n_errors > 0 ? "bad" : "");
-				set("health-poll-latency", poll.last_poll_ms != null ? `${poll.last_poll_ms}ms` : "—");
+				set("health-poll-errors", fmtCount(poll.n_errors), poll.n_errors > 0 ? "bad": "");
+				set("health-poll-latency", poll.last_poll_ms != null ? `${poll.last_poll_ms}ms`: "—");
 				const tickers = poll.tickers || [];
-				set("health-poll-tickers", tickers.length ? `${tickers.length} active` : "0");
+				set("health-poll-tickers", tickers.length ? `${tickers.length} active`: "0");
 				// Summary line
 				if (summary) {
 					if (!s.connected) summary.textContent = "disconnected";
@@ -695,7 +695,7 @@
 				const errText = el("health-error-text");
 				const lastErr = poll.last_error || s.last_reject;
 				if (lastErr && errWrap && errText) {
-					errText.textContent = typeof lastErr === "string" ? lastErr : JSON.stringify(lastErr, null, 2);
+					errText.textContent = typeof lastErr === "string" ? lastErr: JSON.stringify(lastErr, null, 2);
 					errWrap.hidden = false;
 				} else if (errWrap) {
 					errWrap.hidden = true;
@@ -711,14 +711,14 @@
 					} else {
 						tb.innerHTML = entries.map(([t, info]) => {
 							const pos = info.position;
-							const posStr = pos ? `${pos.side}@${pos.entry_cents}c · ${pos.size}` : "flat";
+							const posStr = pos ? `${pos.side}@${pos.entry_cents}c · ${pos.size}`: "flat";
 							return `<tr>
 								<td class="mono">${t}</td>
 								<td>${info.vertical || "—"}</td>
 								<td class="mono num">${info.price_history_len ?? "—"}</td>
 								<td class="mono num">${(info.trade_count ?? 0).toLocaleString()}</td>
-								<td class="mono num">${info.last_trade_price_cents != null ? info.last_trade_price_cents + "c" : "—"}</td>
-								<td><span class="pill ${pos ? "warn" : "muted"}" style="font-size: 10px;">${posStr}</span></td>
+								<td class="mono num">${info.last_trade_price_cents != null ? info.last_trade_price_cents + "c": "—"}</td>
+								<td><span class="pill ${pos ? "warn": "muted"}" style="font-size: 10px;">${posStr}</span></td>
 							</tr>`;
 						}).join("");
 					}
@@ -737,9 +737,9 @@
 				// an error or tickers to show. renderHealth() handles
 				// their visibility each refresh.
 				healthBody.hidden = !open;
-				healthToggle.textContent = open ? "Hide details" : "Show details";
-				healthToggle.setAttribute("aria-expanded", open ? "true" : "false");
-				try { localStorage.setItem(HEALTH_DETAILS_OPEN_KEY, open ? "1" : "0"); } catch (_e) {}
+				healthToggle.textContent = open ? "Hide details": "Show details";
+				healthToggle.setAttribute("aria-expanded", open ? "true": "false");
+				try { localStorage.setItem(HEALTH_DETAILS_OPEN_KEY, open ? "1": "0"); } catch (_e) {}
 			}
 			healthToggle?.addEventListener("click", () => {
 				setHealthOpen(healthBody.hidden);

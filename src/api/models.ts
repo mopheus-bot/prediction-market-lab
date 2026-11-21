@@ -1,10 +1,10 @@
 /**
- * pm-bot — model registry API (chunk 8).
+ * prediction-market-lab — model registry API.
  *
  * Read + write endpoints for the `models` D1 table. The
  * table is the source of truth for "which model_version
  * is active for which vertical." The LiveBot reads from
- * here on /start (replacing the chunk-4 `config.model_version`
+ * here on /start (replacing the step-4 `config.model_version`
  * field as the source of truth).
  *
  * **Endpoints:**
@@ -77,11 +77,11 @@ export async function handleListModels(
 		const vertical = url.searchParams.get("vertical");
 		const rows = await modelsDb.list(env.DB, DEFAULT_USER_ID, {
 			status: status ?? undefined,
-			vertical: vertical && isVertical(vertical) ? vertical : undefined,
+			vertical: vertical && isVertical(vertical) ? vertical: undefined,
 		});
 		return json({ ok: true, n: rows.length, models: rows });
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }
 
@@ -98,7 +98,7 @@ export async function handleGetActiveModels(
 		}
 		return json({ ok: true, active: out });
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }
 
@@ -114,7 +114,7 @@ export async function handleGetModel(
 		if (!match) return json({ ok: false, found: false }, 404);
 		return json({ ok: true, model: match });
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }
 
@@ -161,7 +161,7 @@ export async function handleRegisterModel(
 		});
 		return json({ ok: true, registered: body.version, vertical: body.vertical });
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }
 
@@ -248,7 +248,7 @@ export async function handlePromoteModel(
 			deployed_at: now,
 		});
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }
 
@@ -279,6 +279,6 @@ export async function handleRetireModel(
 		);
 		return json({ ok: true, retired: body.version });
 	} catch (e) {
-		return err(e instanceof Error ? e.message : String(e));
+		return err(e instanceof Error ? e.message: String(e));
 	}
 }

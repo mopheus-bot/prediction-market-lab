@@ -5,16 +5,20 @@
  *
  * Run:  node scripts/smoke-demo-auth.mjs
  *
- * The demo creds are at ~/keys/kalshi-demo.{keyid,pem}. We use the
- * PKCS#8-converted copy at test/fixtures/kalshi-demo.pkcs8.pem.
- * Set KALSHI_DEMO_KEY_ID env var or pass it as the first arg.
+ * Requires Kalshi DEMO credentials, which are deliberately not committed:
+ *   KALSHI_DEMO_KEY_ID            — your demo key id
+ *   KALSHI_DEMO_PRIVATE_KEY_PATH  — path to a PKCS#8 PEM for that key
+ * Sign up for a demo account at https://demo.kalshi.co
  */
 import { readFileSync, readFileSync as read } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PKCS8_PEM = readFileSync(join(__dirname, "..", "test", "fixtures", "kalshi-demo.pkcs8.pem"), "utf8");
+const PEM_PATH =
+	process.env.KALSHI_DEMO_PRIVATE_KEY_PATH ??
+	join(__dirname, "..", "test", "fixtures", "kalshi-demo.pkcs8.pem");
+const PKCS8_PEM = readFileSync(PEM_PATH, "utf8");
 const KEY_ID = process.env.KALSHI_DEMO_KEY_ID || (() => {
 	const id = readFileSync(
 		process.env.HOME + "/keys/kalshi-demo-keyid.txt",
@@ -96,8 +100,8 @@ async function main() {
 
 	// Verdict
 	const allOk = publicRes.status === 200 && bal.status === 200 && pos.status === 200;
-	console.log(`\n${allOk ? "✅ ALL ENDPOINTS OK — auth is correct end-to-end" : "❌ ONE OR MORE FAILED"}`);
-	process.exit(allOk ? 0 : 1);
+	console.log(`\n${allOk ? "✅ ALL ENDPOINTS OK — auth is correct end-to-end": "❌ ONE OR MORE FAILED"}`);
+	process.exit(allOk ? 0: 1);
 }
 
 main().catch((e) => {

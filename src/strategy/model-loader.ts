@@ -1,5 +1,5 @@
 /**
- * pm-bot — model loader (chunk 4).
+ * prediction-market-lab — model loader.
  *
  * Loads a `RandomForestModel` from R2 (the production path) or
  * from an inline string (the test / local-dev path). The DO
