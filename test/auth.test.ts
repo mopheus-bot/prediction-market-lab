@@ -1,7 +1,7 @@
 /**
- * pm-bot — Kalshi auth parity test.
+ * prediction-market-lab — Kalshi auth parity test.
  *
- * THE GATE for Chunk 2.
+ * THE GATE for.
  *
  * RSA-PSS uses a RANDOM SALT per signature, so two correct
  * implementations will produce DIFFERENT byte sequences for the
@@ -21,8 +21,10 @@
  *      only test that proves Kalshi itself accepts the signature.
  *
  * The Python signatures are generated once by:
- *   scripts/gen-auth-golden.py  (writes test/fixtures/auth-cross-impl.json)
- * Re-run only if the demo private key is rotated.
+ *   scripts/gen-auth-vectors.py  (writes test/fixtures/auth-cross-impl.json)
+ * The signing key is a throwaway RSA-2048 test key committed as base64
+ * PKCS#8 (no PEM armor) in test/fixtures/test-signing-key.json. It is not a
+ * credential and is not registered with any Kalshi account.
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
@@ -34,7 +36,7 @@ import {
 	buildAuthHeaders,
 	nowMs,
 } from "../src/kalshi/auth";
-import demoPem from "../test/fixtures/kalshi-demo.pkcs8.pem?raw";
+import testKey from "../test/fixtures/test-signing-key.json";
 import crossImplJson from "../test/fixtures/auth-cross-impl.json?raw";
 
 interface CrossImplVector {
@@ -51,14 +53,14 @@ beforeAll(async () => {
 	// Import the key as extractable so we can derive the public key
 	// for verification. In production, loadPrivateKey() makes it
 	// non-extractable.
-	const extractablePrivate = await loadPrivateKeyWithOptions(demoPem, {
+	const extractablePrivate = await loadPrivateKeyWithOptions(testKey.pkcs8_base64, {
 		extractable: true,
 		usage: "sign",
 	});
 	publicKey = await publicKeyFromPrivate(extractablePrivate);
 	// Also load a non-extractable copy to mirror the production path
 	// for the internal-consistency tests.
-	privateKey = await loadPrivateKey(demoPem);
+	privateKey = await loadPrivateKey(testKey.pkcs8_base64);
 });
 
 describe("Kalshi auth — internal consistency (TS signs + TS verifies)", () => {

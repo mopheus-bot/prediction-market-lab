@@ -3,30 +3,36 @@
     "ts": "1703000000000",
     "method": "GET",
     "path": "/trade-api/v2/markets",
-    "python_signature_b64": "hNuBsn4XwNQ72UX1peBjxus2KO7z2yc1cHGP2ooJzFswMd8hzKB87DcCcw42WchLLAcO21jcHnYuzZciAk4yBGJbY3rRaeQKBzzRFo2wNSc8ZKjLxYNdiq7jbWD3YB1BrCpeHTtYMwYYoV2kBJhTe8Y2eiqHKhgqLB9Z4x7n6Gopyb6P264XP+n85RV4NO8pdeA6BB/dLjb1hW4V0Fb9mNnaZ7SxPpbKlGjZsUWtss0m7Yn9k/sCww0ni5Ilzx8s5LKN/z1+cpP6qlVUs+4uW+LLLaQPEl/e72bsKTPZudvYADf0zGrkOn8BbsK0KvAqeMYgOAUE7hLRA2hkrdtolQ=="
+    "python_signature_b64": "Iy36lIQ/gtSWkljMZtaoaPFggXPmBOYgjrYcJxeEyikRUdreIHPzrrXfKiooLsQJzeBmnJ4yDfyPqDbMX8a9TRjAHEY5GwgYbvKQfNDUBUkQv+ZZ5ip8aCJjfe1QZOoaQOsYnLwT4+TrrbZO4H6biX52srz8a+2ubvYyrk82USkR3cEnUI4exSkrUTuKjvokqBgi9DgsS0F3JMEaT48bJS8D7JNR7WkQ3vLLLU80k+8Nw3ozwfvK2tKZDKXJRgsFuwxbhmTsz+nV9+RXbfGpk36a49JxztV040i+meMlrOXTHREvvgLkbrr0RklAthU2hZpTDjwo1w01U2WhJfit/Q=="
   },
   {
     "ts": "1703000123456",
     "method": "GET",
     "path": "/trade-api/v2/markets/KXCPI-26JUL-T0.1",
-    "python_signature_b64": "gB59f0Hdu13G33oilMQClvPGMI/SxocJEwPNL/9J40VtY1B1JwSyuIAFOVw83na4OctIReI1fp39scpx4xiGG212Hdc+0nVidJLyE2lyhxU1XdriZHACvzR2KjvoncvFOEtGyyy2GRPzT+8Xgxmqi0zz2cSP4Ng+18c2EjFsxqQWjhT9Oata+Xbzlu+yeCl8ubsnL1evl32kFuIwnCv07Y9qmc74nmOySvDRe9vWMeh7MMiQGc+AXdSSC5bZVFCj9VkCjckJ0PWDCVMR2Gbq/kvAxK8gDtvr+s/IZOdifHAaP0r0GzZjyjNuRDGeQYZ87rwjtKSkGFXiQgzMawxEHA=="
+    "python_signature_b64": "YDl41SQZjwhugRuwn1zA0pZm5+OZJZUGYToLypJfuq2cXgtpj9/K5k7gj1gpNTh9+nkbJHQ8hQB3iLl3SV6cU2oIJIGJog95KLsNsTOEyTTiA6o3O7qgC53hpy573fTNZvOLR3XJov1kI/mga5I6GGXRLKSGxUSqJ9G1KF+wdl/C2EFA44vdyPLAZb/1xSDhIxXxQ5dlQC/vHTBOawMrwFKHNnWiAQ/Yv80BWX5Cwqrua4FCCMiiBfnpj6oDFjV14MMhDuw1D0GrMymiKbFaBLMrQ0HI6vuHXBuPIhJP4Wup3xlts+o2pxDj+jXHTmad8LOvVoivC6VPt8tTNejL5A=="
   },
   {
     "ts": "1703000999999",
     "method": "POST",
     "path": "/trade-api/v2/portfolio/orders",
-    "python_signature_b64": "lkCNbuX24EXiSkZM3CGuCrAoJch8qSYzmrXASExn2hWHRjofzXg7c1mG1YIb5PXre3hQhwhKBzisE0R2i80VQ35Nos2EK4YHmKxmhWb5G5RxH941C5+xM8BSvQsfoO57uC6CT1vzkhak3Nsv1KC2qxJ2buW0yy8JEiqlh5sRrUkk/8CqcdCg8nPHATakkY36cvsBFx+1li39EHI0Hx7ry43Uv5EC32jEN+l5OHXrY0bLna2W0XTNVr1lLTyvdlm6+mfJ0q2/CAJrX1ob53m0SHSHaed/tHEg96bQnvIEXKUTSp0jIZFV1M8pKmLIDWn+EefpmWyyK3HsLHCnbM0RnA=="
+    "python_signature_b64": "qhqnGmQ/EHGWB1niP7cEXAef7D46D8LbI03lROtY1DskNunrk5cU5TS1S/sYAcY5lYzSJ2wFPMnrNxjkaKf7ylc/uXrq0TR9kDnRsRMQdugFJUpli3VMkj44l/cm0U97FKZsUvVG6wH3FuX4rcqEJE1f0qyn2mvw5JBGClqIQB7WGUTzaATTEenNXCDTAEkWVv5RcuN6pTYnR7V12U8bVMqZoH4H/I9pI66s0OILukFCtbcYTojVZR0rIMxlE/rfkNst4uBBAv8amNVZfCgsSoBMAbrHdBrz2m7equSO5I0F9M7NM3Ob9bACEINJRFiQ6w7LzaHqmRy0R7quMDDcrg=="
   },
   {
     "ts": "1703001111111",
     "method": "GET",
     "path": "/trade-api/ws/v2",
-    "python_signature_b64": "aGv5muFUAjTaVrjyi5zqu0kfq9GprryUHl9YZFr4xcZDGQqoZNaD+0jRakvvko2UxngU15JMO6vPZhFcKNeCAi8K+bIRnZnIwkIpF3EPjXkWXJFtqi/e7i/zBvsw7J4PTLnM/hUX4b5uFZYyIyj+pOL1S6sF1aMtjlZRK7U/z3Hm4fd7pPw5tjU4pcH50U8deCtCWnw6W8Q8GQOn8Q4WF6d5i69r6kD9ojSejNEb92XgqD0neRwk/RT8o4pKSNr36JG7Idi5lxnqEkV+ttMnqaaamsxiDYvNSJt05hepaeWa165DEd5MLii+bvE2gdiLOl9Ti3MyCoVyegsXgpXCdQ=="
+    "python_signature_b64": "ky//LHidbh67qOmvS98sQ1RCDJKgKjPFB1kUxlQCHCsOXo9WXUXmz3uKpZsGGuuSbdO9fT50AEz2U2FEvkKDf7sM4t6GcbXt3mo9Q7kYjiFQAzmvJ7p4ggg0BG2Rg158nkJuURTULhFN7B52tFcmC0MtcxCnR8Ty47A3/KTPUX5g5IIgWwMl8wHk4OGSNo/JPDS++gCZDWA/6w91qaJIG+nSRE9xrX7h9tfN92N2ofo5wZ0fnCPwwjVGkNfc3bTStrX+UUL/EEbbzN6NZyx64ZVW2Le2VrrVTYVDL+4dF4Ldu6e6y+YozjnDwaFGzaIfdqOSCqZsKTBFnK4K1mQLzg=="
   },
   {
     "ts": "1703002222222",
     "method": "GET",
-    "path": "/trade-api/v2/portfolio/balance",
-    "python_signature_b64": "XD0d9m3ng6z3TUIN79ZoQQy67CA8qrfTY0ud+lr9e3qx6K67pN4WXU+ggsi6bx1o9RQxnWwDkM0ZIwqC7JM9RzHwZm4aLsFVutkHp7Yk3/p7SS9h+kVLyoEg5bxaGB7fXWna850kFblFXFnmiKNom8nRLGY7Fao3X6ZBjWNLEhUixRhuWB9gnbZfjPsVa1QGEl5QwDC0K3s6qoJmW+hITlz+dqETsWq6ReFrntoA1UX2nFUHnq6ZPl/jOmlTHjSWrfYbAUlGBC5m7nrKdC878x7TGDoHm+8Nkg5V+U+rfmOM2yHsNEgbg9uATXfDsZrvK3UCcl+5DhKS4Ex3RLMWPQ=="
+    "path": "/trade-api/v2/portfolio/balance?limit=5",
+    "python_signature_b64": "qao5h9hBD5vDu56jTLUMn4hvRVVeUkFKlEx/pOM7H2ZhSQLiYKteEDW3t/15cQoCoEScTYbJlJGZcUpDGl5HYqEZdR0cJCrSp0XJHIxKenSJEvTgEd5S8Hyw3Nvl4NQYCA2rLq5IclfJusUR2NxfQcIwO+F/C1zVB7rrrY9a+8rPKPd42bt5XTNpUvlJC/MbzIOfBuRrOc0eLSWl5iPA+nH4bjMQvd+WKhWQPeXWIOV6O+Zn86F1aObcw6KjvujeyvX8efJ1Odz5slR96d0bEmehv+jn7cQioscn/CYRjhIwAq4F9cn0PvblAeNdXcQB4nFFITweoJ+HNxQDVWG9KQ=="
+  },
+  {
+    "ts": "1703003333333",
+    "method": "get",
+    "path": "/trade-api/v2/markets",
+    "python_signature_b64": "ZlT/GwkKR4SYzJ50HmCRnfpaKFVKaC8E0L14ZgvvLP7LSmjZsE7qguQuAAN87rxjtqCFfBXH1RlJUaE4u1ZePAKvUYWZ5kv0pgRfvDLSC+CTvFzk/1cTBk0xlSBg4agrgg+WsVTYxnhGmyXBZIaeFf6F3wmlpBAOEthEwh1b1BjrsNoxAjUgNXNRoRVqOZNbzO3kGCCBvNv/U68ch5q9WC0wGGmXdU6goda7BlVXc+d1NYQV5QeU566BigWomt0eFlFWL5UHCjc6oyiAxW08wUDdwpjJ///1cPGuN/rj4QiB4Wt7mF+PGDnHIDRvI1Dpr2u3Q+RaRKKXnFr0grkHSw=="
   }
 ]
