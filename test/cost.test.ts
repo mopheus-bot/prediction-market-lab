@@ -1,5 +1,5 @@
 /**
- * pm-bot — cost endpoint unit tests.
+ * prediction-market-lab — cost endpoint unit tests.
  *
  * The cost endpoint combines CF Analytics + D1 + MMX
  * pricing into a single daily + monthly estimate. The

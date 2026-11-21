@@ -1,5 +1,5 @@
 /**
- * pm-bot — leads-cron DRY-RUN test (2026-08-09+).
+ * prediction-market-lab — leads-cron DRY-RUN test (2026-08-09+).
  *
  * Exercises the same buildPrompt + chat() + parseLlmResponse +
  * validateAndDedupe pipeline that runLeadsCron uses, but:
@@ -142,7 +142,7 @@ describe("leads-cron / dry-run (2026-08-09 restructure)", () => {
 		console.log("\n────────────────────────────────────────────────────────────");
 		console.log("LEADS DRY-RUN — 2026-08-09 (prompt + Kalshi scout + verify)");
 		console.log("────────────────────────────────────────────────────────────");
-		console.log(`LLM mode: ${stubMode ? "STUB (no MMX_API_KEY in env)" : "REAL LLM (" + (env.MMX_MODEL ?? DEFAULT_MODEL) + ")"}`);
+		console.log(`LLM mode: ${stubMode ? "STUB (no MMX_API_KEY in env)": "REAL LLM (" + (env.MMX_MODEL ?? DEFAULT_MODEL) + ")"}`);
 		console.log(`Current universe: ${CURRENT_UNIVERSE.tickers.join(", ")}`);
 		console.log(`Bot bankroll: $${(CURRENT_UNIVERSE.bankroll_cents / 100).toFixed(2)}`);
 		console.log("");
@@ -184,7 +184,7 @@ describe("leads-cron / dry-run (2026-08-09 restructure)", () => {
 
 		console.log("USER PROMPT (truncated to first 2000 chars):");
 		console.log("─".repeat(60));
-		console.log(userPrompt.slice(0, 2000) + (userPrompt.length > 2000 ? "\n... [truncated]" : ""));
+		console.log(userPrompt.slice(0, 2000) + (userPrompt.length > 2000 ? "\n... [truncated]": ""));
 		console.log("─".repeat(60));
 		console.log("");
 

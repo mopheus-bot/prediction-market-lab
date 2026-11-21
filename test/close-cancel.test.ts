@@ -1,5 +1,5 @@
 /**
- * pm-bot — close-position + cancel-order tests (chunk 10.9).
+ * prediction-market-lab — close-position + cancel-order tests.
  *
  * /close-position:
  *   - 400 when ticker is missing
@@ -40,11 +40,11 @@ async function jsonPost(stub: DurableObjectStub, path: string, body: unknown): P
 	return stub.fetch(`https://bot${path}`, {
 		method: "POST",
 		headers: { "content-type": "application/json" },
-		body: body === undefined ? "" : JSON.stringify(body),
+		body: body === undefined ? "": JSON.stringify(body),
 	});
 }
 
-describe("/close-position (chunk 10.9)", () => {
+describe("/close-position", () => {
 	it("returns 400 when ticker is missing", async () => {
 		const stub = botStub();
 		const r = await jsonPost(stub, "/close-position", {});
@@ -81,7 +81,7 @@ describe("/close-position (chunk 10.9)", () => {
 	});
 });
 
-describe("/cancel-order (chunk 10.9)", () => {
+describe("/cancel-order", () => {
 	it("returns 400 when order_id is missing", async () => {
 		const stub = botStub();
 		const r = await jsonPost(stub, "/cancel-order", {});

@@ -1,5 +1,5 @@
 /**
- * pm-bot — D1 unit tests
+ * prediction-market-lab — D1 unit tests
  *
  * Uses vitest-pool-workers so the same D1Database binding the Worker
  * uses is available in tests. Each test gets an isolated D1 (per-worker

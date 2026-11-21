@@ -1,5 +1,5 @@
 /**
- * pm-bot — Sharpe ratio unit tests (chunk 11b).
+ * prediction-market-lab — Sharpe ratio unit tests.
  *
  * Pins the auto-pilot metrics math. Pure functions, no I/O.
  */
@@ -22,7 +22,7 @@ function makeTrade(overrides: {
 	};
 }
 
-describe("computeSharpe (chunk 11b)", () => {
+describe("computeSharpe", () => {
 	const now = 1700100000000; // ~28 hours after the first trade
 
 	it("returns NaN for empty trade list", () => {

@@ -1,5 +1,5 @@
 /**
- * pm-bot — KalshiClient retry tests (chunk 10.8).
+ * prediction-market-lab — KalshiClient retry tests.
  *
  * Verifies the exponential-backoff retry on 5xx + 429, the
  * non-retry behavior on 4xx, the Retry-After header parsing,
@@ -54,7 +54,7 @@ afterEach(() => {
 	// nothing
 });
 
-describe("KalshiClient retry (chunk 10.8)", () => {
+describe("KalshiClient retry", () => {
 	it("returns the 2xx response without retrying", async () => {
 		const { fetcher, calls } = makeFakeFetcher([() => jsonResponse(200, { balance: 100 })]);
 		const c = new KalshiClient({ baseUrl: "https://example.test", fetcher });

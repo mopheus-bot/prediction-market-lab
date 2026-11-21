@@ -1,5 +1,5 @@
 /**
- * pm-bot — auto-pilot cron tests (chunk 10.9).
+ * prediction-market-lab — auto-pilot cron tests.
  *
  * Verifies the cron's decision logic without requiring a
  * real Kalshi account. Tests:
@@ -33,11 +33,11 @@ async function insertTrades(count: number, pnlCents: number, daysAgoStart: numbe
 	await env.DB.batch(rows);
 }
 
-describe("auto-pilot cron (chunk 10.9)", () => {
+describe("auto-pilot cron", () => {
 	it("skips when AUTO_PILOT_ENABLED is not 'true'", async () => {
 		const ctx = createExecutionContext();
 		const out = await runAutoPilotCron(
-			{ ...env, AUTO_PILOT_ENABLED: "false" } as typeof env,
+			{...env, AUTO_PILOT_ENABLED: "false" } as typeof env,
 			ctx,
 		);
 		expect(out.ok).toBe(true);
@@ -56,7 +56,7 @@ describe("auto-pilot cron (chunk 10.9)", () => {
 		});
 		const ctx = createExecutionContext();
 		const out = await runAutoPilotCron(
-			{ ...env, AUTO_PILOT_ENABLED: "true" } as typeof env,
+			{...env, AUTO_PILOT_ENABLED: "true" } as typeof env,
 			ctx,
 		);
 		expect((out.artifacts as { skipped?: boolean; reason?: string }).skipped).toBe(true);
@@ -82,7 +82,7 @@ describe("auto-pilot cron (chunk 10.9)", () => {
 		await insertTrades(10, 50, 1_000_000);
 		const ctx = createExecutionContext();
 		const out = await runAutoPilotCron(
-			{ ...env, AUTO_PILOT_ENABLED: "true" } as typeof env,
+			{...env, AUTO_PILOT_ENABLED: "true" } as typeof env,
 			ctx,
 		);
 		const artifacts = out.artifacts as {

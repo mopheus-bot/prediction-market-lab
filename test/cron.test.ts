@@ -1,5 +1,5 @@
 /**
- * pm-bot — cron unit tests.
+ * prediction-market-lab — cron unit tests.
  *
  * Tests the scan math (computeRealizedVol, scoreMarket,
  * rankCandidates), the dispatcher (jobForCron), the

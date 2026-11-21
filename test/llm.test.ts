@@ -1,5 +1,5 @@
 /**
- * pm-bot — LLM client unit tests.
+ * prediction-market-lab — LLM client unit tests.
  *
  * Verifies:
  *   - Stub mode kicks in when MMX_API_KEY is missing.

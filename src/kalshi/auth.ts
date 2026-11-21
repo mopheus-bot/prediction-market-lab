@@ -47,8 +47,8 @@ declare const crypto: {
  * Load an RSA private key from a PKCS#8 PEM string. Returns a
  * `CryptoKey` ready for `crypto.subtle.sign("RSA-PSS",...)`.
  *
- * The input must be PKCS#8 PEM. If you have PKCS#1 (`-----BEGIN
- * RSA PRIVATE KEY-----`), convert first — see scripts/convert-pem-to-pkcs8.py.
+ * The input must be PKCS#8 PEM. If you have PKCS#1 (`BEGIN RSA PRIVATE
+ * KEY`), convert first — see scripts/gen-auth-vectors.py.
  */
 export async function loadPrivateKey(
 	pem: string,

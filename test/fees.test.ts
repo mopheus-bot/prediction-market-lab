@@ -1,5 +1,5 @@
 /**
- * pm-bot — fees unit tests.
+ * prediction-market-lab — fees unit tests.
  *
  * Mirrors the worked examples in the Python `kalshi_taker_fee_cents`
  * docstring. The fee formula is:

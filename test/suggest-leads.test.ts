@@ -1,5 +1,5 @@
 /**
- * pm-bot — suggest-leads unit tests (chunk 11+).
+ * prediction-market-lab — suggest-leads unit tests.
  *
  * The /api/pm/bot/suggest-leads endpoint asks the LLM for
  * new Kalshi tickers and validates the response. These

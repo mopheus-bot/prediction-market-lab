@@ -1,5 +1,5 @@
 /**
- * pm-bot — model registry API integration tests.
+ * prediction-market-lab — model registry API integration tests.
  *
  * Verifies the register / list / get-active / promote / retire
  * endpoints. Uses vitest-pool-workers for the D1 binding.

@@ -6,7 +6,7 @@ interface __BaseEnv_Env {
 	DB: D1Database;
 	ASSETS: Fetcher;
 	ENVIRONMENT: "production";
-	SERVICE_NAME: "pm-bot";
+	SERVICE_NAME: "prediction-market-lab";
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -2420,7 +2420,7 @@ declare abstract class ReadableByteStreamController {
      */
     close(): void;
     /**
-     * The **`enqueue()`** method of the ReadableByteStreamController interface enqueues a given chunk on the associated readable byte stream (the chunk is copied into the stream's internal queues).
+     * The **`enqueue()`** method of the ReadableByteStreamController interface enqueues a given chunk on the associated readable byte stream (the step is copied into the stream's internal queues).
      *
      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/ReadableByteStreamController/enqueue)
      */

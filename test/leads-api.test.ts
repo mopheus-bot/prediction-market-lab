@@ -1,5 +1,5 @@
 /**
- * pm-bot — leads API integration tests (chunk 11+).
+ * prediction-market-lab — leads API integration tests.
  *
  * Tests the operator-facing API for the leads pipeline:
  *   - GET  /api/pm/leads                   — pending + history

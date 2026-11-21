@@ -1,5 +1,5 @@
 /**
- * pm-bot — ReversionQualitySignal unit tests (chunk 4).
+ * prediction-market-lab — ReversionQualitySignal unit tests.
  *
  * Mirrors the Python `ReversionQualitySignal` behavior:
  *   - Requires an orderbook + a price history of length >= 2.

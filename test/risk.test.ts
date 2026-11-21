@@ -1,5 +1,5 @@
 /**
- * pm-bot — risk engine unit tests.
+ * prediction-market-lab — risk engine unit tests.
  *
  * Mirrors the Python `RiskEngine` behavior:
  *   - 1% sizing, 5% per-market cap, 3 concurrent positions cap.
@@ -31,7 +31,7 @@ import {
 } from "../src/risk/engine";
 
 function makeEngine(overrides: Partial<RiskConfig> = {}): RiskEngine {
-	const cfg: RiskConfig = { ...defaultRiskConfig(), ...overrides };
+	const cfg: RiskConfig = {...defaultRiskConfig(),...overrides };
 	return new RiskEngine({ config: cfg });
 }
 
@@ -44,19 +44,19 @@ describe("RiskConfig", () => {
 		// 2026-08-10: max_per_market_pct bumped 0.05 → 0.15 for
 		// paper-mode expansion. Use a value above the new cap.
 		expect(() =>
-			validateRiskConfig({ ...defaultRiskConfig(), position_size_pct: 0.20 }),
+			validateRiskConfig({...defaultRiskConfig(), position_size_pct: 0.20 }),
 		).toThrow();
 	});
 
 	it("rejects bankroll < 1", () => {
 		expect(() =>
-			validateRiskConfig({ ...defaultRiskConfig(), starting_bankroll_cents: 0 }),
+			validateRiskConfig({...defaultRiskConfig(), starting_bankroll_cents: 0 }),
 		).toThrow();
 	});
 
 	it("rejects invalid max_contracts_per_trade", () => {
 		expect(() =>
-			validateRiskConfig({ ...defaultRiskConfig(), max_contracts_per_trade: 0 }),
+			validateRiskConfig({...defaultRiskConfig(), max_contracts_per_trade: 0 }),
 		).toThrow();
 	});
 });
@@ -467,9 +467,9 @@ describe("RiskEngine — recordFill + close", () => {
 	});
 });
 
-// ─── chunk 9: daily notional tracking ─────────────────────────────────
+// ───: daily notional tracking ─────────────────────────────────
 
-describe("daily notional (chunk 9)", () => {
+describe("daily notional", () => {
 	const DAY = 24 * 60 * 60 * 1000;
 
 	it("makeRiskState initializes an empty notional history", () => {
@@ -484,7 +484,7 @@ describe("daily notional (chunk 9)", () => {
 		const { history, total } = recordNotionalCents(s, 50, now);
 		expect(history).toEqual([{ ts_ms: now, cents: 50 }]);
 		expect(total).toBe(50);
-		expect(dailyNotionalCents({ ...s, daily_notional_history: history }, now)).toBe(50);
+		expect(dailyNotionalCents({...s, daily_notional_history: history }, now)).toBe(50);
 	});
 
 	it("sums multiple notionals in the same window", () => {
@@ -492,10 +492,10 @@ describe("daily notional (chunk 9)", () => {
 		const now = Date.now();
 		let history = s.daily_notional_history;
 		for (const c of [10, 20, 30]) {
-			const r = recordNotionalCents({ ...s, daily_notional_history: history }, c, now);
+			const r = recordNotionalCents({...s, daily_notional_history: history }, c, now);
 			history = r.history;
 		}
-		expect(dailyNotionalCents({ ...s, daily_notional_history: history }, now)).toBe(60);
+		expect(dailyNotionalCents({...s, daily_notional_history: history }, now)).toBe(60);
 	});
 
 	it("drops entries older than 24h from the sum", () => {
@@ -520,7 +520,7 @@ describe("daily notional (chunk 9)", () => {
 		const old = now - DAY - 1;
 		// Pre-populate with one stale entry.
 		const seeded = [{ ts_ms: old, cents: 999 }];
-		const s2 = { ...s, daily_notional_history: seeded };
+		const s2 = {...s, daily_notional_history: seeded };
 		const { history, total } = recordNotionalCents(s2, 50, now);
 		// Stale entry is trimmed; new entry is present.
 		expect(history).toEqual([{ ts_ms: now, cents: 50 }]);
@@ -532,13 +532,13 @@ describe("daily notional (chunk 9)", () => {
 		const now = Date.now();
 		let history = s.daily_notional_history;
 		for (let i = 0; i < 1500; i++) {
-			const r = recordNotionalCents({ ...s, daily_notional_history: history }, 1, now);
+			const r = recordNotionalCents({...s, daily_notional_history: history }, 1, now);
 			history = r.history;
 		}
 		// After 1,500 inserts, only the most recent 1,000 survive.
 		expect(history.length).toBe(1000);
 		// Total = 1000 * 1c (oldest 500 are dropped from front).
-		expect(dailyNotionalCents({ ...s, daily_notional_history: history }, now)).toBe(1000);
+		expect(dailyNotionalCents({...s, daily_notional_history: history }, now)).toBe(1000);
 	});
 
 	it("preserves notional history across makeRiskState (persistence)", () => {

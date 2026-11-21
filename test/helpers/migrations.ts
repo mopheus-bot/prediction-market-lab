@@ -1,5 +1,5 @@
 /**
- * pm-bot — shared test helper for D1 migrations.
+ * prediction-market-lab — shared test helper for D1 migrations.
  *
  * The vitest-pool-workers `applyD1Migrations` helper expects an
  * array of `{name, queries: string[]}`. Each migration file is

@@ -1,5 +1,5 @@
 /**
- * pm-bot — cost-monthly unit tests (chunk 10.5).
+ * prediction-market-lab — cost-monthly unit tests.
  *
  * Pins the math for the cf_monthly section of /api/pm/cost.
  * The 7d → 30d extrapolation and the days_until_reset
@@ -90,7 +90,7 @@ function computeCfMonthly(
 	};
 }
 
-describe("computeCfMonthly (chunk 10.5)", () => {
+describe("computeCfMonthly", () => {
 	it("scales 7d usage to elapsed days correctly", () => {
 		// 1000 requests in last 7d, day 7 of cycle
 		// → scaled = 1000 (7/7) = 1000

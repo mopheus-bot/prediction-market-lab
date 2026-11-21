@@ -1,7 +1,7 @@
 /**
- * pm-bot — LLMOpinionSignal unit tests (2026-08-10).
+ * prediction-market-lab — LLMOpinionSignal unit tests (2026-08-10).
  *
- * Coverage for the chunk-15 strategy:
+ * Coverage for the step-15 strategy:
  *   - Stale opinions are ignored
  *   - "hold" verdicts are no-ops
  *   - Below-threshold confidence is ignored

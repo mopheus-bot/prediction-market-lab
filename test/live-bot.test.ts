@@ -1,5 +1,5 @@
 /**
- * pm-bot — LiveBot Durable Object tests.
+ * prediction-market-lab — LiveBot Durable Object tests.
  *
  * Uses vitest-pool-workers + the LIVE_BOT binding. The DO is per-user;
  * in tests we use a single 'default' user. We exercise:
@@ -43,7 +43,7 @@ describe("LiveBot Durable Object", () => {
 		// (D1 persists across tests but the DO's storage is in-memory
 		// in vitest-pool-workers, so the cleanest reset is to GET a
 		// fresh stub — but the same id will return the same instance.
-		// For chunk 3 we accept that the second test sees the first's
+		// For  we accept that the second test sees the first's
 		// state; the tests below are tolerant of pre-existing state.)
 	});
 
@@ -131,7 +131,7 @@ describe("LiveBot Durable Object", () => {
 		expect(body.last_reject === null || typeof body.last_reject === "object").toBe(true);
 	});
 
-	// ─── chunk 9: trading mode / kill switch / place-test-order ──────
+	// ───: trading mode / kill switch / place-test-order ──────
 
 	it("/trading-mode sets the mode and persists across reads", async () => {
 		const stub = botStub();
@@ -245,7 +245,7 @@ describe("LiveBot Durable Object", () => {
 		const stub = botStub();
 		// 1. Confirm the starting universe (default config =
 		//    KXWARMING-50 + KXMVECROSSCATEGORY-...; both already
-		//    in the universe per the chunk-9 fixture).
+		//    in the universe per the step-9 fixture).
 		const before = await stub.fetch("https://bot/status");
 		const beforeBody = (await before.json()) as {
 			config: { tickers: string[]; ticker_verticals: Record<string, string> };
@@ -379,7 +379,7 @@ describe("LiveBot Durable Object", () => {
 		expect(risk.daily_notional_history_len).toBe(0);
 	});
 
-	it("/start accepts new chunk 9 config fields", async () => {
+	it("/start accepts new  config fields", async () => {
 		const stub = botStub();
 		const r = await stub.fetch("https://bot/start", {
 			method: "POST",

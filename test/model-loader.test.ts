@@ -1,5 +1,5 @@
 /**
- * pm-bot — model loader unit tests.
+ * prediction-market-lab — model loader unit tests.
  *
  * Tests the R2 fetch path (with a mocked R2 bucket) and the
  * inline JSON path. The actual /start flow is exercised in

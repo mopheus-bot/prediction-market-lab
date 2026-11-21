@@ -1,5 +1,5 @@
 /**
- * pm-bot — leads-scout unit tests (chunk 13+, 2026-08-09).
+ * prediction-market-lab — leads-scout unit tests.
  *
  * The scout pre-fetches Kalshi's open markets and filters to
  * vertical-relevant ones. These tests cover the pure functions:

@@ -1,5 +1,5 @@
 /**
- * pm-bot — feature extraction unit tests.
+ * prediction-market-lab — feature extraction unit tests.
  *
  * The 20-dim feature vector must match the Python
  * `extract_features` output for known inputs.
@@ -60,7 +60,7 @@ describe("Feature extraction", () => {
 
 	it("sets the vertical one-hot correctly", () => {
 		const c = baseCtx();
-		c.market = { ...c.market, vertical: "weather" };
+		c.market = {...c.market, vertical: "weather" };
 		const fv = extractFeatures(c);
 		expect(fv.values[VERTICAL_FEATURE_INDEX.weather]).toBe(1);
 		expect(fv.values[VERTICAL_FEATURE_INDEX.politics]).toBe(0);
@@ -70,7 +70,7 @@ describe("Feature extraction", () => {
 
 	it("falls back to all-zero vertical one-hot for unknown verticals", () => {
 		const c = baseCtx();
-		c.market = { ...c.market, vertical: "crypto" };
+		c.market = {...c.market, vertical: "crypto" };
 		const fv = extractFeatures(c);
 		for (let i = 0; i < 4; i++) {
 			expect(fv.values[8 + i]).toBe(0);
@@ -154,7 +154,7 @@ describe("Feature extraction", () => {
 		expect(fv.values[2]).toBe(0.5);
 	});
 
-	it("does not regress on the numeric / one-hot split (chunk-4 invariant)", () => {
+	it("does not regress on the numeric / one-hot split invariant", () => {
 		const fv = extractFeatures(baseCtx());
 		// 8 numeric + 4 one-hot + 8 fundamentals = 20.
 		expect(N_NUMERIC_FEATURES).toBe(8);

@@ -1,5 +1,5 @@
 /**
- * pm-bot — backtest-run endpoint tests (chunk 10.8c).
+ * prediction-market-lab — backtest-run endpoint tests (.8c).
  *
  * Verifies POST /api/pm/backtest/run:
  *   - returns ok with metrics + summary
@@ -21,11 +21,11 @@ function makeRequest(body: unknown): Request {
 	return new Request("https://x/pm/backtest/run", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
-		body: body === undefined ? "" : JSON.stringify(body),
+		body: body === undefined ? "": JSON.stringify(body),
 	});
 }
 
-describe("POST /api/pm/backtest/run (chunk 10.8c)", () => {
+describe("POST /api/pm/backtest/run (.8c)", () => {
 	it("returns ok + metrics with default 7-day window", async () => {
 		const r = await handleBacktestRun({ DB: env.DB }, makeRequest({}));
 		const body = (await r.json()) as {

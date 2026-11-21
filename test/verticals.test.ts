@@ -1,5 +1,5 @@
 /**
- * pm-bot — verticals API tests (chunk 10.8c).
+ * prediction-market-lab — verticals API tests (.8c).
  *
  * Verifies the per-vertical state returned by /api/pm/verticals:
  *   - all 4 known verticals are returned (weather, economic,
@@ -31,7 +31,7 @@ async function setBotConfig(value: Record<string, unknown>): Promise<void> {
 		.run();
 }
 
-describe("/api/pm/verticals (chunk 10.8c)", () => {
+describe("/api/pm/verticals (.8c)", () => {
 	it("returns all 4 known verticals with stats + strategy", async () => {
 		await setBotConfig({
 			disabled_verticals: null,

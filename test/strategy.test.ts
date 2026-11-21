@@ -1,5 +1,5 @@
 /**
- * pm-bot — strategy unit tests.
+ * prediction-market-lab — strategy unit tests.
  *
  * Tests the NaiveSignal against the threshold-based logic in
  * `signal.py:naive_signal` (5% move threshold, fade-only).
@@ -203,7 +203,7 @@ describe("VerticalStrategyRouter", () => {
 
 	it("falls back to default for null vertical", () => {
 		const router = new VerticalStrategyRouter();
-		const sig = router.__call({ ...ctx([50, 53]), market: null });
+		const sig = router.__call({...ctx([50, 53]), market: null });
 		expect(sig).not.toBeNull();
 		expect(sig?.rationale).toContain("naive_default");
 	});

@@ -121,7 +121,7 @@ BF   ←  Done! Congratulations on your new bot. You will
 ═══════════════════════════════════════════════════════════════
 ```
 
-**Save that token** (the long `1234567890:AAFOE...` string)
+**Save that token** (the long `1234567890:...` string)
 — you'll paste it into `wrangler secret put` in step 5.
 
 The token format is always: `<bot_id>:<base64-yaml-secret>`. Don't

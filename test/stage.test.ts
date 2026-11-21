@@ -1,5 +1,5 @@
 /**
- * pm-bot — stage + cadence API unit tests (chunk 10).
+ * prediction-market-lab — stage + cadence API unit tests.
  *
  * The stage endpoint derives a single badge from the bot's
  * current state. The cadence endpoint aggregates the
@@ -63,7 +63,7 @@ function deriveStage(
 	return { stage: "idle", color: "off", action_label: "Start", action_path: "start" };
 }
 
-describe("deriveStage (chunk 10)", () => {
+describe("deriveStage", () => {
 	it("returns 'streaming' when WS connected + paper", () => {
 		const s = deriveStage(
 			{ connected: true, counts: { n_frames: 5 }, config: { trading_mode: "paper" } },
@@ -166,7 +166,7 @@ function summaryCounts(services: Array<{ status: string }>) {
 	};
 }
 
-describe("cadence summary (chunk 10)", () => {
+describe("cadence summary", () => {
 	it("counts ok/running/error/starting correctly", () => {
 		const s = summaryCounts([
 			{ status: "ok" },

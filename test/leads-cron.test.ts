@@ -1,5 +1,5 @@
 /**
- * pm-bot — leads-cron unit tests (chunk 11+).
+ * prediction-market-lab — leads-cron unit tests.
  *
  * The leads-cron runs every 6 hours +30min (00:30/06:30/12:30/18:30 UTC),
  * asks M3 to suggest add+drop for the bot's ticker universe,

@@ -1,5 +1,5 @@
 /**
- * pm-bot — status API integration tests.
+ * prediction-market-lab — status API integration tests.
  *
  * Uses vitest-pool-workers to call the actual handlers
  * with a real D1 binding. The handlers route through the
@@ -180,7 +180,7 @@ describe("/api/pm/summary", () => {
 		expect(body.recap.realized_cents).toBe(body.recap.pnl_cents);
 	});
 
-	it("includes per-vertical breakdown in the live recap (chunk 10.8)", async () => {
+	it("includes per-vertical breakdown in the live recap", async () => {
 		// Insert a couple of fake trades in different verticals.
 		const now = Date.now();
 		const since = now - 60_000; // 1 min ago

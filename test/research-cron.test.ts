@@ -1,5 +1,5 @@
 /**
- * pm-bot — research-cron unit tests (chunk 14.1, 2026-08-10).
+ * prediction-market-lab — research-cron unit tests (, 2026-08-10).
  *
  * The research-cron's core logic is:
  *   1. LIST all open markets, filter to "looks active"
@@ -113,11 +113,11 @@ describe("research-cron", () => {
 
 	it("returns skipped when no DB", async () => {
 		const client = makeMockKalshiClient({ listed: [], orderbookByTicker: {} });
-		const env = { ...fakeEnv, KALSHI_DEMO_KEY_ID: undefined, KALSHI_DEMO_PRIVATE_KEY: undefined } as any;
+		const env = {...fakeEnv, KALSHI_DEMO_KEY_ID: undefined, KALSHI_DEMO_PRIVATE_KEY: undefined } as any;
 		// override buildKalshiClientAsync by passing client directly
 		// (we can't easily do this since the cron builds its own client)
 		// For this test, we just confirm "no DB" returns error.
-		const result = await runResearchCron({ ...env, DB: undefined });
+		const result = await runResearchCron({...env, DB: undefined });
 		expect(result.ok).toBe(false);
 		expect(result.error_message).toContain("no DB");
 	});
@@ -174,7 +174,7 @@ describe("research-cron", () => {
 		// Inverted (bid > ask) shouldn't happen but is
 		// guarded.
 		const expectLive = (bid: number, ask: number) =>
-			bid > 0 && ask > 0 && ask > bid ? 1 : 0;
+			bid > 0 && ask > 0 && ask > bid ? 1: 0;
 		expect(expectLive(liveShape.yes_bid_cents, liveShape.yes_ask_cents)).toBe(1);
 		expect(expectLive(oneSidedShape.yes_bid_cents, oneSidedShape.yes_ask_cents)).toBe(0);
 		expect(expectLive(zeroShape.yes_bid_cents, zeroShape.yes_ask_cents)).toBe(0);
@@ -297,7 +297,7 @@ describe("research-cron", () => {
 				universe("U4"),
 				universe("U5"),
 			];
-			const out = sortAndCapSnapshots([...list, ...uni], 7);
+			const out = sortAndCapSnapshots([...list,...uni], 7);
 			expect(out.length).toBe(7);
 			expect(out.filter((m) => m.source === "bot_universe").length).toBe(5);
 			expect(out.filter((m) => m.source === "list").length).toBe(2);

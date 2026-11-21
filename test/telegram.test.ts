@@ -1,5 +1,5 @@
 /**
- * pm-bot — Telegram bridge unit tests.
+ * prediction-market-lab — Telegram bridge unit tests.
  *
  * Verifies the sendMessage wrapper against a mocked fetch.
  * The tests don't need a real bot token; they just assert

@@ -1,5 +1,5 @@
 /**
- * pm-bot — backtest unit tests (chunk 11a).
+ * prediction-market-lab — backtest unit tests.
  *
  * Pins the metrics math for the model retrospective. Pure
  * functions — no I/O, no D1.
@@ -32,7 +32,7 @@ function makeTrade(overrides: Partial<TradeRow> = {}): TradeRow {
 	};
 }
 
-describe("computeBacktestMetrics (chunk 11a)", () => {
+describe("computeBacktestMetrics", () => {
 	const now = 1700000000000;
 	const windowDays = 7;
 	const windowMs = windowDays * 24 * 60 * 60 * 1000;
@@ -115,7 +115,7 @@ describe("computeBacktestMetrics (chunk 11a)", () => {
 	});
 });
 
-describe("metricsSummary (chunk 11a)", () => {
+describe("metricsSummary", () => {
 	it("returns 'no trades in window' for empty metrics", () => {
 		const m = computeBacktestMetrics([], 1700000000000, 7);
 		expect(metricsSummary(m)).toBe("no trades in window");

@@ -1,5 +1,5 @@
 /**
- * pm-bot — manual cron trigger tests (chunk 11+).
+ * prediction-market-lab — manual cron trigger tests.
  *
  * Tests POST /api/pm/cron/{name}/run, the operator-facing
  * endpoint that runs a cron on demand. The endpoint
