@@ -78,7 +78,7 @@ We picked CF because:
    ┌────────────────────┐  ┌──────────────────┐  ┌──────────────┐
    │  CF Pages (later)  │  │  Worker: prediction-market-lab  │  │ 4 Cron Jobs  │
    │  static dashboard  │  │  - /status       │  │ scan 4×/day  │
-   │  (Step 7)         │  │  - /summary      │  │ news 7×/day  │
+   │  ()         │  │  - /summary      │  │ news 7×/day  │
    └────────────────────┘  │  - /trades       │  │ daily 1×/day │
                            │  - DO stub       │  │ train 1×/wk │
                            └────────┬─────────┘  └──────┬───────┘

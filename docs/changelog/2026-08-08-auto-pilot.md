@@ -161,7 +161,7 @@ dashboard validator passes
 
 ### What's next
 
-Step 12: the app-level polish (skeleton loaders, micro-animations,
+: the app-level polish (skeleton loaders, micro-animations,
 empty states, error toast styling, hero typography,
 mobile-responsive sweep, full accessibility audit). These
 are the "make it feel production-quality" items. After

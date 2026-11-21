@@ -209,19 +209,19 @@ curl -X POST -H "content-type: application/json" \
 
 ## What's still TODO (forward work)
 
-- **Step 5 (cron jobs)**: the daily-recap cron reads
+- ** (cron jobs)**: the daily-recap cron reads
   `models` to log the active model version. The
   `/api/pm/cron/{scan,news,daily,train}` endpoints don't
   exist yet.
 
-- **Step 6 (status API + Telegram)**: the live trades
+- ** (status API + Telegram)**: the live trades
   + model_version need to be queryable via the status
   API; the dashboard's per-vertical breakdown shows which
   model is active.
 
-- **Step 8 (model registry + shadow mode + retrain)**: the
+- ** (model registry + shadow mode + retrain)**: the
   `models` D1 table is the source of truth for "active
-  model_version per vertical." Step 8 wires the D1 row
+  model_version per vertical."  wires the D1 row
   into the bot's loadModels() so changing the active
   row flips the running model. The Python
   `train_reversion_quality_model_from_trades` is the

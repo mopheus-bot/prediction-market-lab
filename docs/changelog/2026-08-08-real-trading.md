@@ -93,7 +93,7 @@ gains four fields:
    etc.), the entire fill is aborted — no D1 write, no
    bankroll debit, no position. The local log and the live
    book stay in sync.
-7. When `trading_mode === "paper"`, the existing 
+7. When `trading_mode === "paper"`, the existing
    behavior — just record the D1 row.
 
 The `placeKalshiOrder` helper uses Kalshi's V2 endpoint
@@ -166,7 +166,7 @@ Three new lines:
   helpers (init, single insert, sum multiple, drop stale
   24h+ entries, trim-on-insert, 1000-entry cap, persistence
   round-trip).
-- `test/live-bot.test.ts` — 8 new tests for the step 9
+- `test/live-bot.test.ts` — 8 new tests for the
   endpoints (`/trading-mode` set/validate, `/kill-switch`
   toggle, `/place-test-order` cap enforcement + kill-switch
   refusal, `/status` exposes daily notional counters,
@@ -239,7 +239,7 @@ curl -X POST api/pm/bot/start \
   () is still paper-only. Wiring a shadow to place
   real orders on a candidate model is a + effort
   (multi-tenant risk; needs separate creds + caps).
-- **Live dashboard for trading_mode toggle.** The 
+- **Live dashboard for trading_mode toggle.** The
   dashboard shows the new state (it's just a column on
   `/api/pm/status` / `/api/pm/bot/status`) but doesn't have
   a "flip to real" button yet. A small follow-up; the API

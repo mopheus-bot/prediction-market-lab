@@ -141,5 +141,5 @@ The CF Worker side change is one line: change the WS URL to the relay. Everythin
 
 ### Future steps (queued)
 
-- **Step 11:** Backtest automation cron + auto-pilot real-money logic + per-vertical caps + per-ticker kill switch
-- **Step 12:** the app-level polish (skeleton loaders, micro-animations, empty states, error toast styling, mobile-responsive sweep, full accessibility audit)
+- **:** Backtest automation cron + auto-pilot real-money logic + per-vertical caps + per-ticker kill switch
+- **:** the app-level polish (skeleton loaders, micro-animations, empty states, error toast styling, mobile-responsive sweep, full accessibility audit)

@@ -161,12 +161,12 @@ static page is enough.
   the bot status endpoint, then compute unrealized PnL
   on the client. The UI is already wired.
 - **Charts:** the per-vertical breakdown is a flat table.
-  Step 7+ could add a small inline SVG sparkline per
+  + could add a small inline SVG sparkline per
   vertical. Deferred to keep 's scope tight.
 - **Light mode:** explicitly not planned (the brand is
   dark). The Prediction Market Lab PDF recipe uses light backgrounds
   but the dashboard is a tool, not a document.
 - **Historical views:** the per-vertical + PnL cards show
-  the last 24h. Step 8 (model registry) can add a 7d/30d
+  the last 24h.  (model registry) can add a 7d/30d
   time-range picker;  (real trading toggle) can
   toggle between paper and real PnL.

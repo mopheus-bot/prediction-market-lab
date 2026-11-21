@@ -240,7 +240,8 @@ paths.
 │   ├── RESEARCH-PLAN.md
 │   ├── STRATEGY-PARLAYS.md
 │   └── operations.md
-└── CHANGELOG.md          commit-level history
+├── CHANGELOG.md          commit-level history
+└── REPOSITORY.md         layout, provenance, and a note on the history
 ```
 
 ---

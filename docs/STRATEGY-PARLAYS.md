@@ -160,9 +160,9 @@ handles new listings.
 
 ---
 
-## 4. Phase 1 — Widen verticals + deploy (STEPS)
+## 4. Phase 1 — Widen verticals + deploy
 
-### Step 1.1 — Update the vertical taxonomy
+### Update the vertical taxonomy
 
 **Goal:** the bot's vertical model reflects Kalshi's actual product
 mix, not the original single-event taxonomy.
@@ -224,7 +224,7 @@ handle the new verticals + writing the prefix tests)
 
 ---
 
-### Step 1.2 — Wire the per-vertical distribution into cron artifacts
+### Wire the per-vertical distribution into cron artifacts
 
 **Goal:** every cron run reports how many open Kalshi markets it saw
 in each vertical, surfaced in the cadence / Dev-page artifacts.
@@ -267,7 +267,7 @@ in each vertical, surfaced in the cadence / Dev-page artifacts.
 
 ---
 
-### Step 1.3 — Update the LLM prompt to know about the new verticals
+### Update the LLM prompt to know about the new verticals
 
 **Goal:** the LLM understands `parlay` and `cross_category` and
 behaves correctly — suggests real parlays, doesn't suggest
@@ -307,7 +307,7 @@ verified with the dry-run test)
 
 ---
 
-### Step 1.4 — Update the bot's current universe to use one real ticker
+### Update the bot's current universe to use one real ticker
 
 **Goal:** the bot trades on `KXWARMING-50` (the one real single-event
 market), not on the 4 fictional tickers currently in
@@ -353,7 +353,7 @@ To actually update the running bot, the operator either:
 
 ---
 
-### Step 1.5 — Deploy + monitor
+### Deploy + monitor
 
 **Goal:** the new code is live, the bot is healthy, and we observe
 the per-vertical distribution over the next few cron runs.
@@ -405,7 +405,7 @@ This is the strategic bet. Without a leg-probability model, the bot
 has no edge on the 4,065 sports markets that make up 68% of
 Kalshi's catalog. The shape of Phase 2:
 
-### Step 2.1 — Leg decomposition
+### Leg decomposition
 
 **Goal:** for each parlay market, parse the title into a list of
 legs. A title like "yes Team A,yes Team B,yes Over 7.5" becomes
@@ -422,7 +422,7 @@ legs. A title like "yes Team A,yes Team B,yes Over 7.5" becomes
 **Est. effort:** 2-3 days (parser is straightforward but
 title-formatting is messy)
 
-### Step 2.2 — Probability model
+### Probability model
 
 **Goal:** given a leg, estimate its true resolution probability.
 
@@ -556,7 +556,7 @@ backtested AND the parlay math is validated in production paper
 trading. We don't start (a) until (b) has been backtested
 against held-out data and the edge is real.
 
-### Step 2.3 — Joint probability + edge calculator
+### Joint probability + edge calculator
 
 **Goal:** given N leg probabilities, compute the joint probability
 (assuming independence — a simplification), and compare to
@@ -572,7 +572,7 @@ from Kalshi's quote, the parlay is a candidate.
 
 **Est. effort:** 1-2 weeks
 
-### Step 2.4 — Backtest harness
+### Backtest harness
 
 **Goal:** validate the parlay strategy against historical Kalshi
 resolution data before any live/paper trading.
@@ -585,7 +585,7 @@ resolution data before any live/paper trading.
 
 **Est. effort:** 1 week
 
-### Step 2.5 — Paper trade
+### Paper trade
 
 **Goal:** the bot enters paper trades on mispriced parlays.
 Operator watches for 30 days, then decides if to go real.
@@ -598,7 +598,7 @@ Operator watches for 30 days, then decides if to go real.
 **The 8B model idea is captured here as Phase 2.2 option (b).** It
 remains the right call for "if the external API doesn't work, or
 if we want our own model that we control." The user wanted to make
-sure this option doesn't get lost — it lives in Step 2.2 as the
+sure this option doesn't get lost — it lives  as the
 "if all else fails" path. We don't need to commit to it now; we
 talk sports-data-API costs first and see if option (a) is good
 enough.
@@ -607,7 +607,7 @@ enough.
 > ordering. (a) is the last-resort, not the default. Phase 2
 > total estimate is now ~2 months for the (c)+first-cut-(b)
 > path; ~3-4 months if (b) requires a from-scratch model build
-> (no fine-tuning, no transfer learning). See Step 2.2 for the
+> (no fine-tuning, no transfer learning).  for the
 > full decision rationale.
 
 ---
@@ -628,7 +628,7 @@ single-event markets with the "other legs" as a fee.
 - Apply the existing single-event strategy to the dominant leg
 - Compare backtested P&L to the multi-leg full pricing
 
-**Est. effort:** 1-2 weeks (could be a Step 2.0 before the full
+**Est. effort:** 1-2 weeks (could be a  before the full
 parlay strategy)
 
 **My take:** worth doing only if Phase 2 is taking too long. The

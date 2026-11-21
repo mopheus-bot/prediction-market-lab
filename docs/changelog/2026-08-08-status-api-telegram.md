@@ -136,7 +136,7 @@ Set these via `wrangler secret put` (or as a local
 
 ## Open follow-ups (forward work)
 
-- **Step 7 (dashboard)**: the `public/index.html` reads
+- ** (dashboard)**: the `public/index.html` reads
   the status endpoints to render the live PnL card,
   the per-vertical breakdown, the recent trades/signals
   lists, and the daily recap from R2.
@@ -146,6 +146,6 @@ Set these via `wrangler secret put` (or as a local
   or a dedicated API) would replace the hint-only path.
 - **a secondary IM bridge**: secondary channel for the same
   news + daily summaries.
-- **Step 9 (real trading toggle)**: the news + daily
+- ** (real trading toggle)**: the news + daily
   summaries may want to also include "real money" PnL
   when the live trading is enabled.

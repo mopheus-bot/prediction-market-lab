@@ -122,7 +122,7 @@ BF   ←  Done! Congratulations on your new bot. You will
 ```
 
 **Save that token** (the long `1234567890:...` string)
-— you'll paste it into `wrangler secret put` in step 5.
+— you'll paste it into `wrangler secret put` .
 
 The token format is always: `<bot_id>:<base64-yaml-secret>`. Don't
 commit it. Don't share it. Anyone with the token can fully
@@ -150,11 +150,11 @@ The `/start` is just opening the chat for delivery.)
 
 ### 3d. Get your chat ID (the number prediction-market-lab sends messages to)
 
-The chat ID is the **first thing you'll need in step 5**.
+The chat ID is the **first thing you'll need **.
 Run this once you've sent `/start` to the new bot:
 
 ```bash
-TELEGRAM_BOT_TOKEN="<paste your token from step 3b>"
+TELEGRAM_BOT_TOKEN="<paste your token >"
 curl -sS "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates" \
   | python3 -c "
 import json, sys
@@ -171,8 +171,7 @@ You'll see:
 chat_id = 8032433619  (name: Morgan)
 ```
 
-**Save that number** — it goes into `TELEGRAM_CHAT_ID` in
-step 5.
+**Save that number** — it goes into `TELEGRAM_CHAT_ID` .
 
 > If `result` is `[]`, you forgot to send `/start` in 3c.
 > Re-open the bot in Telegram and send `/start`, then retry.
@@ -214,7 +213,7 @@ cat ~/keys/kalshi-demo.pem        | npx wrangler secret put KALSHI_DEMO_PRIVATE_
 # Telegram
 echo "<TELEGRAM_BOT_TOKEN>" | npx wrangler secret put TELEGRAM_BOT_TOKEN
 
-# Get your chat ID (after /starting the bot in step 3):
+# Get your chat ID (after /starting the bot ):
 TELEGRAM_BOT_TOKEN="<token>" curl -sS \
   "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates" \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['result'][0]['message']['chat']['id'])"
@@ -270,7 +269,7 @@ Take note of the deploy version (e.g. `Version ID: abc123...`).
 
 ```bash
 # Dashboard
-open 
+open
 
 # Health endpoints
 curl -sS api/pm/bot/stage
@@ -322,8 +321,8 @@ curl -sS -X POST api/pm/bot/trading-mode \
 
 | Symptom | Fix |
 |---|---|
-| `KALSHI_DEMO_PRIVATE_KEY not set` (503 on `/api/pm/bot/balance`) | re-run `wrangler secret put KALSHI_DEMO_PRIVATE_KEY` from step 5 |
-| Dashboard shows "Loading cadence..." forever | CF API token missing. Re-run step 5. |
+| `KALSHI_DEMO_PRIVATE_KEY not set` (503 on `/api/pm/bot/balance`) | re-run `wrangler secret put KALSHI_DEMO_PRIVATE_KEY`  |
+| Dashboard shows "Loading cadence..." forever | CF API token missing. Re-run . |
 | Telegram messages not arriving | (a) bot not `/start`ed in Telegram; (b) `TELEGRAM_BOT_TOKEN` wrong; (c) `TELEGRAM_CHAT_ID` wrong |
 | `cf_graphql_query_error: unknown field "cpuTime"` | known stale schema, see [issues tracker](https://github.com//issues) |
 | Bot shows "Connecting..." forever on dashboard | inline JS parse error — check wrangler tail for `pageerror` |

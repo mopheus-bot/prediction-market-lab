@@ -19,7 +19,7 @@ state refresh, full risk envelope, per-ticker state, D1 writes.
   `sim/signal.py:Signal` + `sim/backtester.py:SignalContext`.
 
 - `src/strategy/naive.ts` — `NaiveSignal` (fade moves > 5%).
-  Class form of the legacy `naive_signal` function. The 
+  Class form of the legacy `naive_signal` function. The
   placeholder for the step-4 ONNX models.
 
 - `src/strategy/router.ts` — `VerticalStrategyRouter`. Dispatches on
@@ -108,18 +108,18 @@ handler. All D1 writes scope to `state.user_id`. The
 
 ## What's still TODO (forward work)
 
-- **Step 4 (ONNX models)**: swap `NaiveSignal` for the per-vertical
+- ** (ONNX models)**: swap `NaiveSignal` for the per-vertical
   `ReversionQualitySignal` in `src/strategy/router.ts`. The current
   router API stays the same.
 
-- **Step 5 (cron jobs)**: the daily-recap cron will write a summary
+- ** (cron jobs)**: the daily-recap cron will write a summary
   row. The /api/pm/cron/{scan,news,daily,train} endpoints don't
   exist yet.
 
-- **Step 6 (status API + Telegram)**: Telegram bridge is deferred
+- ** (status API + Telegram)**: Telegram bridge is deferred
   to a separate module that subscribes to the DO's events.
 
-- **Step 7 (dashboard)**: the dashboard currently serves
+- ** (dashboard)**: the dashboard currently serves
   `public/index.html`; the PnL/positions/signals views land in
 .
 

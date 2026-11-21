@@ -113,8 +113,7 @@ is in place:
 ## Why D1 is the source of truth (not the Worker config)
 
 The  design used `config.model_version` from the
-`/start` body. That worked for one model at a time. Step
-8 moves to a per-vertical registry because:
+`/start` body. That worked for one model at a time.  moves to a per-vertical registry because:
 
 - **Multiple verticals, different versions:** the
   weather model can be on v3 while economic is on v2.
@@ -174,7 +173,7 @@ notion of "one model per vertical" is preserved.)
 
 - **Shadow bot full loop:** the step-8 ShadowBot
   ships the start / stop / status endpoints but the
-  WS + signal comparison loop is deferred. Step 8+
+  WS + signal comparison loop is deferred. +
   adds the WS subscriber, the candidate model runner,
   and the `signals` write with `source='shadow'`.
 - **Dashboard models tab:** the per-vertical breakdown
@@ -187,7 +186,7 @@ notion of "one model per vertical" is preserved.)
   R2 upload in one go is a + addition.
 - **Promotion metrics:** the `train_metrics_json` field
   is captured at register time but the dashboard
-  doesn't render it. Step 8+ adds a side-by-side
+  doesn't render it. + adds a side-by-side
   comparison card (live vs shadow) on the models tab.
 - **Real trading toggle:** the model
   registry stays the same;  adds the

@@ -7,7 +7,7 @@ the auto-retrain pipeline, and stabilized the data pipeline.
 Bot universe went from 44 → 49+ in the first 10 minutes
 of the final deploy; LLM call rate 5x (90/hr → 450/hr).
 
-## Step 15 — 17-vertical taxonomy expansion (commit `fe56af9`)
+## 17-vertical taxonomy expansion (commit `fe56af9`)
 
 **User ask:** "expand coverage to include all 17 verticals,
 let the bot settle in (full immediate auto circle). We'll
@@ -47,7 +47,7 @@ real tradeable surface.
 new 17-vertical behavior (cron test, strategy test, leads-scout
 test, verticals test). 270/270 pass.
 
-## Step 15.1 — research-cron scope fix (commits `5cc7c15`, `16774bb`)
+## research-cron scope fix (commits `5cc7c15`, `16774bb`)
 
 The research cron had been timing out at the 30s Worker
 wall-clock limit since 01:10 (no `cron_run` row because the
@@ -64,7 +64,7 @@ strategies explicitly don't price.
 
 Wall-clock: 6s (LIST) + 20s (GETs) = 26s. Plenty of headroom.
 
-## Step 15.2 — LLM cron fixes (commits `78b6f1b`, `149449a`, `8b3ad9f`, `7038453`, `2cee7eb`)
+## LLM cron fixes (commits `78b6f1b`, `149449a`, `8b3ad9f`, `7038453`, `2cee7eb`)
 
 The LLM cron had a stack of related issues that the user
 surfaced one at a time. "Why is the bot not trading if it's
@@ -106,7 +106,7 @@ being exposed to anything."
 - `src/cron/dispatcher.ts` — added `__freshDiscovery` to
   `CronEnv` for runtime market lookup
 
-## Step 15.3 — auto-retrain pipeline (commits `a1ca299`, `2c2634c`, `9cfa3d5`)
+## auto-retrain pipeline (commits `a1ca299`, `2c2634c`, `9cfa3d5`)
 
 **User ask:** "wire the auto-retrain." Previously: user runs
 the Python trainer, converts to JSON, uploads to R2, train-cron
@@ -141,7 +141,7 @@ verticals (paper bot has 18 trades on KXWARMING-50 in 7 days,
 need 30+ for the reversion label). Pipeline is ready; will
 produce models as data accumulates.
 
-## Step 15.4 — LLM-PIPELINE Bug A fix (commit `6d1f87b`)
+## LLM-PIPELINE Bug A fix (commit `6d1f87b`)
 
 The LLM was hallucinating on parlay markets because the
 prompt only had the market's title. For a 22-leg parlay

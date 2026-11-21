@@ -119,7 +119,7 @@ wrangler deploy succeeds
 
 ### What's next
 
-Step 11b: auto-pilot real money + per-vertical caps +
+: auto-pilot real money + per-vertical caps +
 per-ticker kill switch. Auto-pilot stays OFF by default
 (operator opts in via env var). Per-vertical caps cap
 spending per vertical (weather, economic, politics,

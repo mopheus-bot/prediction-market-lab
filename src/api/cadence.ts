@@ -327,7 +327,7 @@ export async function handleCadence(env: CadenceEnv, _url: URL): Promise<Respons
 		services.push({
 			id: "llm",
 			name: "LLM calls",
-			description: "Daily recap, news verdicts, and (in) backtest summaries.",
+			description: "Daily recap, news verdicts, and backtest summaries.",
 			category: "llm",
 			status,
 			last_ran_ms,
